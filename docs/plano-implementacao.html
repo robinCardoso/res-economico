@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Plano de Implementação - Resultado Econômico</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem auto;
+        max-width: 960px;
+        line-height: 1.6;
+        color: #1a202c;
+      }
+      h1,
+      h2,
+      h3 {
+        color: #2c5282;
+      }
+      code {
+        font-family: Consolas, Monaco, "Courier New", monospace;
+        background-color: #f1f5f9;
+        padding: 0 0.25rem;
+        border-radius: 4px;
+      }
+      ul {
+        padding-left: 1.25rem;
+      }
+      header,
+      section {
+        margin-bottom: 2.5rem;
+      }
+      .tag {
+        display: inline-block;
+        padding: 0.1rem 0.5rem;
+        margin-right: 0.5rem;
+        border-radius: 999px;
+        background-color: #bee3f8;
+        color: #2b6cb0;
+        font-size: 0.85rem;
+      }
+      .status {
+        font-weight: bold;
+        color: #2f855a;
+      }
+      footer {
+        font-size: 0.85rem;
+        color: #4a5568;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Plano de Implementação - Sistema de Resultado Econômico</h1>
+      <p>
+        Documento de referência para o desenvolvimento do sistema de resultado
+        econômico com base no arquivo
+        <code>Balancete Consolidado 2025.xls</code>. Status atual:
+        <span class="status">planejamento concluído</span>.
+      </p>
+    </header>
+
+    <section>
+      <h2>Visão Geral</h2>
+      <ul>
+        <li>PWA instalável com operação offline e sincronização quando online.</li>
+        <li>
+          Importação de planilhas Excel configurável (usuário define mapeamentos
+          e campos dinâmicos).
+        </li>
+        <li>
+          Detecção automática de divergências de saldo, novas contas e alterações
+          em relação a importações anteriores.
+        </li>
+        <li>Push notifications e e-mails (Resend) para alertas e atualizações.</li>
+        <li>
+          Integração com Groq (modelos de baixo custo) para análises assistidas.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Arquitetura &amp; Infraestrutura</h2>
+      <h3>Frontend</h3>
+      <ul>
+        <li><span class="tag">Framework</span>Next.js (React + TypeScript)</li>
+        <li><span class="tag">Estado</span>@tanstack/query, Zustand</li>
+        <li><span class="tag">Formulários</span>React Hook Form + Zod</li>
+        <li><span class="tag">UI</span>Tailwind CSS (ou outra biblioteca utilitária)</li>
+        <li><span class="tag">PWA</span>next-pwa, Workbox, IndexedDB via Dexie</li>
+        <li><span class="tag">Excel</span>SheetJS (xlsx) para parsing e preview</li>
+      </ul>
+
+      <h3>Backend</h3>
+      <ul>
+        <li><span class="tag">Framework</span>NestJS (Node.js + TypeScript)</li>
+        <li><span class="tag">Banco</span>PostgreSQL com Prisma ORM</li>
+        <li><span class="tag">Fila</span>BullMQ + Redis para processamento assíncrono</li>
+        <li><span class="tag">Storage</span>Supabase Storage para arquivos brutos</li>
+        <li><span class="tag">Notificações</span>Resend (e-mail) e Firebase/OneSignal (push)</li>
+        <li><span class="tag">IA</span>Cliente HTTP para Groq API</li>
+      </ul>
+
+      <h3>DevOps &amp; Hospedagem</h3>
+      <ul>
+        <li><span class="tag">Frontend</span>Vercel</li>
+        <li><span class="tag">Backend</span>Container Docker (Render/Fly.io ou VPS)</li>
+        <li><span class="tag">CI/CD</span>GitHub Actions (lint, test, build, deploy)</li>
+        <li><span class="tag">Monitoramento</span>Sentry, logs estruturados com Pino</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Modelo de Dados Proposto</h2>
+      <ul>
+        <li><strong>empresa</strong>: cnpj, razão social.</li>
+        <li><strong>filial</strong>: vínculo com empresa, código interno.</li>
+        <li>
+          <strong>template_importacao</strong>: mapeamentos dinâmicos e opções
+          de parsing.
+        </li>
+        <li>
+          <strong>upload</strong>: metadados do arquivo (filial, período, hash,
+          status).
+        </li>
+        <li>
+          <strong>linha_upload</strong>: dados da planilha (classificação, conta,
+          saldos) + hash por linha.
+        </li>
+        <li>
+          <strong>conta_catalogo</strong>: cadastro de contas, indicando novas
+          ocorrências.
+        </li>
+        <li>
+          <strong>alerta</strong>: divergências de saldo, contas novas, dados
+          inconsistentes.
+        </li>
+        <li>
+          <strong>log_auditoria</strong>: histórico de ações (inclusão, edição,
+          remoção).
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Fluxo de Importação</h2>
+      <ol>
+        <li>
+          Usuário faz upload do Excel → pré-visualização com SheetJS e seleção
+          de template.
+        </li>
+        <li>
+          Arquivo é enviado ao backend, armazenado no Supabase Storage e
+          registrado em <code>upload</code>.
+        </li>
+        <li>
+          Worker processa linhas: converte valores, calcula hash, valida saldo
+          (<code>saldo anterior + débito - crédito</code> vs. <code>saldo
+          atual</code>).
+        </li>
+        <li>
+          Identifica contas novas ou alterações em relação ao catálogo existente.
+        </li>
+        <li>
+          Gera alertas, atualiza status e dispara notificações (push/e-mail).
+        </li>
+        <li>
+          Usuário acessa detalhes do upload, pode editar/remover linhas, marcar
+          alertas como resolvidos ou reprocessar.
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Páginas Principais (Next.js)</h2>
+      <ul>
+        <li><strong>/login</strong>: autenticação e aviso de modo offline.</li>
+        <li>
+          <strong>/dashboard</strong>: KPIs, últimos uploads, alertas recentes.
+        </li>
+        <li>
+          <strong>/uploads</strong>: listagem, filtros, ações de download,
+          reprocesso e exclusão.
+        </li>
+        <li>
+          <strong>/uploads/novo</strong>: wizard de importação com preview.
+        </li>
+        <li>
+          <strong>/uploads/&lt;id&gt;</strong>: detalhes, diffs, edição de linhas.
+        </li>
+        <li>
+          <strong>/alertas</strong>: painel dedicado aos alertas e workflow.
+        </li>
+        <li>
+          <strong>/templates</strong>: CRUD de templates de importação.
+        </li>
+        <li>
+          <strong>/contas</strong>: catálogo consolidado e gestão de novas contas.
+        </li>
+        <li>
+          <strong>/relatorios</strong>: análises Groq e histórico de consultas.
+        </li>
+        <li>
+          <strong>/configuracoes</strong>: empresa, filiais, usuários,
+          integrações, preferências de notificação.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Dependências Principais</h2>
+      <h3>Frontend (Next.js)</h3>
+      <ul>
+        <li>next, react, react-dom, typescript</li>
+        <li>@tanstack/react-query, zustand, react-hook-form, zod</li>
+        <li>tailwindcss, @headlessui/react (ou biblioteca de UI preferida)</li>
+        <li>xlsx (SheetJS), dexie, axios</li>
+        <li>next-pwa, workbox-window</li>
+        <li>firebase/app e firebase/messaging ou onesignal</li>
+        <li>dayjs/date-fns, intl para formatos numéricos brasileiros</li>
+        <li>vitest/jest, @testing-library/react, cypress</li>
+      </ul>
+
+      <h3>Backend (NestJS)</h3>
+      <ul>
+        <li>@nestjs/core, @nestjs/common, @nestjs/config</li>
+        <li>prisma, @prisma/client, class-validator, class-transformer</li>
+        <li>@nestjs/passport, passport-jwt, bcrypt</li>
+        <li>@supabase/supabase-js, multer</li>
+        <li>bullmq, @nestjs/bull, ioredis</li>
+        <li>xlsx/csv-parse para parsing adicional</li>
+        <li>resend, firebase-admin ou onesignal-node</li>
+        <li>axios (Groq), pino/@nestjs/pino, sentry</li>
+        <li>jest, supertest</li>
+      </ul>
+
+      <h3>Ferramentas DevOps</h3>
+      <ul>
+        <li>GitHub Actions para pipelines de lint, test e deploy.</li>
+        <li>Docker, docker-compose (PostgreSQL + Redis + backend).</li>
+        <li>eslint, prettier, lint-staged, husky, commitlint.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Backlog Prioritário</h2>
+      <ol>
+        <li>Configurar repositório GitHub com monorepo (frontend + backend).</li>
+        <li>Bootstrap Next.js (PWA) e NestJS com Prisma conectando ao PostgreSQL.</li>
+        <li>Implementar CRUD de templates e fluxo de upload com pré-visualização.</li>
+        <li>Criar pipeline de processamento e geração de alertas (saldo, contas novas).</li>
+        <li>Adicionar notificações (push + e-mail) e histórico de auditoria.</li>
+        <li>Integrar Groq para análises de relatórios e insights.</li>
+        <li>Entrega de dashboards e recursos avançados (comparativos, diffs, edição).</li>
+      </ol>
+    </section>
+
+    <footer>
+      <p>
+        Última atualização:
+        <time datetime="2025-11-12">12 de novembro de 2025</time>. Documento
+        concluído para referência do time.
+      </p>
+    </footer>
+  </body>
+</html>
+
