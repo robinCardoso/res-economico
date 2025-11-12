@@ -1,0 +1,164 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Empresa {
+  id          String    @id @default(uuid())
+  cnpj        String    @unique
+  razaoSocial String
+  filiais     Filial[]
+  templates   TemplateImportacao[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Filial {
+  id        String   @id @default(uuid())
+  empresaId String
+  codigo    String
+  nome      String
+  uploads   Upload[]
+  contas    ContaCatalogo[]
+  templates TemplateImportacao[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+}
+
+model TemplateImportacao {
+  id           String   @id @default(uuid())
+  empresaId    String
+  filialId     String?
+  nome         String
+  descricao    String?
+  configuracao Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  empresa      Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  filial       Filial?  @relation(fields: [filialId], references: [id], onDelete: SetNull)
+  uploads      Upload[]
+}
+
+model Upload {
+  id           String        @id @default(uuid())
+  filialId     String
+  templateId   String?
+  mes          Int
+  ano          Int
+  arquivoUrl   String
+  hashArquivo  String
+  status       UploadStatus  @default(PROCESSANDO)
+  totalLinhas  Int
+  alertas      Alerta[]
+  linhas       LinhaUpload[]
+  createdBy    String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  filial       Filial        @relation(fields: [filialId], references: [id], onDelete: Cascade)
+  template     TemplateImportacao? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+}
+
+model LinhaUpload {
+  id              String   @id @default(uuid())
+  uploadId        String
+  classificacao   String
+  conta           String
+  subConta        String?
+  nomeConta       String
+  tipoConta       String
+  nivel           Int
+  titulo          Boolean
+  estabelecimento Boolean
+  saldoAnterior   Decimal  @db.Decimal(18, 2)
+  debito          Decimal  @db.Decimal(18, 2)
+  credito         Decimal  @db.Decimal(18, 2)
+  saldoAtual      Decimal  @db.Decimal(18, 2)
+  hashLinha       String
+  createdAt       DateTime @default(now())
+
+  upload          Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  alertas         Alerta[]
+}
+
+model ContaCatalogo {
+  id                String      @id @default(uuid())
+  filialId          String
+  classificacao     String
+  nomeConta         String
+  tipoConta         String
+  nivel             Int
+  primeiraImportacao DateTime   @default(now())
+  ultimaImportacao   DateTime   @default(now())
+  status            ContaStatus @default(ATIVA)
+
+  filial            Filial      @relation(fields: [filialId], references: [id], onDelete: Cascade)
+}
+
+model Alerta {
+  id         String         @id @default(uuid())
+  uploadId   String
+  linhaId    String?
+  tipo       AlertaTipo
+  severidade AlertaSeveridade
+  mensagem   String
+  status     AlertaStatus    @default(ABERTO)
+  createdAt  DateTime        @default(now())
+  resolvedAt DateTime?
+
+  upload     Upload          @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  linha      LinhaUpload?    @relation(fields: [linhaId], references: [id], onDelete: SetNull)
+}
+
+model LogAuditoria {
+  id        String   @id @default(uuid())
+  recurso   String
+  acao      String
+  usuarioId String
+  dados     Json
+  createdAt DateTime @default(now())
+}
+
+enum UploadStatus {
+  PROCESSANDO
+  CONCLUIDO
+  COM_ALERTAS
+  CANCELADO
+}
+
+enum AlertaTipo {
+  SALDO_DIVERGENTE
+  CONTA_NOVA
+  DADO_INCONSISTENTE
+}
+
+enum AlertaSeveridade {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum AlertaStatus {
+  ABERTO
+  EM_ANALISE
+  RESOLVIDO
+}
+
+enum ContaStatus {
+  ATIVA
+  NOVA
+  ARQUIVADA
+}
