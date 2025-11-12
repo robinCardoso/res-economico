@@ -1,41 +1,48 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Workbox } from 'workbox-window';
+import { useEffect, useState } from "react";
+import { Workbox } from "workbox-window";
+import type { WorkboxLifecycleWaitingEvent } from "workbox-window/utils/WorkboxEvent";
 
 export const PwaUpdater = () => {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !('serviceWorker' in navigator) || process.env.NODE_ENV === 'development') {
+    if (
+      typeof window === "undefined" ||
+      !("serviceWorker" in navigator) ||
+      process.env.NODE_ENV === "development"
+    ) {
       return;
     }
 
-    const wb = new Workbox('/sw.js');
+    const wb = new Workbox("/sw.js");
 
-    const handleWaiting = () => {
-      if (wb && wb.waiting) {
-        setWaitingWorker(wb.waiting);
-        setShowPrompt(true);
-      }
+    const handleWaiting = (event: WorkboxLifecycleWaitingEvent) => {
+      setWaitingWorker(event.sw ?? null);
+      setShowPrompt(true);
     };
 
-    wb.addEventListener('waiting', handleWaiting);
-    wb.addEventListener('externalwaiting', handleWaiting);
+    const handleExternalWaiting = (event: Event) => {
+      handleWaiting(event as unknown as WorkboxLifecycleWaitingEvent);
+    };
+
+    wb.addEventListener("waiting", handleWaiting);
+    (wb as unknown as EventTarget).addEventListener("externalwaiting", handleExternalWaiting);
 
     wb.register().catch((error) => {
-      console.error('Erro ao registrar service worker', error);
+      console.error("Erro ao registrar service worker", error);
     });
 
     return () => {
-      wb.removeEventListener('waiting', handleWaiting);
-      wb.removeEventListener('externalwaiting', handleWaiting);
+      wb.removeEventListener("waiting", handleWaiting);
+      (wb as unknown as EventTarget).removeEventListener("externalwaiting", handleExternalWaiting);
     };
   }, []);
 
   const handleUpdate = () => {
-    waitingWorker?.postMessage({ type: 'SKIP_WAITING' });
+    waitingWorker?.postMessage({ type: "SKIP_WAITING" });
     setShowPrompt(false);
     window.location.reload();
   };
