@@ -70,20 +70,97 @@ export class ExcelProcessorService {
       const sheetName = workbook.SheetNames[0]; // Primeira aba
       const worksheet = workbook.Sheets[sheetName];
 
-      // Converter para JSON (primeira linha como cabeçalho)
+      // Converter para array de arrays (mantém estrutura original)
       const rawData = XLSX.utils.sheet_to_json(worksheet, { 
         raw: false,
-        defval: '', // Valor padrão para células vazias
+        defval: null, // null para células vazias (não string vazia)
+        header: 1, // Primeira linha como array de valores
+      }) as any[][];
+
+      // Log para debug - verificar estrutura
+      this.logger.log(`Total de linhas no Excel: ${rawData.length}`);
+      
+      // Encontrar a primeira linha que parece ser cabeçalho (tem texto, não números)
+      let headerRowIndex = 0;
+      for (let i = 0; i < Math.min(5, rawData.length); i++) {
+        const row = rawData[i];
+        if (Array.isArray(row)) {
+          // Verificar se a linha tem pelo menos 3 células com texto (não números)
+          const textCells = row.filter((cell: any) => {
+            if (cell === null || cell === undefined || cell === '') return false;
+            const str = String(cell).trim();
+            // Se for texto (não número puro) e tiver mais de 2 caracteres
+            return isNaN(Number(str)) && str.length > 2;
+          });
+          if (textCells.length >= 3) {
+            headerRowIndex = i;
+            this.logger.log(`Cabeçalho encontrado na linha ${i + 1}`);
+            break;
+          }
+        }
+      }
+
+      if (rawData.length === 0) {
+        throw new Error('Arquivo Excel está vazio');
+      }
+
+      const headers = rawData[headerRowIndex] as any[];
+      this.logger.log(`Cabeçalhos detectados (linha ${headerRowIndex + 1}): ${JSON.stringify(headers)}`);
+
+      // Limpar e normalizar cabeçalhos
+      const cleanHeaders = headers.map((h, idx) => {
+        if (h === null || h === undefined || h === '') {
+          return `Coluna_${idx + 1}`;
+        }
+        return String(h).trim();
       });
+
+      this.logger.log(`Cabeçalhos limpos: ${JSON.stringify(cleanHeaders)}`);
+
+      // Converter linhas de dados para objetos (pular linha do cabeçalho)
+      const dataRows = rawData.slice(headerRowIndex + 1)
+        .filter((row: any[]) => {
+          // Filtrar linhas completamente vazias
+          return Array.isArray(row) && row.some((cell: any) => cell !== null && cell !== undefined && cell !== '');
+        })
+        .map((row: any[]) => {
+          const obj: any = {};
+          cleanHeaders.forEach((header, index) => {
+            const value = row[index];
+            // Manter null/undefined como está, mas converter strings vazias para null
+            obj[header] = (value === '' || value === undefined) ? null : value;
+          });
+          return obj;
+        });
+
+      this.logger.log(`Total de linhas de dados: ${dataRows.length}`);
+      if (dataRows.length > 0) {
+        this.logger.log(`Primeira linha de dados: ${JSON.stringify(dataRows[0])}`);
+      }
 
       // Obter mapeamento de colunas (template ou padrão ou auto-detect)
       const mapping = this.getColumnMapping(
         upload.template?.configuracao as any,
-        rawData.length > 0 ? rawData[0] : {},
+        dataRows.length > 0 ? dataRows[0] : {},
+        cleanHeaders,
       );
 
+      this.logger.log(`Mapeamento de colunas: ${JSON.stringify(mapping)}`);
+      
+      // Verificar se todas as colunas mapeadas existem nos dados
+      if (dataRows.length > 0) {
+        const firstRow = dataRows[0];
+        Object.entries(mapping).forEach(([key, colName]) => {
+          if (colName && firstRow[colName] === undefined) {
+            this.logger.warn(`Coluna mapeada "${colName}" (${key}) não encontrada na primeira linha. Chaves disponíveis: ${Object.keys(firstRow).join(', ')}`);
+          } else if (colName) {
+            this.logger.log(`Coluna "${colName}" (${key}) = "${firstRow[colName]}"`);
+          }
+        });
+      }
+
       // Processar linhas
-      const linhas = this.parseRows(rawData, mapping);
+      const linhas = this.parseRows(dataRows, mapping);
       this.logger.log(`Processadas ${linhas.length} linhas do arquivo`);
 
       // Validar e criar registros
@@ -130,67 +207,92 @@ export class ExcelProcessorService {
   /**
    * Obtém o mapeamento de colunas do template ou usa padrão/auto-detect
    */
-  private getColumnMapping(templateConfig?: any, firstRow?: any): TemplateMapping {
+  private getColumnMapping(templateConfig?: any, firstRow?: any, headers?: string[]): TemplateMapping {
     if (templateConfig?.columnMapping) {
       return templateConfig.columnMapping;
     }
 
-    // Tentar auto-detectar colunas baseado nos nomes das colunas
-    if (firstRow) {
-      const columnNames = Object.keys(firstRow);
-      const mapping: TemplateMapping = {};
+    // Usar headers se disponível, senão usar keys do firstRow
+    const columnNames = headers || (firstRow ? Object.keys(firstRow) : []);
+    const mapping: TemplateMapping = {};
 
-      // Mapear por palavras-chave (case-insensitive)
-      for (const colName of columnNames) {
-        const colLower = colName.toLowerCase().trim();
-        
-        if (colLower.includes('classificação') || colLower.includes('classificacao')) {
-          mapping.classificacao = colName;
-        } else if (colLower.includes('conta') && !colLower.includes('sub') && !colLower.includes('nome')) {
-          mapping.conta = colName;
-        } else if (colLower.includes('sub') && colLower.includes('conta')) {
-          mapping.subConta = colName;
-        } else if (colLower.includes('nome') && colLower.includes('conta')) {
-          mapping.nomeConta = colName;
-        } else if (colLower.includes('tipo')) {
-          mapping.tipoConta = colName;
-        } else if (colLower.includes('nível') || colLower.includes('nivel')) {
-          mapping.nivel = colName;
-        } else if (colLower.includes('título') || colLower.includes('titulo')) {
-          mapping.titulo = colName;
-        } else if (colLower.includes('estabelecimento')) {
-          mapping.estabelecimento = colName;
-        } else if (colLower.includes('saldo') && colLower.includes('anterior')) {
-          mapping.saldoAnterior = colName;
-        } else if (colLower.includes('débito') || colLower.includes('debito')) {
-          mapping.debito = colName;
-        } else if (colLower.includes('crédito') || colLower.includes('credito')) {
-          mapping.credito = colName;
-        } else if (colLower.includes('saldo') && (colLower.includes('atual') || colLower.includes('final'))) {
-          mapping.saldoAtual = colName;
-        }
+    // Mapear por palavras-chave (case-insensitive)
+    for (const colName of columnNames) {
+      if (!colName) continue;
+      
+      const colLower = colName.toLowerCase().trim();
+      
+      // Classificação - pode ter acento ou não
+      if ((colLower.includes('classificação') || colLower.includes('classificacao')) && !mapping.classificacao) {
+        mapping.classificacao = colName;
       }
-
-      // Se encontrou pelo menos alguns campos, usar o mapeamento auto-detectado
-      if (Object.keys(mapping).length >= 3) {
-        return mapping;
+      // Conta - mas não "Sub Conta" ou "Nome da Conta"
+      else if (colLower.includes('conta') && !colLower.includes('sub') && !colLower.includes('nome') && !colLower.includes('título') && !colLower.includes('titulo') && !mapping.conta) {
+        mapping.conta = colName;
+      }
+      // Sub Conta
+      else if ((colLower.includes('sub') || colLower === 'sub') && !mapping.subConta) {
+        mapping.subConta = colName;
+      }
+      // Nome da conta
+      else if (colLower.includes('nome') && (colLower.includes('conta') || colLower.includes('contábil')) && !mapping.nomeConta) {
+        mapping.nomeConta = colName;
+      }
+      // Tipo conta
+      else if (colLower.includes('tipo') && colLower.includes('conta') && !mapping.tipoConta) {
+        mapping.tipoConta = colName;
+      }
+      // Nível
+      else if ((colLower.includes('nível') || colLower.includes('nivel')) && !mapping.nivel) {
+        mapping.nivel = colName;
+      }
+      // Cta. título ou Título
+      else if ((colLower.includes('título') || colLower.includes('titulo') || colLower.includes('cta. título')) && !mapping.titulo) {
+        mapping.titulo = colName;
+      }
+      // Estabelecimento ou Estab.
+      else if ((colLower.includes('estabelecimento') || colLower.includes('estab.')) && !mapping.estabelecimento) {
+        mapping.estabelecimento = colName;
+      }
+      // Saldo anterior
+      else if (colLower.includes('saldo') && colLower.includes('anterior') && !mapping.saldoAnterior) {
+        mapping.saldoAnterior = colName;
+      }
+      // Débito
+      else if ((colLower.includes('débito') || colLower.includes('debito')) && !mapping.debito) {
+        mapping.debito = colName;
+      }
+      // Crédito
+      else if ((colLower.includes('crédito') || colLower.includes('credito')) && !mapping.credito) {
+        mapping.credito = colName;
+      }
+      // Saldo atual
+      else if (colLower.includes('saldo') && (colLower.includes('atual') || colLower.includes('final')) && !mapping.saldoAtual) {
+        mapping.saldoAtual = colName;
       }
     }
 
+    // Se encontrou pelo menos alguns campos, usar o mapeamento auto-detectado
+    if (Object.keys(mapping).length >= 3) {
+      this.logger.log(`Auto-detecção encontrou ${Object.keys(mapping).length} colunas mapeadas`);
+      return mapping;
+    }
+
     // Mapeamento padrão baseado no formato esperado do balancete
+    this.logger.log('Usando mapeamento padrão');
     return {
       classificacao: 'Classificação',
       conta: 'Conta',
-      subConta: 'Sub Conta',
-      nomeConta: 'Nome da Conta',
-      tipoConta: 'Tipo',
+      subConta: 'Sub',
+      nomeConta: 'Nome da conta contábil/C. Custo',
+      tipoConta: 'Tipo conta',
       nivel: 'Nível',
-      titulo: 'Título',
-      estabelecimento: 'Estabelecimento',
-      saldoAnterior: 'Saldo Anterior',
+      titulo: 'Cta. título',
+      estabelecimento: 'Estab.',
+      saldoAnterior: 'Saldo anterior',
       debito: 'Débito',
       credito: 'Crédito',
-      saldoAtual: 'Saldo Atual',
+      saldoAtual: 'Saldo atual',
     };
   }
 
@@ -198,45 +300,53 @@ export class ExcelProcessorService {
    * Parse das linhas do Excel para o formato esperado
    */
   private parseRows(rawData: any[], mapping: TemplateMapping): ExcelRow[] {
-    return rawData.map((row) => {
+    return rawData.map((row, index) => {
       const parsed: ExcelRow = {};
 
-      // Mapear colunas
-      if (mapping.classificacao && row[mapping.classificacao]) {
+      // Mapear colunas - verificar se a chave existe no objeto
+      if (mapping.classificacao && row[mapping.classificacao] !== undefined && row[mapping.classificacao] !== null && row[mapping.classificacao] !== '') {
         parsed.classificacao = String(row[mapping.classificacao]).trim();
       }
-      if (mapping.conta && row[mapping.conta]) {
+      if (mapping.conta && row[mapping.conta] !== undefined && row[mapping.conta] !== null && row[mapping.conta] !== '') {
         parsed.conta = String(row[mapping.conta]).trim();
       }
-      if (mapping.subConta && row[mapping.subConta]) {
+      if (mapping.subConta && row[mapping.subConta] !== undefined && row[mapping.subConta] !== null && row[mapping.subConta] !== '') {
         parsed.subConta = String(row[mapping.subConta]).trim();
       }
-      if (mapping.nomeConta && row[mapping.nomeConta]) {
+      if (mapping.nomeConta && row[mapping.nomeConta] !== undefined && row[mapping.nomeConta] !== null && row[mapping.nomeConta] !== '') {
         parsed.nomeConta = String(row[mapping.nomeConta]).trim();
       }
-      if (mapping.tipoConta && row[mapping.tipoConta]) {
+      if (mapping.tipoConta && row[mapping.tipoConta] !== undefined && row[mapping.tipoConta] !== null && row[mapping.tipoConta] !== '') {
         parsed.tipoConta = String(row[mapping.tipoConta]).trim();
       }
-      if (mapping.nivel && row[mapping.nivel]) {
-        parsed.nivel = this.parseNumber(row[mapping.nivel]);
+      if (mapping.nivel && row[mapping.nivel] !== undefined && row[mapping.nivel] !== null && row[mapping.nivel] !== '') {
+        // Nível pode ser "1" ou "1-Sim" ou "2-Não" - extrair apenas o número
+        const nivelValue = String(row[mapping.nivel]).trim();
+        const nivelMatch = nivelValue.match(/^(\d+)/);
+        parsed.nivel = nivelMatch ? parseInt(nivelMatch[1], 10) : this.parseNumber(nivelValue);
       }
-      if (mapping.titulo && row[mapping.titulo] !== undefined) {
+      if (mapping.titulo && row[mapping.titulo] !== undefined && row[mapping.titulo] !== null && row[mapping.titulo] !== '') {
         parsed.titulo = this.parseBoolean(row[mapping.titulo]);
       }
-      if (mapping.estabelecimento && row[mapping.estabelecimento] !== undefined) {
+      if (mapping.estabelecimento && row[mapping.estabelecimento] !== undefined && row[mapping.estabelecimento] !== null && row[mapping.estabelecimento] !== '') {
         parsed.estabelecimento = this.parseBoolean(row[mapping.estabelecimento]);
       }
-      if (mapping.saldoAnterior && row[mapping.saldoAnterior] !== undefined) {
+      if (mapping.saldoAnterior && row[mapping.saldoAnterior] !== undefined && row[mapping.saldoAnterior] !== null && row[mapping.saldoAnterior] !== '') {
         parsed.saldoAnterior = this.parseDecimal(row[mapping.saldoAnterior]);
       }
-      if (mapping.debito && row[mapping.debito] !== undefined) {
+      if (mapping.debito && row[mapping.debito] !== undefined && row[mapping.debito] !== null && row[mapping.debito] !== '') {
         parsed.debito = this.parseDecimal(row[mapping.debito]);
       }
-      if (mapping.credito && row[mapping.credito] !== undefined) {
+      if (mapping.credito && row[mapping.credito] !== undefined && row[mapping.credito] !== null && row[mapping.credito] !== '') {
         parsed.credito = this.parseDecimal(row[mapping.credito]);
       }
-      if (mapping.saldoAtual && row[mapping.saldoAtual] !== undefined) {
+      if (mapping.saldoAtual && row[mapping.saldoAtual] !== undefined && row[mapping.saldoAtual] !== null && row[mapping.saldoAtual] !== '') {
         parsed.saldoAtual = this.parseDecimal(row[mapping.saldoAtual]);
+      }
+
+      // Log da primeira linha para debug
+      if (index === 0) {
+        this.logger.log(`Primeira linha parseada: ${JSON.stringify(parsed)}`);
       }
 
       return parsed;
@@ -449,24 +559,58 @@ export class ExcelProcessorService {
   }
 
   /**
-   * Converte valor para número
+   * Converte valor para número (formato brasileiro: 1.234,56)
    */
   private parseNumber(value: any): number | undefined {
     if (value === null || value === undefined || value === '') {
       return undefined;
     }
-    const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/[^\d.-]/g, ''));
+    
+    if (typeof value === 'number') {
+      return value;
+    }
+
+    const str = String(value).trim();
+    if (!str) {
+      return undefined;
+    }
+
+    // Formato brasileiro: ponto para milhar, vírgula para decimal
+    // Exemplo: "1.797.148,78" ou "-3.197.869,88"
+    const isNegative = str.startsWith('-');
+    let cleaned = str.replace(/\./g, ''); // Remove pontos (separadores de milhar)
+    cleaned = cleaned.replace(',', '.'); // Substitui vírgula por ponto (separador decimal)
+    cleaned = cleaned.replace(/[^\d.-]/g, ''); // Remove outros caracteres não numéricos
+    
+    const num = parseFloat(cleaned);
     return isNaN(num) ? undefined : num;
   }
 
   /**
-   * Converte valor para decimal
+   * Converte valor para decimal (formato brasileiro: 1.234,56)
    */
   private parseDecimal(value: any): number {
     if (value === null || value === undefined || value === '') {
       return 0;
     }
-    const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/[^\d.-]/g, ''));
+    
+    if (typeof value === 'number') {
+      return value;
+    }
+
+    const str = String(value).trim();
+    if (!str) {
+      return 0;
+    }
+
+    // Formato brasileiro: ponto para milhar, vírgula para decimal
+    // Exemplo: "1.797.148,78" ou "-3.197.869,88"
+    const isNegative = str.startsWith('-');
+    let cleaned = str.replace(/\./g, ''); // Remove pontos (separadores de milhar)
+    cleaned = cleaned.replace(',', '.'); // Substitui vírgula por ponto (separador decimal)
+    cleaned = cleaned.replace(/[^\d.-]/g, ''); // Remove outros caracteres não numéricos
+    
+    const num = parseFloat(cleaned);
     return isNaN(num) ? 0 : num;
   }
 
