@@ -11,9 +11,11 @@ import {
   MaxFileSizeValidator,
   FileTypeValidator,
   Request,
+  Patch,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadsService } from './uploads.service';
+import { ExcelProcessorService } from './excel-processor.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateUploadDto } from './dto/create-upload.dto';
 import { diskStorage } from 'multer';
@@ -23,7 +25,10 @@ import * as crypto from 'crypto';
 @Controller('uploads')
 @UseGuards(JwtAuthGuard)
 export class UploadsController {
-  constructor(private readonly uploadsService: UploadsService) {}
+  constructor(
+    private readonly uploadsService: UploadsService,
+    private readonly excelProcessor: ExcelProcessorService,
+  ) {}
 
   @Get()
   list() {
@@ -32,6 +37,17 @@ export class UploadsController {
 
   @Get(':id')
   detail(@Param('id') id: string) {
+    return this.uploadsService.findOne(id);
+  }
+
+  @Patch(':id/reprocessar')
+  async reprocessar(@Param('id') id: string) {
+    // Limpar linhas e alertas existentes
+    await this.uploadsService.limparProcessamento(id);
+    
+    // Reprocessar
+    await this.excelProcessor.processUpload(id);
+    
     return this.uploadsService.findOne(id);
   }
 

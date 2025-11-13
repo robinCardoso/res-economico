@@ -1,13 +1,17 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
 import { CreateUploadDto } from './dto/create-upload.dto';
+import { ExcelProcessorService } from './excel-processor.service';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
 export class UploadsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly excelProcessor: ExcelProcessorService,
+  ) {}
 
   findAll() {
     return this.prisma.upload.findMany({
@@ -84,9 +88,32 @@ export class UploadsService {
       },
     });
 
-    // TODO: Adicionar à fila de processamento (BullMQ)
-    // Por enquanto, apenas retornar o upload criado
+    // Processar arquivo Excel de forma assíncrona
+    // Por enquanto processamos de forma síncrona, depois migrar para BullMQ
+    this.excelProcessor.processUpload(upload.id).catch((error) => {
+      console.error(`Erro ao processar upload ${upload.id}:`, error);
+    });
 
     return upload;
+  }
+
+  async limparProcessamento(uploadId: string) {
+    // Deletar linhas e alertas existentes
+    await this.prisma.linhaUpload.deleteMany({
+      where: { uploadId },
+    });
+
+    await this.prisma.alerta.deleteMany({
+      where: { uploadId },
+    });
+
+    // Resetar status
+    await this.prisma.upload.update({
+      where: { id: uploadId },
+      data: {
+        status: 'PROCESSANDO',
+        totalLinhas: 0,
+      },
+    });
   }
 }

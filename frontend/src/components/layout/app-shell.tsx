@@ -87,7 +87,7 @@ export const AppShell = ({ children }: AppShellProps) => {
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col lg:pl-64">
+      <div className="flex flex-1 flex-col lg:pl-64 max-w-full overflow-x-hidden">
         <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
           <div className="flex h-16 items-center justify-between px-4 sm:px-6">
             <div className="flex items-center gap-3 lg:hidden">
@@ -112,7 +112,7 @@ export const AppShell = ({ children }: AppShellProps) => {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 max-w-full overflow-x-hidden">{children}</main>
       </div>
     </div>
   );
