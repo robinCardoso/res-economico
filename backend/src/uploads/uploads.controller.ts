@@ -1,7 +1,27 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  Body,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
+  Request,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadsService } from './uploads.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreateUploadDto } from './dto/create-upload.dto';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import * as crypto from 'crypto';
 
 @Controller('uploads')
+@UseGuards(JwtAuthGuard)
 export class UploadsController {
   constructor(private readonly uploadsService: UploadsService) {}
 
@@ -13,5 +33,38 @@ export class UploadsController {
   @Get(':id')
   detail(@Param('id') id: string) {
     return this.uploadsService.findOne(id);
+  }
+
+  @Post()
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const randomName = crypto.randomBytes(16).toString('hex');
+          const ext = extname(file.originalname);
+          cb(null, `${randomName}${ext}`);
+        },
+      }),
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB
+      },
+    }),
+  )
+  async create(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }),
+          new FileTypeValidator({ fileType: /(xls|xlsx)$/ }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+    @Body() dto: CreateUploadDto,
+    @Request() req: any,
+  ) {
+    const userId = req.user?.id || 'system';
+    return this.uploadsService.create(file, dto, userId);
   }
 }

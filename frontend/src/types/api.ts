@@ -6,19 +6,14 @@ export type AlertaSeveridade = 'BAIXA' | 'MEDIA' | 'ALTA';
 export type AlertaStatus = 'ABERTO' | 'EM_ANALISE' | 'RESOLVIDO';
 export type ContaStatus = 'ATIVA' | 'NOVA' | 'ARQUIVADA';
 
-export interface Filial {
-  id: string;
-  empresaId: string;
-  codigo: string;
-  nome: string;
-  createdAt: string;
-  updatedAt: string;
-}
+export type TipoEmpresa = 'MATRIZ' | 'FILIAL';
 
 export interface Empresa {
   id: string;
   cnpj: string;
   razaoSocial: string;
+  nomeFantasia: string | null;
+  tipo: TipoEmpresa;
   createdAt: string;
   updatedAt: string;
 }
@@ -26,14 +21,12 @@ export interface Empresa {
 export interface TemplateImportacao {
   id: string;
   empresaId: string;
-  filialId: string | null;
   nome: string;
   descricao: string | null;
   configuracao: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
   empresa?: Empresa;
-  filial?: Filial | null;
 }
 
 export interface LinhaUpload {
@@ -71,7 +64,7 @@ export interface Alerta {
 
 export interface Upload {
   id: string;
-  filialId: string;
+  empresaId: string;
   templateId: string | null;
   mes: number;
   ano: number;
@@ -82,7 +75,7 @@ export interface Upload {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
-  filial?: Filial;
+  empresa?: Empresa;
   template?: TemplateImportacao | null;
   alertas?: Alerta[];
   linhas?: LinhaUpload[];
@@ -90,7 +83,7 @@ export interface Upload {
 
 export interface ContaCatalogo {
   id: string;
-  filialId: string;
+  empresaId: string;
   classificacao: string;
   nomeConta: string;
   tipoConta: string;
@@ -98,6 +91,27 @@ export interface ContaCatalogo {
   primeiraImportacao: string;
   ultimaImportacao: string;
   status: ContaStatus;
-  filial?: Filial;
+  empresa?: Empresa;
 }
+
+// Tipos WithRelations (incluem relações)
+export type UploadWithRelations = Upload & {
+  empresa?: Empresa;
+  template?: TemplateImportacao | null;
+  alertas?: Alerta[];
+  linhas?: LinhaUpload[];
+};
+
+export type AlertaWithRelations = Alerta & {
+  upload?: Upload;
+  linha?: LinhaUpload | null;
+};
+
+export type TemplateImportacaoWithRelations = TemplateImportacao & {
+  empresa?: Empresa;
+};
+
+export type ContaCatalogoWithRelations = ContaCatalogo & {
+  empresa?: Empresa;
+};
 

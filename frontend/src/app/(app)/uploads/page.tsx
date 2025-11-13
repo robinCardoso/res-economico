@@ -36,7 +36,7 @@ const UploadsPage = () => {
             Uploads
           </h1>
           <p className="text-sm text-slate-500">
-            Histórico de importações por filial, período e status.
+            Histórico de importações por empresa, período e status.
           </p>
         </div>
         <Link
@@ -56,7 +56,7 @@ const UploadsPage = () => {
           <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
             <thead className="bg-slate-50/60 dark:bg-slate-900/80">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">Filial</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500">Empresa</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">Período</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">Status</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">Alertas</th>
@@ -68,7 +68,7 @@ const UploadsPage = () => {
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {uploadsList.map((upload) => (
                 <tr key={upload.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900">
-                  <td className="px-4 py-3">{upload.filial?.nome || 'N/A'}</td>
+                  <td className="px-4 py-3">{upload.empresa?.razaoSocial || 'N/A'}</td>
                   <td className="px-4 py-3">{formatPeriodo(upload.mes, upload.ano)}</td>
                   <td className="px-4 py-3">
                     <span

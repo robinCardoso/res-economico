@@ -9,7 +9,6 @@ export class TemplatesService {
     return this.prisma.templateImportacao.findMany({
       include: {
         empresa: true,
-        filial: true,
       },
       orderBy: { updatedAt: 'desc' },
     });

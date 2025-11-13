@@ -35,7 +35,7 @@ const TemplatesPage = () => {
             Templates de importação
           </h1>
           <p className="text-sm text-slate-500">
-            Defina o mapeamento de colunas para cada filial ou tipo de planilha.
+            Defina o mapeamento de colunas para cada empresa ou tipo de planilha.
           </p>
         </div>
         <button className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900">

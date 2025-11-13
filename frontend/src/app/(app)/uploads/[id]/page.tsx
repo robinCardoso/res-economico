@@ -61,9 +61,9 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
           </h2>
           <dl className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between text-slate-500">
-              <dt>Filial</dt>
+              <dt>Empresa</dt>
               <dd className="text-slate-900 dark:text-slate-100">
-                {upload.filial?.nome || 'N/A'}
+                {upload.empresa?.razaoSocial || 'N/A'}
               </dd>
             </div>
             <div className="flex justify-between text-slate-500">

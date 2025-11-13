@@ -11,6 +11,7 @@ import {
   Layers3,
   Settings2,
   UploadCloud,
+  Building,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -26,6 +27,7 @@ const navItems: NavItem[] = [
   { label: 'Alertas', href: '/alertas', icon: BellRing },
   { label: 'Templates', href: '/templates', icon: ClipboardList },
   { label: 'Contas', href: '/contas', icon: Layers3 },
+  { label: 'Empresas', href: '/empresas', icon: Building },
   { label: 'Relatórios', href: '/relatorios', icon: BrainCircuit },
   { label: 'Configurações', href: '/configuracoes', icon: Settings2 },
 ];

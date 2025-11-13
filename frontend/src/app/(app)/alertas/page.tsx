@@ -52,7 +52,7 @@ const AlertasPage = () => {
                 <th className="px-4 py-3 text-left font-medium text-slate-500">
                   Conta / Detalhe
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">Filial</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500">Empresa</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">Status</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-500">
                   Criado em
@@ -70,7 +70,7 @@ const AlertasPage = () => {
                       : alerta.mensagem}
                   </td>
                   <td className="px-4 py-3">
-                    {alerta.upload?.filial?.nome || 'N/A'}
+                    {alerta.upload?.empresa?.razaoSocial || 'N/A'}
                   </td>
                   <td className="px-4 py-3">
                     <span

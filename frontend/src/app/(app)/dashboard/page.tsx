@@ -1,23 +1,77 @@
+'use client';
+
 import { ArrowUpRight, BellRing, FileSpreadsheet, Layers3 } from 'lucide-react';
-
-const stats = [
-  {
-    name: 'Upload mais recente',
-    value: 'Agosto/2025',
-    change: '+2%',
-    icon: FileSpreadsheet,
-  },
-  { name: 'Alertas abertos', value: '7', change: '3 críticos', icon: BellRing },
-  { name: 'Contas em análise', value: '12', change: '+5 novas', icon: Layers3 },
-];
-
-const recentActivities = [
-  { title: 'Upload - Filial 01', subtitle: 'Processado em 12/11/2025 - 480 linhas' },
-  { title: 'Conta nova detectada: 4.01.07.02', subtitle: 'Cadastrado automaticamente' },
-  { title: 'Alerta resolvido - Saldo divergente', subtitle: 'Apontamento revisado por Financeiro' },
-];
+import Link from 'next/link';
+import { useUploads } from '@/hooks/use-uploads';
+import { useAlertas } from '@/hooks/use-alertas';
+import { useContas } from '@/hooks/use-contas';
+import { formatPeriodo, formatDateTime } from '@/lib/format';
 
 const DashboardPage = () => {
+  const { data: uploads, isLoading: isLoadingUploads } = useUploads();
+  const { data: alertas, isLoading: isLoadingAlertas } = useAlertas();
+  const { data: contas, isLoading: isLoadingContas } = useContas();
+
+  const isLoading = isLoadingUploads || isLoadingAlertas || isLoadingContas;
+
+  // Calcular estatísticas
+  const uploadsList = Array.isArray(uploads) ? uploads : [];
+  const alertasList = Array.isArray(alertas) ? alertas : [];
+  const contasList = Array.isArray(contas) ? contas : [];
+
+  const ultimoUpload = uploadsList[0];
+  const alertasAbertos = alertasList.filter((a) => a.status === 'ABERTO');
+  const alertasCriticos = alertasAbertos.filter((a) => a.severidade === 'ALTA');
+  const contasNovas = contasList.filter((c) => c.status === 'NOVA');
+
+  const stats = [
+    {
+      name: 'Upload mais recente',
+      value: ultimoUpload
+        ? formatPeriodo(ultimoUpload.mes, ultimoUpload.ano)
+        : 'Nenhum',
+      change: ultimoUpload ? `${ultimoUpload.totalLinhas} linhas` : 'Comece fazendo upload',
+      icon: FileSpreadsheet,
+      link: ultimoUpload ? `/uploads/${ultimoUpload.id}` : '/uploads/novo',
+    },
+    {
+      name: 'Alertas abertos',
+      value: alertasAbertos.length.toString(),
+      change: alertasCriticos.length > 0 ? `${alertasCriticos.length} críticos` : 'Todos resolvidos',
+      icon: BellRing,
+      link: '/alertas',
+    },
+    {
+      name: 'Contas em análise',
+      value: contasNovas.length.toString(),
+      change: contasNovas.length > 0 ? `${contasNovas.length} novas` : 'Nenhuma nova',
+      icon: Layers3,
+      link: '/contas',
+    },
+  ];
+
+  // Últimas atividades (últimos uploads e alertas)
+  const recentActivities = [
+    ...uploadsList.slice(0, 3).map((upload) => ({
+      title: `Upload - ${upload.empresa?.razaoSocial || 'N/A'}`,
+      subtitle: `Processado em ${formatDateTime(upload.createdAt)} - ${upload.totalLinhas} linhas`,
+      link: `/uploads/${upload.id}`,
+    })),
+    ...alertasAbertos.slice(0, 2).map((alerta) => ({
+      title: `Alerta: ${alerta.tipo}`,
+      subtitle: alerta.mensagem.substring(0, 60) + (alerta.mensagem.length > 60 ? '...' : ''),
+      link: '/alertas',
+    })),
+  ].slice(0, 5);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-sm text-slate-500">Carregando dashboard...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <section>
@@ -32,9 +86,8 @@ const DashboardPage = () => {
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {stats.map((item) => {
           const Icon = item.icon;
-          return (
+          const content = (
             <div
-              key={item.name}
               className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-sky-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/70"
             >
               <div className="flex items-start justify-between">
@@ -54,6 +107,14 @@ const DashboardPage = () => {
               </div>
             </div>
           );
+
+          return item.link ? (
+            <Link key={item.name} href={item.link}>
+              {content}
+            </Link>
+          ) : (
+            <div key={item.name}>{content}</div>
+          );
         })}
       </section>
 
@@ -62,21 +123,43 @@ const DashboardPage = () => {
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             Últimas atividades
           </h2>
-          <ul className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-            {recentActivities.map((activity) => (
-              <li
-                key={activity.title}
-                className="rounded-lg border border-slate-200/70 p-4 dark:border-slate-800/80"
-              >
-                <div className="font-medium text-slate-900 dark:text-slate-100">
-                  {activity.title}
-                </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {activity.subtitle}
-                </div>
-              </li>
-            ))}
-          </ul>
+          {recentActivities.length > 0 ? (
+            <ul className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+              {recentActivities.map((activity, index) => {
+                const content = (
+                  <li
+                    key={index}
+                    className="rounded-lg border border-slate-200/70 p-4 dark:border-slate-800/80"
+                  >
+                    <div className="font-medium text-slate-900 dark:text-slate-100">
+                      {activity.title}
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      {activity.subtitle}
+                    </div>
+                  </li>
+                );
+
+                return activity.link ? (
+                  <Link key={index} href={activity.link}>
+                    {content}
+                  </Link>
+                ) : (
+                  <div key={index}>{content}</div>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="mt-4 rounded-lg border border-slate-200/70 p-8 text-center dark:border-slate-800/80">
+              <p className="text-sm text-slate-500">
+                Nenhuma atividade recente. Comece fazendo um{' '}
+                <Link href="/uploads/novo" className="text-sky-500 hover:text-sky-400">
+                  upload de arquivo
+                </Link>
+                .
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
@@ -84,9 +167,30 @@ const DashboardPage = () => {
             Próximas ações
           </h2>
           <ul className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-            <li>• Revisar divergências de saldo da Filial 02</li>
-            <li>• Aprovar novas contas classificadas pela contabilidade</li>
-            <li>• Agendar análise assistida com Groq para o mês corrente</li>
+            {alertasAbertos.length > 0 && (
+              <li>
+                • <Link href="/alertas" className="text-sky-500 hover:text-sky-400">
+                  Revisar {alertasAbertos.length} alerta{alertasAbertos.length > 1 ? 's' : ''} aberto{alertasAbertos.length > 1 ? 's' : ''}
+                </Link>
+              </li>
+            )}
+            {contasNovas.length > 0 && (
+              <li>
+                • <Link href="/contas" className="text-sky-500 hover:text-sky-400">
+                  Aprovar {contasNovas.length} conta{contasNovas.length > 1 ? 's' : ''} nova{contasNovas.length > 1 ? 's' : ''}
+                </Link>
+              </li>
+            )}
+            {uploadsList.length === 0 && (
+              <li>
+                • <Link href="/uploads/novo" className="text-sky-500 hover:text-sky-400">
+                  Fazer primeiro upload de arquivo
+                </Link>
+              </li>
+            )}
+            {alertasAbertos.length === 0 && contasNovas.length === 0 && uploadsList.length > 0 && (
+              <li className="text-slate-400">• Tudo em dia! Nenhuma ação pendente.</li>
+            )}
           </ul>
         </div>
       </section>

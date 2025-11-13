@@ -58,7 +58,7 @@
         Documento de referência para o desenvolvimento do sistema de resultado
         econômico com base no arquivo
         <code>Balancete Consolidado 2025.xls</code>. Status atual:
-        <span class="status">Bootstrap em andamento</span>.
+        <span class="status">Autenticação e gestão de empresas concluídas - Processamento de Excel em desenvolvimento</span>.
       </p>
     </header>
 
@@ -76,11 +76,22 @@
         </li>
         <li>
           Backend NestJS iniciado com módulos principais (auth, uploads, alertas, templates,
-          contas), camada Prisma e integração com PostgreSQL/Redis via Docker Compose.
+          contas, empresas), camada Prisma e integração com PostgreSQL/Redis via Docker Compose.
         </li>
         <li>
-          Próximos passos: implementar fluxos reais (upload/parsing, alertas), autenticação JWT,
-          Web Push via VAPID e integração Groq.
+          <strong>Autenticação JWT implementada:</strong> Login, guards, proteção de rotas, interceptor Axios.
+        </li>
+        <li>
+          <strong>Gestão de Empresas:</strong> CRUD completo de empresas com campo tipo (MATRIZ/FILIAL).
+          Tabela Filial removida - simplificação da estrutura de dados.
+        </li>
+        <li>
+          <strong>Upload de Arquivos:</strong> Página de upload implementada com pré-visualização,
+          validação e seleção de empresa/template. Falta processamento completo do Excel.
+        </li>
+        <li>
+          Próximos passos: implementar processamento completo de Excel (parsing, validação, alertas),
+          sistema de alertas, templates dinâmicos, Web Push via VAPID e integração Groq.
         </li>
       </ul>
     </section>
@@ -88,12 +99,88 @@
     <section>
       <h2>Checklist - Integração Frontend ↔ Backend</h2>
       <ul>
-        <li>[&nbsp;] Definir cliente HTTP global no frontend (axios/ky) com baseURL via variáveis de ambiente.</li>
-        <li>[&nbsp;] Criar camadas de serviço + React Query para consumir <code>/uploads</code>, <code>/alertas</code>, <code>/contas</code>, <code>/templates</code>.</li>
-        <li>[&nbsp;] Substituir dados mockados das páginas por chamadas reais às APIs.</li>
-        <li>[&nbsp;] Implementar autenticação básica (login) no backend e proteger endpoints.</li>
-        <li>[&nbsp;] Conectar fluxo de login do frontend ao backend, armazenando token e protegendo rotas.</li>
-        <li>[&nbsp;] Ajustar estados de carregamento/erro no frontend conforme respostas reais.</li>
+        <li>[✓] Definir cliente HTTP global no frontend (axios/ky) com baseURL via variáveis de ambiente.</li>
+        <li>[✓] Criar camadas de serviço + React Query para consumir <code>/uploads</code>, <code>/alertas</code>, <code>/contas</code>, <code>/templates</code>, <code>/empresas</code>.</li>
+        <li>[✓] Substituir dados mockados das páginas por chamadas reais às APIs.</li>
+        <li>[✓] Implementar autenticação básica (login) no backend e proteger endpoints.</li>
+        <li>[✓] Conectar fluxo de login do frontend ao backend, armazenando token e protegendo rotas.</li>
+        <li>[✓] Ajustar estados de carregamento/erro no frontend conforme respostas reais.</li>
+        <li>[✓] Implementar CRUD completo de empresas (criar, editar, excluir, listar).</li>
+        <li>[✓] Remover estrutura de filiais - simplificação para usar apenas empresas com tipo (MATRIZ/FILIAL).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Próximos Passos de Implementação</h2>
+      
+      <h3>1. Autenticação (✓ Concluído)</h3>
+      <ul>
+        <li>[✓] Criar modelo <code>Usuario</code> no Prisma com campos: id, email, senha (hash), nome, roles, departamento, empresaId, createdAt, updatedAt.</li>
+        <li>[✓] Implementar JWT no backend (Passport + JWT Strategy).</li>
+        <li>[✓] Criar guards para proteger rotas (JwtAuthGuard).</li>
+        <li>[✓] Implementar hash de senha com bcrypt.</li>
+        <li>[✓] Conectar login do frontend ao backend.</li>
+        <li>[✓] Armazenar token no localStorage via Zustand store.</li>
+        <li>[✓] Proteger rotas no frontend (AuthGuard component).</li>
+        <li>[✓] Adicionar interceptor no axios para incluir token nas requisições.</li>
+        <li>[&nbsp;] Implementar refresh token (opcional - pendente).</li>
+      </ul>
+
+      <h3>1.1. Gestão de Empresas (✓ Concluído)</h3>
+      <ul>
+        <li>[✓] Criar modelo <code>Empresa</code> no Prisma com campos: id, cnpj, razaoSocial, nomeFantasia, tipo (MATRIZ/FILIAL), createdAt, updatedAt.</li>
+        <li>[✓] Implementar CRUD completo de empresas no backend (listar, criar, editar, excluir).</li>
+        <li>[✓] Criar página <code>/empresas</code> no frontend com formulários e listagem.</li>
+        <li>[✓] Remover estrutura de filiais - simplificação usando apenas empresas com tipo.</li>
+        <li>[✓] Atualizar Upload e ContaCatalogo para usar empresaId diretamente.</li>
+        <li>[✓] Implementar validação de exclusão (verificar uploads, contas, templates, usuários associados).</li>
+      </ul>
+
+      <h3>2. Upload de Arquivos Excel (🔄 Parcialmente Concluído)</h3>
+      <ul>
+        <li>[✓] Criar página <code>/uploads/novo</code> com formulário de upload.</li>
+        <li>[✓] Implementar pré-visualização com SheetJS (xlsx).</li>
+        <li>[✓] Permitir seleção de empresa e template de importação.</li>
+        <li>[✓] Validar formato e tamanho do arquivo (frontend e backend).</li>
+        <li>[✓] Salvar metadados do upload no banco (empresaId, mes, ano, hash).</li>
+        <li>[✓] Implementar armazenamento local de arquivos (temporário - migrar para Supabase depois).</li>
+        <li>[&nbsp;] Integrar com Supabase Storage para armazenar arquivos (pendente).</li>
+        <li>[&nbsp;] Mostrar progresso do upload (pendente).</li>
+        <li>[&nbsp;] Implementar processamento completo do arquivo Excel (pendente - ver próximo passo).</li>
+      </ul>
+
+      <h3>3. Processamento de Excel (⏳ Próximo Passo)</h3>
+      <ul>
+        <li>[&nbsp;] Criar worker/queue para processamento assíncrono (BullMQ).</li>
+        <li>[&nbsp;] Implementar parser de planilhas Excel usando SheetJS no backend.</li>
+        <li>[&nbsp;] Mapear colunas conforme template de importação.</li>
+        <li>[&nbsp;] Validar e converter dados (números, datas, textos).</li>
+        <li>[&nbsp;] Criar registros em <code>LinhaUpload</code>.</li>
+        <li>[&nbsp;] Calcular hash de cada linha para detecção de mudanças.</li>
+        <li>[&nbsp;] Atualizar status do upload (PROCESSANDO → CONCLUIDO/COM_ALERTAS).</li>
+        <li>[&nbsp;] Atualizar catálogo de contas (<code>ContaCatalogo</code>).</li>
+      </ul>
+
+      <h3>4. Sistema de Alertas</h3>
+      <ul>
+        <li>Detectar divergências de saldo (saldo anterior + débito - crédito ≠ saldo atual).</li>
+        <li>Identificar contas novas comparando com catálogo existente.</li>
+        <li>Detectar dados inconsistentes (valores nulos, formatos inválidos).</li>
+        <li>Criar registros de alerta no banco.</li>
+        <li>Implementar workflow de resolução de alertas.</li>
+        <li>Adicionar filtros e busca na página de alertas.</li>
+        <li>Permitir marcar alertas como resolvidos/em análise.</li>
+      </ul>
+
+      <h3>5. Funcionalidades Avançadas</h3>
+      <ul>
+        <li><strong>Offline Storage:</strong> Implementar IndexedDB com Dexie para armazenar dados localmente.</li>
+        <li><strong>Push Notifications:</strong> Configurar Web Push via VAPID próprio.</li>
+        <li><strong>Integração Groq AI:</strong> Criar serviço para análises e insights dos dados.</li>
+        <li><strong>Dashboard:</strong> Implementar KPIs, gráficos e métricas.</li>
+        <li><strong>Edição de Linhas:</strong> Permitir editar/remover linhas de upload.</li>
+        <li><strong>Histórico de Auditoria:</strong> Registrar todas as ações no sistema.</li>
+        <li><strong>Relatórios:</strong> Gerar relatórios comparativos e análises.</li>
       </ul>
     </section>
 
@@ -140,43 +227,98 @@
 
       <h3>DevOps &amp; Hospedagem</h3>
       <ul>
-        <li><span class="tag">Frontend</span>Vercel</li>
+        <li><span class="tag">Frontend</span>Vercel (com domínio próprio)</li>
         <li><span class="tag">Backend</span>Container Docker (Render/Fly.io ou VPS)</li>
+        <li><span class="tag">Banco de Dados</span>PostgreSQL gerenciado (Supabase, Railway, Neon, ou VPS)</li>
         <li><span class="tag">CI/CD</span>GitHub Actions (lint, test, build, deploy)</li>
         <li><span class="tag">Monitoramento</span>Sentry, logs estruturados com Pino</li>
       </ul>
     </section>
 
     <section>
-      <h2>Modelo de Dados Proposto</h2>
+      <h2>Opções de Hospedagem para Produção</h2>
+      
+      <h3>Opção 1: Solução Completa Gerenciada (Recomendada para começar)</h3>
       <ul>
-        <li><strong>empresa</strong>: cnpj, razão social.</li>
-        <li><strong>filial</strong>: vínculo com empresa, código interno.</li>
+        <li><strong>Frontend:</strong> Vercel (gratuito até certo limite, domínio próprio suportado)</li>
+        <li><strong>Backend:</strong> Render.com ou Fly.io (containers Docker, domínio próprio)</li>
+        <li><strong>PostgreSQL:</strong> Supabase (gratuito até 500MB), Railway, Neon, ou Render PostgreSQL</li>
+        <li><strong>Redis:</strong> Upstash (gratuito até 10k comandos/dia) ou Redis Cloud</li>
+        <li><strong>Storage:</strong> Supabase Storage (já incluído no plano)</li>
+        <li><strong>Vantagens:</strong> Fácil setup, escalável, backups automáticos</li>
+        <li><strong>Custo estimado:</strong> $0-20/mês (início) até $50-100/mês (crescimento)</li>
+      </ul>
+
+      <h3>Opção 2: VPS (Virtual Private Server) - Máximo controle</h3>
+      <ul>
+        <li><strong>Provedores:</strong> DigitalOcean, Linode, Vultr, AWS Lightsail, Contabo</li>
+        <li><strong>Setup:</strong> Docker Compose com PostgreSQL, Redis, Backend tudo no mesmo servidor</li>
+        <li><strong>Domínio:</strong> Configurar DNS apontando para IP do VPS</li>
+        <li><strong>Frontend:</strong> Pode hospedar no VPS também ou usar Vercel</li>
+        <li><strong>Vantagens:</strong> Controle total, custo fixo, sem limites de uso</li>
+        <li><strong>Desvantagens:</strong> Precisa gerenciar backups, segurança, updates manualmente</li>
+        <li><strong>Custo estimado:</strong> $5-20/mês (VPS básico) + domínio ($10-15/ano)</li>
+      </ul>
+
+      <h3>Opção 3: Híbrida (Recomendada para produção)</h3>
+      <ul>
+        <li><strong>Frontend:</strong> Vercel (otimizado para Next.js, CDN global)</li>
+        <li><strong>Backend:</strong> Render.com ou Railway (auto-deploy do GitHub)</li>
+        <li><strong>PostgreSQL:</strong> Supabase, Neon ou Railway PostgreSQL (managed)</li>
+        <li><strong>Redis:</strong> Upstash (serverless Redis)</li>
+        <li><strong>Storage:</strong> Supabase Storage</li>
+        <li><strong>Domínio:</strong> Configurar em cada serviço (Vercel, Render, etc.)</li>
+        <li><strong>Vantagens:</strong> Melhor performance, escalabilidade automática, backups gerenciados</li>
+        <li><strong>Custo estimado:</strong> $0-30/mês (início) até $100-200/mês (crescimento)</li>
+      </ul>
+
+      <h3>Migração do Banco Local para Produção</h3>
+      <ol>
+        <li><strong>Exportar dados locais:</strong> <code>pg_dump</code> ou Prisma Studio</li>
+        <li><strong>Criar banco em produção:</strong> Supabase/Railway/Neon</li>
+        <li><strong>Executar migrations:</strong> <code>npx prisma migrate deploy</code></li>
+        <li><strong>Importar dados:</strong> <code>psql</code> ou ferramenta de importação</li>
+        <li><strong>Atualizar DATABASE_URL:</strong> Variável de ambiente no serviço de hospedagem</li>
+      </ol>
+
+      <h3>Checklist de Deploy</h3>
+      <ul>
+        <li>[ ] Configurar variáveis de ambiente em produção (DATABASE_URL, JWT_SECRET, etc.)</li>
+        <li>[ ] Configurar domínio próprio (DNS, SSL/HTTPS automático na maioria das plataformas)</li>
+        <li>[ ] Configurar GitHub Actions para deploy automático</li>
+        <li>[ ] Configurar backups automáticos do banco de dados</li>
+        <li>[ ] Configurar monitoramento (Sentry, logs)</li>
+        <li>[ ] Testar autenticação e todas as rotas em produção</li>
+        <li>[ ] Configurar CORS para aceitar apenas o domínio de produção</li>
+        <li>[ ] Configurar rate limiting no backend</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Modelo de Dados Implementado</h2>
+      <ul>
+        <li><strong>empresa</strong>: id, cnpj, razaoSocial, nomeFantasia, tipo (MATRIZ/FILIAL), createdAt, updatedAt.</li>
+        <li><strong>usuario</strong>: id, email, senha (hash), nome, roles, departamento, empresaId, createdAt, updatedAt.</li>
         <li>
-          <strong>template_importacao</strong>: mapeamentos dinâmicos e opções
-          de parsing.
+          <strong>template_importacao</strong>: id, empresaId, nome, descricao, configuracao (JSON), createdAt, updatedAt.
         </li>
         <li>
-          <strong>upload</strong>: metadados do arquivo (filial, período, hash,
-          status).
+          <strong>upload</strong>: id, empresaId, templateId, mes, ano, arquivoUrl, hashArquivo, status, totalLinhas, createdBy, createdAt, updatedAt.
         </li>
         <li>
-          <strong>linha_upload</strong>: dados da planilha (classificação, conta,
-          saldos) + hash por linha.
+          <strong>linha_upload</strong>: id, uploadId, classificacao, conta, subConta, nomeConta, tipoConta, nivel, titulo, estabelecimento, saldoAnterior, debito, credito, saldoAtual, hashLinha, createdAt.
         </li>
         <li>
-          <strong>conta_catalogo</strong>: cadastro de contas, indicando novas
-          ocorrências.
+          <strong>conta_catalogo</strong>: id, empresaId, classificacao, nomeConta, tipoConta, nivel, primeiraImportacao, ultimaImportacao, status.
         </li>
         <li>
-          <strong>alerta</strong>: divergências de saldo, contas novas, dados
-          inconsistentes.
+          <strong>alerta</strong>: id, uploadId, linhaId, tipo, severidade, mensagem, status, createdAt, resolvedAt.
         </li>
         <li>
-          <strong>log_auditoria</strong>: histórico de ações (inclusão, edição,
-          remoção).
+          <strong>log_auditoria</strong>: id, usuarioId, recurso, acao, dados (JSON), createdAt.
         </li>
       </ul>
+      <p><strong>Nota:</strong> A estrutura de filiais foi removida e simplificada. Agora usamos apenas empresas com campo tipo (MATRIZ/FILIAL) para indicar se é matriz ou filial.</p>
     </section>
 
     <section>
@@ -187,19 +329,18 @@
           de template.
         </li>
         <li>
-          Arquivo é enviado ao backend, armazenado no Supabase Storage e
-          registrado em <code>upload</code>.
+          Arquivo é enviado ao backend, armazenado localmente (temporário - migrar para Supabase Storage) e
+          registrado em <code>upload</code> com empresaId, mes, ano e hash do arquivo.
         </li>
         <li>
-          Worker processa linhas: converte valores, calcula hash, valida saldo
-          (<code>saldo anterior + débito - crédito</code> vs. <code>saldo
-          atual</code>).
+          <strong>[Pendente]</strong> Worker processa linhas: converte valores, calcula hash, valida saldo
+          (<code>saldo anterior + débito - crédito</code> vs. <code>saldo atual</code>).
         </li>
         <li>
-          Identifica contas novas ou alterações em relação ao catálogo existente.
+          <strong>[Pendente]</strong> Identifica contas novas ou alterações em relação ao catálogo existente.
         </li>
         <li>
-          Gera alertas, atualiza status e dispara notificações (push/e-mail).
+          <strong>[Pendente]</strong> Gera alertas, atualiza status e dispara notificações (push/e-mail).
         </li>
         <li>
           Usuário acessa detalhes do upload, pode editar/remover linhas, marcar
@@ -238,7 +379,10 @@
           <strong>/relatorios</strong>: análises Groq e histórico de consultas.
         </li>
         <li>
-          <strong>/configuracoes</strong>: empresa, filiais, usuários,
+          <strong>/empresas</strong>: CRUD completo de empresas (criar, editar, excluir, listar).
+        </li>
+        <li>
+          <strong>/configuracoes</strong>: links para empresas, templates, usuários,
           integrações, preferências de notificação.
         </li>
       </ul>
@@ -295,8 +439,9 @@
     <footer>
       <p>
         Última atualização:
-        <time datetime="2025-11-12">12 de novembro de 2025</time>. Documento
-        concluído para referência do time.
+        <time datetime="2025-11-13">13 de novembro de 2025</time>. Documento
+        atualizado com progresso recente: autenticação concluída, gestão de empresas implementada,
+        estrutura de filiais removida e simplificada.
       </p>
     </footer>
   </body>

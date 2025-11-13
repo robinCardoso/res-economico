@@ -8,7 +8,7 @@ export class ContasService {
   findAll() {
     return this.prisma.contaCatalogo.findMany({
       include: {
-        filial: true,
+        empresa: true,
       },
       orderBy: { classificacao: 'asc' },
     });

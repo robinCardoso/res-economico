@@ -50,7 +50,9 @@ foreach ($port in @(3000, 3001)) {
 }
 
 # Iniciar backend em nova janela
+# Executa: cd backend && npm run start:dev
 Write-Host "`nIniciando backend (NestJS)..." -ForegroundColor Yellow
+Write-Host "   Comando: cd backend; npm run start:dev" -ForegroundColor Gray
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\backend'; npm run start:dev" -WindowStyle Normal
 Write-Host "OK: Backend iniciado em nova janela (http://localhost:3000)" -ForegroundColor Green
 

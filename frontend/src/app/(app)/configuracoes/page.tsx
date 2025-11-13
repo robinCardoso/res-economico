@@ -1,3 +1,7 @@
+'use client';
+
+import Link from 'next/link';
+
 const ConfiguracoesPage = () => {
   return (
     <div className="space-y-8">
@@ -18,9 +22,12 @@ const ConfiguracoesPage = () => {
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">
             Cadastro de CNPJs, identificação de filiais e preferências regionais.
           </p>
-          <button className="mt-4 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+          <Link
+            href="/empresas"
+            className="mt-4 inline-block rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
             Gerenciar
-          </button>
+          </Link>
         </article>
 
         <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">

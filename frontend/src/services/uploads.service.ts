@@ -1,6 +1,13 @@
 import { api } from '@/lib/http';
 import type { UploadWithRelations } from '@/types/api';
 
+export interface CreateUploadDto {
+  empresaId: string;
+  mes: number;
+  ano: number;
+  templateId?: string;
+}
+
 export const uploadsService = {
   async list(): Promise<UploadWithRelations[]> {
     const { data } = await api.get<UploadWithRelations[]>('/uploads');
@@ -10,6 +17,24 @@ export const uploadsService = {
 
   async getById(id: string): Promise<UploadWithRelations> {
     const { data } = await api.get<UploadWithRelations>(`/uploads/${id}`);
+    return data;
+  },
+
+  async create(file: File, dto: CreateUploadDto): Promise<UploadWithRelations> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('empresaId', dto.empresaId);
+    formData.append('mes', dto.mes.toString());
+    formData.append('ano', dto.ano.toString());
+    if (dto.templateId) {
+      formData.append('templateId', dto.templateId);
+    }
+
+    const { data } = await api.post<UploadWithRelations>('/uploads', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return data;
   },
 };

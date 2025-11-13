@@ -8,6 +8,7 @@ import { TemplatesModule } from './templates/templates.module';
 import { AlertasModule } from './alertas/alertas.module';
 import { ContasModule } from './contas/contas.module';
 import { AuthModule } from './auth/auth.module';
+import { EmpresasModule } from './empresas/empresas.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AuthModule } from './auth/auth.module';
     AlertasModule,
     ContasModule,
     AuthModule,
+    EmpresasModule,
   ],
   controllers: [AppController],
   providers: [AppService],
