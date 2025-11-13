@@ -1,18 +1,44 @@
+'use client';
+
 import Link from 'next/link';
+import { use } from 'react';
+import { useUpload } from '@/hooks/use-uploads';
+import { formatPeriodo, getStatusLabel } from '@/lib/format';
 
 type UploadDetalheProps = {
   params: Promise<{ id: string }>;
 };
 
-const UploadDetalhePage = async ({ params }: UploadDetalheProps) => {
-  const { id } = await params;
+const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
+  const { id } = use(params);
+  const { data: upload, isLoading, error } = useUpload(id);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-sm text-slate-500">Carregando detalhes do upload...</div>
+      </div>
+    );
+  }
+
+  if (error || !upload) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-sm text-rose-500">
+          Erro ao carregar upload. Verifique se o backend está rodando.
+        </div>
+      </div>
+    );
+  }
+
+  const alertasPendentes = upload.alertas?.filter((a) => a.status === 'ABERTO') || [];
 
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
-            Upload {id}
+            Upload {id.slice(0, 8)}
           </h1>
           <p className="text-sm text-slate-500">
             Resumo do processamento, alertas detectados e histórico de alterações.
@@ -36,19 +62,25 @@ const UploadDetalhePage = async ({ params }: UploadDetalheProps) => {
           <dl className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between text-slate-500">
               <dt>Filial</dt>
-              <dd className="text-slate-900 dark:text-slate-100">Filial Matriz</dd>
+              <dd className="text-slate-900 dark:text-slate-100">
+                {upload.filial?.nome || 'N/A'}
+              </dd>
             </div>
             <div className="flex justify-between text-slate-500">
               <dt>Período</dt>
-              <dd className="text-slate-900 dark:text-slate-100">Agosto/2025</dd>
+              <dd className="text-slate-900 dark:text-slate-100">
+                {formatPeriodo(upload.mes, upload.ano)}
+              </dd>
             </div>
             <div className="flex justify-between text-slate-500">
               <dt>Linhas</dt>
-              <dd className="text-slate-900 dark:text-slate-100">482</dd>
+              <dd className="text-slate-900 dark:text-slate-100">{upload.totalLinhas}</dd>
             </div>
             <div className="flex justify-between text-slate-500">
               <dt>Alertas</dt>
-              <dd className="text-amber-500">2 pendentes</dd>
+              <dd className={alertasPendentes.length > 0 ? 'text-amber-500' : 'text-slate-900 dark:text-slate-100'}>
+                {alertasPendentes.length} pendentes
+              </dd>
             </div>
           </dl>
         </div>
@@ -57,14 +89,28 @@ const UploadDetalhePage = async ({ params }: UploadDetalheProps) => {
           <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             Alertas detectados
           </h2>
-          <ul className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-            <li className="rounded-lg border border-amber-300/60 bg-amber-50/60 p-4 dark:border-amber-400/30 dark:bg-amber-400/10">
-              Saldo divergente na conta 1.01.01.02 - Banco Cooperativo Sicredi S.A.
-            </li>
-            <li className="rounded-lg border border-sky-300/60 bg-sky-50/60 p-4 dark:border-sky-400/30 dark:bg-sky-400/10">
-              Nova conta identificada: 4.02.07.15 - Taxas extraordinárias.
-            </li>
-          </ul>
+          {!upload.alertas || upload.alertas.length === 0 ? (
+            <div className="mt-4 text-sm text-slate-500">Nenhum alerta encontrado.</div>
+          ) : (
+            <ul className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+              {upload.alertas.map((alerta) => (
+                <li
+                  key={alerta.id}
+                  className={`rounded-lg border p-4 ${
+                    alerta.severidade === 'ALTA'
+                      ? 'border-rose-300/60 bg-rose-50/60 dark:border-rose-400/30 dark:bg-rose-400/10'
+                      : alerta.tipo === 'CONTA_NOVA'
+                        ? 'border-sky-300/60 bg-sky-50/60 dark:border-sky-400/30 dark:bg-sky-400/10'
+                        : 'border-amber-300/60 bg-amber-50/60 dark:border-amber-400/30 dark:bg-amber-400/10'
+                  }`}
+                >
+                  {alerta.linha
+                    ? `${getStatusLabel(alerta.tipo)} na conta ${alerta.linha.classificacao} - ${alerta.linha.nomeConta}`
+                    : alerta.mensagem}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 
@@ -81,7 +127,14 @@ const UploadDetalhePage = async ({ params }: UploadDetalheProps) => {
           </Link>
         </div>
         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
-          Visualização detalhada das linhas importadas em desenvolvimento.
+          {upload.linhas && upload.linhas.length > 0 ? (
+            <div>
+              Total de linhas: {upload.linhas.length}. Visualização detalhada em
+              desenvolvimento.
+            </div>
+          ) : (
+            <div>Visualização detalhada das linhas importadas em desenvolvimento.</div>
+          )}
         </div>
       </section>
     </div>

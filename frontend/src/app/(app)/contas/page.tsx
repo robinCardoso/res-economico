@@ -1,21 +1,32 @@
-const mockContas = [
-  {
-    classificacao: '1.01.01.02',
-    nome: 'Banco Cooperativo Sicredi S.A.',
-    tipo: 'Ativo circulante',
-    nivel: 4,
-    status: 'Regular',
-  },
-  {
-    classificacao: '4.02.07.15',
-    nome: 'Taxas extraordinárias',
-    tipo: 'Despesas operacionais',
-    nivel: 4,
-    status: 'Nova',
-  },
-];
+'use client';
+
+import { useContas } from '@/hooks/use-contas';
+import { getStatusLabel } from '@/lib/format';
 
 const ContasPage = () => {
+  const { data: contas, isLoading, error } = useContas();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-sm text-slate-500">Carregando contas...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-sm text-rose-500">
+          Erro ao carregar contas. Verifique se o backend está rodando.
+        </div>
+      </div>
+    );
+  }
+
+  // Garantir que contas seja sempre um array
+  const contasList = Array.isArray(contas) ? contas : [];
+
   return (
     <div className="space-y-6">
       <header>
@@ -28,40 +39,46 @@ const ContasPage = () => {
       </header>
 
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-        <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-          <thead className="bg-slate-50/60 dark:bg-slate-900/80">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium text-slate-500">
-                Classificação
-              </th>
-              <th className="px-4 py-3 text-left font-medium text-slate-500">Nome</th>
-              <th className="px-4 py-3 text-left font-medium text-slate-500">Tipo</th>
-              <th className="px-4 py-3 text-left font-medium text-slate-500">Nível</th>
-              <th className="px-4 py-3 text-left font-medium text-slate-500">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-            {mockContas.map((conta) => (
-              <tr key={conta.classificacao}>
-                <td className="px-4 py-3 font-semibold">{conta.classificacao}</td>
-                <td className="px-4 py-3">{conta.nome}</td>
-                <td className="px-4 py-3">{conta.tipo}</td>
-                <td className="px-4 py-3">{conta.nivel}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                      conta.status === 'Nova'
-                        ? 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200'
-                        : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200'
-                    }`}
-                  >
-                    {conta.status}
-                  </span>
-                </td>
+        {contasList.length === 0 ? (
+          <div className="px-6 py-12 text-center text-sm text-slate-500">
+            Nenhuma conta encontrada. As contas aparecerão aqui após importações.
+          </div>
+        ) : (
+          <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+            <thead className="bg-slate-50/60 dark:bg-slate-900/80">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium text-slate-500">
+                  Classificação
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500">Nome</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500">Tipo</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500">Nível</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              {contasList.map((conta) => (
+                <tr key={conta.id}>
+                  <td className="px-4 py-3 font-semibold">{conta.classificacao}</td>
+                  <td className="px-4 py-3">{conta.nomeConta}</td>
+                  <td className="px-4 py-3">{conta.tipoConta}</td>
+                  <td className="px-4 py-3">{conta.nivel}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                        conta.status === 'NOVA'
+                          ? 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200'
+                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200'
+                      }`}
+                    >
+                      {getStatusLabel(conta.status)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
     </div>
   );

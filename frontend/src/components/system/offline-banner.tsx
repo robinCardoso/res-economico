@@ -1,26 +1,58 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { api } from '@/lib/http';
 
 export const OfflineBanner = () => {
-  const [isOffline, setIsOffline] = useState(
-    () => (typeof navigator !== 'undefined' ? !navigator.onLine : false),
-  );
+  const [isOffline, setIsOffline] = useState(false);
+  const [backendOnline, setBackendOnline] = useState(true);
 
   useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
+    // Verificar se há conexão com internet
+    const checkInternet = () => {
+      if (typeof navigator !== 'undefined') {
+        setIsOffline(!navigator.onLine);
+      }
+    };
+
+    // Verificar se o backend está acessível
+    const checkBackend = async () => {
+      try {
+        await api.get('/');
+        setBackendOnline(true);
+      } catch {
+        setBackendOnline(false);
+      }
+    };
+
+    checkInternet();
+    checkBackend();
+
+    const handleOnline = () => {
+      setIsOffline(false);
+      checkBackend();
+    };
     const handleOffline = () => setIsOffline(true);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
+    // Verificar backend periodicamente quando offline
+    const interval = setInterval(() => {
+      if (!navigator.onLine) {
+        checkBackend();
+      }
+    }, 5000);
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      clearInterval(interval);
     };
   }, []);
 
-  if (!isOffline) {
+  // Só mostrar se realmente estiver offline E backend não estiver acessível
+  if (!isOffline || backendOnline) {
     return null;
   }
 
