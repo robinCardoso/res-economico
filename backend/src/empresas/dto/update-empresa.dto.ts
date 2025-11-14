@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MinLength, IsEnum } from 'class-validator';
+import { IsString, IsOptional, MinLength, MaxLength, IsEnum } from 'class-validator';
 import { TipoEmpresa } from '@prisma/client';
 
 export class UpdateEmpresaDto {
@@ -15,4 +15,9 @@ export class UpdateEmpresaDto {
   @IsEnum(TipoEmpresa, { message: 'Tipo deve ser MATRIZ ou FILIAL' })
   @IsOptional()
   tipo?: TipoEmpresa;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(2, { message: 'UF deve ter no máximo 2 caracteres' })
+  uf?: string;
 }

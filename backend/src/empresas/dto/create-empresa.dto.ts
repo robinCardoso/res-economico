@@ -2,6 +2,7 @@ import {
   IsString,
   IsNotEmpty,
   MinLength,
+  MaxLength,
   IsOptional,
   IsEnum,
 } from 'class-validator';
@@ -25,4 +26,9 @@ export class CreateEmpresaDto {
   @IsEnum(TipoEmpresa, { message: 'Tipo deve ser MATRIZ ou FILIAL' })
   @IsOptional()
   tipo?: TipoEmpresa;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(2, { message: 'UF deve ter no máximo 2 caracteres' })
+  uf?: string;
 }

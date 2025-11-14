@@ -24,6 +24,7 @@ model Empresa {
   razaoSocial String
   nomeFantasia String?
   tipo        TipoEmpresa @default(MATRIZ)
+  uf          String?     // Estado (SC, SP, etc.) - usado nos relatórios
   uploads     Upload[]
   templates   TemplateImportacao[]
   usuarios    Usuario[]

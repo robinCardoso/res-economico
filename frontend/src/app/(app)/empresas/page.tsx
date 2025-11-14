@@ -9,6 +9,37 @@ import { Plus, Pencil, Trash2, X, Check } from 'lucide-react';
 import { maskCNPJ, unmaskCNPJ } from '@/lib/masks';
 import type { Empresa } from '@/types/api';
 
+// Lista de UFs do Brasil
+const UFS_BRASIL = [
+  { value: 'AC', label: 'AC - Acre' },
+  { value: 'AL', label: 'AL - Alagoas' },
+  { value: 'AP', label: 'AP - Amapá' },
+  { value: 'AM', label: 'AM - Amazonas' },
+  { value: 'BA', label: 'BA - Bahia' },
+  { value: 'CE', label: 'CE - Ceará' },
+  { value: 'DF', label: 'DF - Distrito Federal' },
+  { value: 'ES', label: 'ES - Espírito Santo' },
+  { value: 'GO', label: 'GO - Goiás' },
+  { value: 'MA', label: 'MA - Maranhão' },
+  { value: 'MT', label: 'MT - Mato Grosso' },
+  { value: 'MS', label: 'MS - Mato Grosso do Sul' },
+  { value: 'MG', label: 'MG - Minas Gerais' },
+  { value: 'PA', label: 'PA - Pará' },
+  { value: 'PB', label: 'PB - Paraíba' },
+  { value: 'PR', label: 'PR - Paraná' },
+  { value: 'PE', label: 'PE - Pernambuco' },
+  { value: 'PI', label: 'PI - Piauí' },
+  { value: 'RJ', label: 'RJ - Rio de Janeiro' },
+  { value: 'RN', label: 'RN - Rio Grande do Norte' },
+  { value: 'RS', label: 'RS - Rio Grande do Sul' },
+  { value: 'RO', label: 'RO - Rondônia' },
+  { value: 'RR', label: 'RR - Roraima' },
+  { value: 'SC', label: 'SC - Santa Catarina' },
+  { value: 'SP', label: 'SP - São Paulo' },
+  { value: 'SE', label: 'SE - Sergipe' },
+  { value: 'TO', label: 'TO - Tocantins' },
+];
+
 const empresaSchema = z.object({
   cnpj: z.string().min(14, 'CNPJ deve ter 14 dígitos'),
   razaoSocial: z.string().min(2, 'Razão Social deve ter pelo menos 2 caracteres'),
@@ -16,6 +47,14 @@ const empresaSchema = z.object({
   tipo: z.enum(['MATRIZ', 'FILIAL'], {
     message: 'Selecione o tipo',
   }),
+  uf: z.enum(
+    [
+      'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
+      'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
+      'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+    ],
+    { message: 'Selecione uma UF válida' }
+  ).optional(),
 });
 
 type EmpresaFormData = z.infer<typeof empresaSchema>;
@@ -54,6 +93,7 @@ const EmpresasPage = () => {
       razaoSocial: '',
       nomeFantasia: '',
       tipo: 'MATRIZ',
+      uf: '',
     });
     setIsModalOpen(true);
     setErrorMessage(null);
@@ -68,6 +108,7 @@ const EmpresasPage = () => {
       razaoSocial: empresa.razaoSocial,
       nomeFantasia: empresa.nomeFantasia || '',
       tipo: empresa.tipo || 'MATRIZ',
+      uf: empresa.uf || '',
     });
     setIsModalOpen(true);
     setErrorMessage(null);
@@ -100,6 +141,7 @@ const EmpresasPage = () => {
             razaoSocial: data.razaoSocial,
             nomeFantasia: data.nomeFantasia || undefined,
             tipo: data.tipo,
+            uf: data.uf || undefined,
           },
         });
       } else {
@@ -108,6 +150,7 @@ const EmpresasPage = () => {
           razaoSocial: data.razaoSocial,
           nomeFantasia: data.nomeFantasia || undefined,
           tipo: data.tipo,
+          uf: data.uf || undefined,
         });
       }
       closeModal();
@@ -196,6 +239,9 @@ const EmpresasPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-300">
                     Tipo
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-300">
+                    UF
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-300">
                     Ações
                   </th>
@@ -221,6 +267,9 @@ const EmpresasPage = () => {
                       }`}>
                         {empresa.tipo === 'MATRIZ' ? 'Matriz' : 'Filial'}
                       </span>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-500 dark:text-slate-300">
+                      {empresa.uf || '-'}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
@@ -334,6 +383,27 @@ const EmpresasPage = () => {
                 </select>
                 {errors.tipo && (
                   <p className="text-xs text-rose-600">{errors.tipo.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="uf" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  UF
+                </label>
+                <select
+                  id="uf"
+                  {...register('uf')}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                >
+                  <option value="">Selecione uma UF</option>
+                  {UFS_BRASIL.map((uf) => (
+                    <option key={uf.value} value={uf.value}>
+                      {uf.label}
+                    </option>
+                  ))}
+                </select>
+                {errors.uf && (
+                  <p className="text-xs text-rose-600">{errors.uf.message}</p>
                 )}
               </div>
 

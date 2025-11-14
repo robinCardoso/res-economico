@@ -14,6 +14,7 @@ export interface Empresa {
   razaoSocial: string;
   nomeFantasia: string | null;
   tipo: TipoEmpresa;
+  uf?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -129,5 +130,31 @@ export interface UploadProgress {
   progress: number;
   estado: string;
   etapa: string;
+}
+
+export type TipoRelatorio = 'FILIAL' | 'CONSOLIDADO';
+
+export interface ContaRelatorio {
+  classificacao: string;
+  nomeConta: string;
+  nivel: number;
+  valores: {
+    [mes: number]: number;
+    total: number;
+  };
+  filhos?: ContaRelatorio[];
+}
+
+export interface RelatorioResultado {
+  empresaId?: string;
+  empresaNome: string;
+  uf?: string;
+  ano: number;
+  tipo: TipoRelatorio;
+  periodo: {
+    mes: number;
+    nome: string;
+  }[];
+  contas: ContaRelatorio[];
 }
 

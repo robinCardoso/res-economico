@@ -11,6 +11,7 @@ import { ContasModule } from './contas/contas.module';
 import { AuthModule } from './auth/auth.module';
 import { EmpresasModule } from './empresas/empresas.module';
 import { AuditoriaModule } from './auditoria/auditoria.module';
+import { RelatoriosModule } from './relatorios/relatorios.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AuditoriaModule } from './auditoria/auditoria.module';
     AuthModule,
     EmpresasModule,
     AuditoriaModule,
+    RelatoriosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,3 +1,6 @@
+import Link from 'next/link';
+import { FileBarChart, BrainCircuit } from 'lucide-react';
+
 const consultas = [
   {
     id: 'ai-001',
@@ -18,19 +21,52 @@ const consultas = [
 const RelatoriosPage = () => {
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
-            Relatórios inteligentes
-          </h1>
-          <p className="text-sm text-slate-500">
-            Gere análises assistidas pela Groq para explicar variações e apontar anomalias.
-          </p>
-        </div>
-        <button className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white shadow hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-300">
-          Nova análise
-        </button>
+      <header>
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+          Relatórios
+        </h1>
+        <p className="text-sm text-slate-500">
+          Gere relatórios consolidados e análises inteligentes dos seus dados.
+        </p>
       </header>
+
+      <section className="grid gap-4 md:grid-cols-2">
+        <Link
+          href="/relatorios/resultado"
+          className="group rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-sky-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-sky-700"
+        >
+          <div className="flex items-start gap-4">
+            <div className="rounded-lg bg-sky-100 p-3 dark:bg-sky-500/20">
+              <FileBarChart className="h-6 w-6 text-sky-600 dark:text-sky-400" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Resultado Econômico
+              </h2>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                Gere relatórios consolidados por filial ou consolidado para análise de resultados
+                mensais e anuais.
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+          <div className="flex items-start gap-4">
+            <div className="rounded-lg bg-purple-100 p-3 dark:bg-purple-500/20">
+              <BrainCircuit className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Análises Inteligentes
+              </h2>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                Em breve: análises assistidas pela Groq para explicar variações e apontar anomalias.
+              </p>
+            </div>
+          </div>
+        </article>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2">
         {consultas.map((consulta) => (
@@ -65,4 +101,3 @@ const RelatoriosPage = () => {
 };
 
 export default RelatoriosPage;
-
