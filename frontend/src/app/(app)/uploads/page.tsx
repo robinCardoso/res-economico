@@ -6,7 +6,7 @@ import { useUploads } from '@/hooks/use-uploads';
 import { useEmpresas } from '@/hooks/use-empresas';
 import { formatPeriodo, formatDateTime, getStatusLabel } from '@/lib/format';
 import { maskCNPJ } from '@/lib/masks';
-import { Building2, AlertCircle, FileText, Calendar, Clock } from 'lucide-react';
+import { Building2, AlertCircle, FileText, Calendar, Clock, Loader2 } from 'lucide-react';
 
 const UploadsPage = () => {
   const { data: uploads, isLoading, error } = useUploads();
@@ -141,19 +141,24 @@ const UploadsPage = () => {
                       </div>
                     </td>
                     <td className="px-3 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                          upload.status === 'CONCLUIDO'
-                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200'
-                            : upload.status === 'COM_ALERTAS'
-                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-400/20 dark:text-amber-200'
-                              : upload.status === 'PROCESSANDO'
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-400/20 dark:text-blue-200'
-                                : 'bg-slate-100 text-slate-700 dark:bg-slate-400/20 dark:text-slate-200'
-                        }`}
-                      >
-                        {getStatusLabel(upload.status)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            upload.status === 'CONCLUIDO'
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200'
+                              : upload.status === 'COM_ALERTAS'
+                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-400/20 dark:text-amber-200'
+                                : upload.status === 'PROCESSANDO'
+                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-400/20 dark:text-blue-200'
+                                  : 'bg-slate-100 text-slate-700 dark:bg-slate-400/20 dark:text-slate-200'
+                          }`}
+                        >
+                          {getStatusLabel(upload.status)}
+                        </span>
+                        {upload.status === 'PROCESSANDO' && (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-3">
                       {(upload.alertas?.length || 0) > 0 ? (
@@ -163,7 +168,7 @@ const UploadsPage = () => {
                         >
                           <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
                           <span className="text-sm font-medium text-amber-700 dark:text-amber-300 group-hover:underline">
-                            {upload.alertas.length}
+                            {upload.alertas?.length || 0}
                           </span>
                         </Link>
                       ) : (
@@ -190,9 +195,13 @@ const UploadsPage = () => {
                     <td className="px-4 py-3">
                       <Link
                         href={`/uploads/${upload.id}`}
-                        className="inline-flex items-center text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300 transition-colors"
+                        className={`inline-flex items-center text-xs font-medium transition-colors ${
+                          upload.status === 'PROCESSANDO'
+                            ? 'text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-semibold'
+                            : 'text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300'
+                        }`}
                       >
-                        Ver detalhes
+                        {upload.status === 'PROCESSANDO' ? 'Ver progresso' : 'Ver detalhes'}
                       </Link>
                     </td>
                   </tr>

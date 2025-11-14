@@ -1,4 +1,4 @@
-import type { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
+import type { AxiosError, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
 
 // Carregar baseURL da variável de ambiente ou usar fallback
@@ -24,7 +24,7 @@ export const api = axios.create({
 
 // Interceptor para adicionar token nas requisições
 api.interceptors.request.use(
-  (config: AxiosRequestConfig) => {
+  (config: InternalAxiosRequestConfig) => {
     if (typeof window !== 'undefined') {
       const authStorage = localStorage.getItem('auth-storage');
       if (authStorage) {
@@ -70,14 +70,21 @@ api.interceptors.response.use(
       console.error("API error:", errorDetails);
       
       // Tentar extrair mensagem de erro mais detalhada
-      const errorData = error.response.data;
+      const errorData = error.response.data as unknown;
       if (errorData) {
         if (typeof errorData === 'string') {
           console.error("Error message:", errorData);
-        } else if (errorData.message) {
-          console.error("Error message:", errorData.message);
-        } else if (Array.isArray(errorData.message)) {
-          console.error("Validation errors:", errorData.message);
+        } else if (typeof errorData === 'object' && errorData !== null) {
+          const errorObj = errorData as { message?: string | string[] };
+          if (errorObj.message) {
+            if (Array.isArray(errorObj.message)) {
+              console.error("Validation errors:", errorObj.message);
+            } else {
+              console.error("Error message:", errorObj.message);
+            }
+          } else {
+            console.error("Error response data:", JSON.stringify(errorData, null, 2));
+          }
         } else {
           console.error("Error response data:", JSON.stringify(errorData, null, 2));
         }

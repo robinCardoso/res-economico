@@ -17,7 +17,7 @@ export interface ColumnMapping {
 }
 
 export interface CreateTemplateDto {
-  empresaId: string;
+  empresaId?: string | null; // Opcional para templates globais
   nome: string;
   descricao?: string;
   columnMapping: ColumnMapping;

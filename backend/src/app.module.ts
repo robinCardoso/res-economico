@@ -3,12 +3,14 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CoreModule } from './core/core.module';
+import { QueueModule } from './core/queue/queue.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { TemplatesModule } from './templates/templates.module';
 import { AlertasModule } from './alertas/alertas.module';
 import { ContasModule } from './contas/contas.module';
 import { AuthModule } from './auth/auth.module';
 import { EmpresasModule } from './empresas/empresas.module';
+import { AuditoriaModule } from './auditoria/auditoria.module';
 
 @Module({
   imports: [
@@ -16,12 +18,14 @@ import { EmpresasModule } from './empresas/empresas.module';
       isGlobal: true,
     }),
     CoreModule,
+    QueueModule,
     UploadsModule,
     TemplatesModule,
     AlertasModule,
     ContasModule,
     AuthModule,
     EmpresasModule,
+    AuditoriaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

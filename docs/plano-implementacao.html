@@ -175,13 +175,13 @@
         <li>[✓] Melhorar layout da página de uploads com informações completas da empresa (Razão Social, Nome Fantasia, CNPJ).</li>
         <li>[&nbsp;] Integrar com Supabase Storage para armazenar arquivos (pendente).</li>
         <li>[✓] Atualização automática de status (polling a cada 5s quando há uploads processando).</li>
-        <li>[&nbsp;] Mostrar progresso detalhado do upload (barra de progresso, porcentagem) - pendente.</li>
+        <li>[✓] Mostrar progresso detalhado do upload (barra de progresso, porcentagem) - <strong>CONCLUÍDO</strong> - endpoint disponível para consulta de progresso em tempo real.</li>
         <li>[✓] Implementar processamento completo do arquivo Excel (ver próximo passo).</li>
       </ul>
 
       <h3>3. Processamento de Excel (✓ Concluído)</h3>
       <ul>
-        <li>[&nbsp;] Criar worker/queue para processamento assíncrono (BullMQ) - pendente para melhorar performance.</li>
+        <li>[✓] Criar worker/queue para processamento assíncrono (BullMQ) - <strong>CONCLUÍDO</strong> - melhora performance e evita timeouts em arquivos grandes. Processamento agora é feito em background com retry automático.</li>
         <li>[✓] Implementar atualização automática (polling) na página de uploads quando houver uploads em processamento.</li>
         <li>[✓] Implementar parser de planilhas Excel usando SheetJS no backend.</li>
         <li>[✓] Detecção automática de linha de cabeçalho (busca por primeira linha com texto não-numérico).</li>
@@ -193,6 +193,7 @@
         <li>[✓] Atualizar status do upload (PROCESSANDO → CONCLUIDO/COM_ALERTAS).</li>
         <li>[✓] Atualizar catálogo de contas unificado (<code>ContaCatalogo</code>) automaticamente - sem duplicatas por empresa.</li>
         <li>[✓] Logging extensivo para debugging do processo de parsing.</li>
+        <li>[✓] Barra de progresso detalhada do upload - <strong>CONCLUÍDO</strong> - endpoint <code>GET /uploads/:id/progresso</code> retorna porcentagem e status por etapa (lendo arquivo, processando linhas, criando registros, atualizando catálogo, detectando alertas, finalizando).</li>
       </ul>
 
       <h3>3.1. Templates de Importação (✓ Concluído)</h3>
@@ -218,20 +219,20 @@
         <li>[✓] Criar registros de alerta no banco com tipos: SALDO_DIVERGENTE, CONTA_NOVA, DADO_INCONSISTENTE, CABECALHO_ALTERADO.</li>
         <li>[✓] Classificar alertas por severidade (BAIXA, MEDIA, ALTA) baseado no impacto.</li>
         <li>[✓] Mensagens descritivas para cada tipo de alerta.</li>
-        <li>[&nbsp;] Implementar workflow de resolução de alertas (pendente).</li>
-        <li>[&nbsp;] Adicionar filtros e busca na página de alertas (pendente).</li>
-        <li>[&nbsp;] Permitir marcar alertas como resolvidos/em análise (pendente).</li>
+        <li>[✓] Implementar workflow de resolução de alertas (concluído).</li>
+        <li>[✓] Adicionar filtros e busca na página de alertas (concluído).</li>
+        <li>[✓] Permitir marcar alertas como resolvidos/em análise (concluído).</li>
       </ul>
 
       <h3>5. Funcionalidades Avançadas</h3>
       <ul>
-        <li><strong>Offline Storage:</strong> Implementar IndexedDB com Dexie para armazenar dados localmente.</li>
-        <li><strong>Push Notifications:</strong> Configurar Web Push via VAPID próprio.</li>
-        <li><strong>Integração Groq AI:</strong> Criar serviço para análises e insights dos dados.</li>
-        <li><strong>Dashboard:</strong> Implementar KPIs, gráficos e métricas.</li>
-        <li><strong>Edição de Linhas:</strong> Permitir editar/remover linhas de upload.</li>
-        <li><strong>Histórico de Auditoria:</strong> Registrar todas as ações no sistema.</li>
-        <li><strong>Relatórios:</strong> Gerar relatórios comparativos e análises.</li>
+        <li><strong>Histórico de Auditoria:</strong> Registrar todas as ações no sistema - <strong>CONCLUÍDO</strong> - log de alterações em uploads, alertas e empresas para rastreabilidade e segurança. Serviço <code>AuditoriaService</code> integrado em todos os módulos principais.</li>
+        <li><strong>Offline Storage:</strong> Implementar IndexedDB com Dexie para armazenar dados localmente (pendente).</li>
+        <li><strong>Push Notifications:</strong> Configurar Web Push via VAPID próprio (pendente).</li>
+        <li><strong>Integração Groq AI:</strong> Criar serviço para análises e insights dos dados (pendente).</li>
+        <li><strong>Dashboard:</strong> Implementar KPIs, gráficos e métricas (pendente).</li>
+        <li><strong>Edição de Linhas:</strong> Permitir editar/remover linhas de upload (pendente).</li>
+        <li><strong>Relatórios:</strong> Gerar relatórios comparativos e análises (pendente).</li>
       </ul>
     </section>
 
@@ -538,7 +539,10 @@
         melhorias no parsing de números brasileiros, correção do desalinhamento na pré-visualização
         com detecção inteligente de cabeçalho, indicadores visuais para colunas extras, validação
         client-side, funcionalidade de remover upload com exclusão em cascata, unificação do catálogo
-        de contas (sem duplicatas por empresa) e atualização automática de status de uploads em processamento.
+        de contas (sem duplicatas por empresa), atualização automática de status de uploads em processamento,
+        <strong>processamento assíncrono com BullMQ e Redis</strong> (melhora performance e evita timeouts),
+        <strong>barra de progresso detalhada do upload</strong> com endpoint para consulta em tempo real,
+        e <strong>histórico de auditoria completo</strong> registrando todas as ações do sistema (uploads, alertas, empresas).
       </p>
     </footer>
   </body>

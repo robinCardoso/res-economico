@@ -1,5 +1,5 @@
 import { api } from '@/lib/http';
-import type { Empresa } from '@prisma/client';
+import type { Empresa } from '@/types/api';
 
 export interface CreateEmpresaDto {
   cnpj: string;

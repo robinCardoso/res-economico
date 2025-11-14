@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { empresasService, type CreateEmpresaDto, type UpdateEmpresaDto } from '@/services/empresas.service';
-import type { Empresa } from '@prisma/client';
+import type { Empresa } from '@/types/api';
 
 export function useEmpresas() {
   return useQuery<Empresa[]>({

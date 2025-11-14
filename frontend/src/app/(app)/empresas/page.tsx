@@ -7,13 +7,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Plus, Pencil, Trash2, X, Check } from 'lucide-react';
 import { maskCNPJ, unmaskCNPJ } from '@/lib/masks';
-import type { Empresa } from '@prisma/client';
+import type { Empresa } from '@/types/api';
 
 const empresaSchema = z.object({
   cnpj: z.string().min(14, 'CNPJ deve ter 14 dígitos'),
   razaoSocial: z.string().min(2, 'Razão Social deve ter pelo menos 2 caracteres'),
   nomeFantasia: z.string().optional(),
-  tipo: z.enum(['MATRIZ', 'FILIAL'], { required_error: 'Selecione o tipo' }),
+  tipo: z.enum(['MATRIZ', 'FILIAL'], {
+    message: 'Selecione o tipo',
+  }),
 });
 
 type EmpresaFormData = z.infer<typeof empresaSchema>;

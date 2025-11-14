@@ -111,3 +111,23 @@ export type TemplateImportacaoWithRelations = TemplateImportacao & {
 
 export type ContaCatalogoWithRelations = ContaCatalogo;
 
+export interface LogAuditoria {
+  id: string;
+  recurso: string;
+  acao: string;
+  usuarioId: string;
+  dados: Record<string, unknown>;
+  createdAt: string;
+  usuario?: {
+    id: string;
+    nome: string;
+    email: string;
+  };
+}
+
+export interface UploadProgress {
+  progress: number;
+  estado: string;
+  etapa: string;
+}
+

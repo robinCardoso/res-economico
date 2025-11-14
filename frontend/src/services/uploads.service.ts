@@ -41,5 +41,12 @@ export const uploadsService = {
   async remove(id: string): Promise<void> {
     await api.delete(`/uploads/${id}`);
   },
+
+  async getProgress(id: string): Promise<{ progress: number; estado: string; etapa: string }> {
+    const { data } = await api.get<{ progress: number; estado: string; etapa: string }>(
+      `/uploads/${id}/progresso`,
+    );
+    return data;
+  },
 };
 

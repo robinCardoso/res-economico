@@ -7,6 +7,7 @@ import {
   Param,
   Body,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { EmpresasService } from './empresas.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -29,17 +30,24 @@ export class EmpresasController {
   }
 
   @Post()
-  create(@Body() dto: CreateEmpresaDto) {
-    return this.empresasService.create(dto);
+  create(@Body() dto: CreateEmpresaDto, @Request() req: { user?: { id?: string } }) {
+    const userId = req.user?.id || 'system';
+    return this.empresasService.create(dto, userId);
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateEmpresaDto) {
-    return this.empresasService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateEmpresaDto,
+    @Request() req: { user?: { id?: string } },
+  ) {
+    const userId = req.user?.id || 'system';
+    return this.empresasService.update(id, dto, userId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.empresasService.remove(id);
+  remove(@Param('id') id: string, @Request() req: { user?: { id?: string } }) {
+    const userId = req.user?.id || 'system';
+    return this.empresasService.remove(id, userId);
   }
 }

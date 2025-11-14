@@ -6,6 +6,7 @@ import {
   Body,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { AlertasService } from './alertas.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -28,7 +29,12 @@ export class AlertasController {
   }
 
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body() dto: UpdateAlertaDto) {
-    return this.alertasService.updateStatus(id, dto);
+  updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateAlertaDto,
+    @Request() req: { user?: { id?: string } },
+  ) {
+    const userId = req.user?.id || 'system';
+    return this.alertasService.updateStatus(id, dto, userId);
   }
 }

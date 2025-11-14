@@ -45,8 +45,13 @@ export class ExcelProcessorService {
 
   /**
    * Processa um arquivo Excel e cria os registros de LinhaUpload
+   * @param uploadId ID do upload a ser processado
+   * @param onProgress Callback opcional para atualizar progresso (0-100)
    */
-  async processUpload(uploadId: string): Promise<void> {
+  async processUpload(
+    uploadId: string,
+    onProgress?: (progress: number, etapa: string) => void,
+  ): Promise<void> {
     const upload = await this.prisma.upload.findUnique({
       where: { id: uploadId },
       include: { template: true, empresa: true },
@@ -62,7 +67,8 @@ export class ExcelProcessorService {
     }
 
     try {
-      // Ler arquivo Excel
+      // Etapa 1: Ler arquivo Excel (10-20%)
+      onProgress?.(10, 'Lendo arquivo Excel...');
       const filePath = upload.arquivoUrl.replace('/uploads/', './uploads/');
       if (!fs.existsSync(filePath)) {
         throw new Error(`Arquivo não encontrado: ${filePath}`);
@@ -208,24 +214,33 @@ export class ExcelProcessorService {
           : null,
       );
 
-      // Processar linhas
+      // Etapa 2: Processar e validar linhas (20-50%)
+      onProgress?.(20, 'Processando linhas do arquivo...');
       const linhas = this.parseRows(dataRows, mapping);
       this.logger.log(`Processadas ${linhas.length} linhas do arquivo`);
 
       // Validar e criar registros
       const linhasValidas = linhas.filter((linha) => this.isValidRow(linha));
       this.logger.log(`${linhasValidas.length} linhas válidas encontradas`);
+      onProgress?.(30, `${linhasValidas.length} linhas válidas encontradas`);
 
-      // Criar registros no banco
+      // Etapa 3: Criar registros no banco (50-70%)
+      onProgress?.(50, 'Criando registros no banco de dados...');
       await this.createLinhaUploads(uploadId, upload.empresaId, linhasValidas);
+      onProgress?.(60, 'Registros criados com sucesso');
 
-      // Atualizar catálogo de contas (deve ser feito antes de detectar alertas)
+      // Etapa 4: Atualizar catálogo de contas (70-80%)
+      onProgress?.(70, 'Atualizando catálogo de contas...');
       await this.updateContaCatalogo(upload.empresaId, linhasValidas);
+      onProgress?.(80, 'Catálogo atualizado');
 
-      // Detectar alertas (após criar linhas e atualizar catálogo)
+      // Etapa 5: Detectar alertas (80-95%)
+      onProgress?.(80, 'Detectando alertas...');
       await this.detectAlerts(uploadId, linhasValidas, upload.empresaId);
+      onProgress?.(95, 'Análise de alertas concluída');
 
-      // Atualizar status do upload
+      // Etapa 6: Finalizar processamento (95-100%)
+      onProgress?.(95, 'Finalizando processamento...');
       const alertasCount = await this.prisma.alerta.count({
         where: { uploadId, status: 'ABERTO' },
       });
@@ -238,6 +253,7 @@ export class ExcelProcessorService {
         },
       });
 
+      onProgress?.(100, 'Processamento concluído');
       this.logger.log(
         `Upload ${uploadId} processado com sucesso. ${alertasCount} alertas gerados.`,
       );

@@ -1,10 +1,31 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import { useContas } from '@/hooks/use-contas';
 import { getStatusLabel } from '@/lib/format';
+import type { ContaStatus } from '@/types/api';
+import { Search } from 'lucide-react';
 
 const ContasPage = () => {
-  const { data: contas, isLoading, error } = useContas();
+  const [statusFiltro, setStatusFiltro] = useState<ContaStatus | ''>('');
+  const [tipoContaFiltro, setTipoContaFiltro] = useState<string>('');
+  const [nivelFiltro, setNivelFiltro] = useState<number | ''>('');
+  const [classificacaoPrefix, setClassificacaoPrefix] = useState<string>('');
+  const [busca, setBusca] = useState<string>('');
+
+  // Construir filtros
+  const filters = useMemo(() => {
+    const f: any = {};
+    if (statusFiltro) f.status = statusFiltro;
+    if (tipoContaFiltro) f.tipoConta = tipoContaFiltro;
+    if (nivelFiltro) f.nivel = nivelFiltro;
+    if (classificacaoPrefix) f.classificacaoPrefix = classificacaoPrefix;
+    if (busca) f.busca = busca;
+    return Object.keys(f).length > 0 ? f : undefined;
+  }, [statusFiltro, tipoContaFiltro, nivelFiltro, classificacaoPrefix, busca]);
+
+  const { data: contas, isLoading, error } = useContas(filters);
+  const { data: todasContas } = useContas(); // Buscar todas para popular filtros
 
   if (isLoading) {
     return (
@@ -26,6 +47,27 @@ const ContasPage = () => {
 
   // Garantir que contas seja sempre um array
   const contasList = Array.isArray(contas) ? contas : [];
+  const todasContasList = Array.isArray(todasContas) ? todasContas : [];
+
+  // Extrair tipos de conta únicos para o filtro (de todas as contas)
+  const tiposConta = useMemo(() => {
+    const tipos = new Set<string>();
+    todasContasList.forEach((conta) => {
+      if (conta.tipoConta) tipos.add(conta.tipoConta);
+    });
+    return Array.from(tipos).sort();
+  }, [todasContasList]);
+
+  // Extrair níveis únicos para o filtro (de todas as contas)
+  const niveis = useMemo(() => {
+    const niveisSet = new Set<number>();
+    todasContasList.forEach((conta) => {
+      niveisSet.add(conta.nivel);
+    });
+    return Array.from(niveisSet).sort((a, b) => a - b);
+  }, [todasContasList]);
+
+  const hasActiveFilters = statusFiltro || tipoContaFiltro || nivelFiltro || classificacaoPrefix || busca;
 
   return (
     <div className="space-y-6">
@@ -38,10 +80,127 @@ const ContasPage = () => {
         </p>
       </header>
 
+      {/* Filtros e Busca */}
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="space-y-4">
+          {/* Busca */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar por classificação ou nome da conta..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="w-full rounded-md border border-slate-300 bg-white pl-10 pr-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            />
+          </div>
+
+          {/* Filtros em Grid */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Filtro por Status */}
+            <div>
+              <label htmlFor="status-filtro" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+                Status
+              </label>
+              <select
+                id="status-filtro"
+                value={statusFiltro}
+                onChange={(e) => setStatusFiltro(e.target.value as ContaStatus | '')}
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              >
+                <option value="">Todos</option>
+                <option value="ATIVA">Regular</option>
+                <option value="NOVA">Nova</option>
+                <option value="ARQUIVADA">Arquivada</option>
+              </select>
+            </div>
+
+            {/* Filtro por Tipo de Conta */}
+            <div>
+              <label htmlFor="tipo-conta-filtro" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+                Tipo de Conta
+              </label>
+              <select
+                id="tipo-conta-filtro"
+                value={tipoContaFiltro}
+                onChange={(e) => setTipoContaFiltro(e.target.value)}
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              >
+                <option value="">Todos</option>
+                {tiposConta.map((tipo) => (
+                  <option key={tipo} value={tipo}>
+                    {tipo}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filtro por Nível */}
+            <div>
+              <label htmlFor="nivel-filtro" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+                Nível
+              </label>
+              <select
+                id="nivel-filtro"
+                value={nivelFiltro}
+                onChange={(e) => setNivelFiltro(e.target.value ? parseInt(e.target.value) : '')}
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              >
+                <option value="">Todos</option>
+                {niveis.map((nivel) => (
+                  <option key={nivel} value={nivel}>
+                    Nível {nivel}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filtro por Prefixo de Classificação */}
+            <div>
+              <label htmlFor="classificacao-prefix-filtro" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+                Prefixo Classificação
+              </label>
+              <input
+                id="classificacao-prefix-filtro"
+                type="text"
+                placeholder="Ex: 1. (Ativos)"
+                value={classificacaoPrefix}
+                onChange={(e) => setClassificacaoPrefix(e.target.value)}
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              />
+            </div>
+          </div>
+
+          {/* Contador e Limpar Filtros */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-500">
+              {contasList.length} conta(s) encontrada(s)
+            </span>
+            {hasActiveFilters && (
+              <button
+                onClick={() => {
+                  setStatusFiltro('');
+                  setTipoContaFiltro('');
+                  setNivelFiltro('');
+                  setClassificacaoPrefix('');
+                  setBusca('');
+                }}
+                className="text-xs text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Tabela de Contas */}
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
         {contasList.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-slate-500">
-            Nenhuma conta encontrada. As contas aparecerão aqui após importações.
+            {hasActiveFilters
+              ? 'Nenhuma conta encontrada com os filtros aplicados.'
+              : 'Nenhuma conta encontrada. As contas aparecerão aqui após importações.'}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -71,7 +230,9 @@ const ContasPage = () => {
                         className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
                           conta.status === 'NOVA'
                             ? 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200'
-                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200'
+                            : conta.status === 'ARQUIVADA'
+                              ? 'bg-slate-100 text-slate-700 dark:bg-slate-400/20 dark:text-slate-200'
+                              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200'
                         }`}
                       >
                         {getStatusLabel(conta.status)}
@@ -95,4 +256,3 @@ const ContasPage = () => {
 };
 
 export default ContasPage;
-

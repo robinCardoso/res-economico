@@ -1,7 +1,10 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Inject } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bull';
+import type { Queue } from 'bull';
 import { PrismaService } from '../core/prisma/prisma.service';
 import { CreateUploadDto } from './dto/create-upload.dto';
 import { ExcelProcessorService } from './excel-processor.service';
+import { AuditoriaService } from '../core/auditoria/auditoria.service';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 
@@ -10,6 +13,9 @@ export class UploadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly excelProcessor: ExcelProcessorService,
+    private readonly auditoria: AuditoriaService,
+    @InjectQueue('upload-processing')
+    private readonly uploadQueue: Queue,
   ) {}
 
   findAll() {
@@ -94,11 +100,22 @@ export class UploadsService {
       },
     });
 
-    // Processar arquivo Excel de forma assíncrona
-    // Por enquanto processamos de forma síncrona, depois migrar para BullMQ
-    this.excelProcessor.processUpload(upload.id).catch((error) => {
-      console.error(`Erro ao processar upload ${upload.id}:`, error);
-    });
+    // Adicionar job na fila para processamento assíncrono
+    await this.uploadQueue.add(
+      'process-upload',
+      { uploadId: upload.id },
+      {
+        jobId: upload.id, // Usar uploadId como jobId para facilitar busca
+        attempts: 3, // Tentar até 3 vezes em caso de falha
+        backoff: {
+          type: 'exponential',
+          delay: 2000, // Delay inicial de 2 segundos
+        },
+      },
+    );
+
+    // Registrar auditoria
+    await this.auditoria.registrarUpload(userId, upload.id, 'CRIAR');
 
     return upload;
   }
@@ -123,7 +140,31 @@ export class UploadsService {
     });
   }
 
-  async remove(id: string) {
+  async reprocessar(uploadId: string, userId?: string) {
+    // Limpar processamento anterior
+    await this.limparProcessamento(uploadId);
+
+    // Adicionar job na fila para reprocessamento
+    await this.uploadQueue.add(
+      'process-upload',
+      { uploadId },
+      {
+        jobId: uploadId,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+      },
+    );
+
+    // Registrar auditoria
+    if (userId) {
+      await this.auditoria.registrarUpload(userId, uploadId, 'REPROCESSAR');
+    }
+  }
+
+  async remove(id: string, userId?: string) {
     // Buscar upload para obter o caminho do arquivo
     const upload = await this.prisma.upload.findUnique({
       where: { id },
@@ -150,6 +191,39 @@ export class UploadsService {
       where: { id },
     });
 
+    // Registrar auditoria
+    if (userId) {
+      await this.auditoria.registrarUpload(userId, id, 'REMOVER');
+    }
+
     return { message: 'Upload removido com sucesso' };
+  }
+
+  async getProgress(uploadId: string) {
+    try {
+      const job = await this.uploadQueue.getJob(uploadId);
+      if (!job) {
+        return { progress: 0, etapa: 'Aguardando processamento' };
+      }
+
+      // No Bull, progress() retorna o valor quando chamada sem argumentos
+      const progressValue = (job.progress() as number) || 0;
+      
+      const state = await job.getState();
+      
+      return {
+        progress: progressValue,
+        estado: state,
+        etapa: progressValue < 20 ? 'Lendo arquivo...' :
+               progressValue < 50 ? 'Processando linhas...' :
+               progressValue < 70 ? 'Criando registros...' :
+               progressValue < 80 ? 'Atualizando catálogo...' :
+               progressValue < 95 ? 'Detectando alertas...' :
+               progressValue < 100 ? 'Finalizando...' : 'Concluído',
+      };
+    } catch (error) {
+      console.error(`Erro ao buscar progresso do upload ${uploadId}:`, error);
+      return { progress: 0, etapa: 'Erro ao buscar progresso' };
+    }
   }
 }

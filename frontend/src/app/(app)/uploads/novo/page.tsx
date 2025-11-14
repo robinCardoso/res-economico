@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 import * as z from 'zod';
 import * as XLSX from 'xlsx';
 import { Upload, FileSpreadsheet, X, CheckCircle2 } from 'lucide-react';
@@ -40,6 +41,7 @@ const meses = [
 
 const NovoUploadPage = () => {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: empresas, isLoading: isLoadingEmpresas } = useEmpresas();
   const { data: templates, isLoading: isLoadingTemplates } = useTemplates();
   
@@ -309,14 +311,19 @@ const NovoUploadPage = () => {
     setError(null);
 
     try {
-      await uploadsService.create(file, {
+      const upload = await uploadsService.create(file, {
         empresaId: data.empresaId,
         mes: data.mes,
         ano: data.ano,
         templateId: data.templateId,
       });
       
-      router.push('/uploads');
+      // Invalidar a query de uploads para atualizar a lista
+      await queryClient.invalidateQueries({ queryKey: ['uploads'] });
+      
+      // Redirecionar para a página de detalhes do upload criado
+      // Assim o usuário pode ver o progresso em tempo real
+      router.push(`/uploads/${upload.id}`);
     } catch (err: unknown) {
       console.error('Erro no upload:', err);
       const error = err as { 

@@ -37,25 +37,28 @@ export class UploadsController {
     return this.uploadsService.findAll();
   }
 
+  // Rotas específicas devem vir ANTES das rotas genéricas com :id
+  @Get(':id/progresso')
+  async getProgresso(@Param('id') id: string) {
+    return this.uploadsService.getProgress(id);
+  }
+
+  @Patch(':id/reprocessar')
+  async reprocessar(@Param('id') id: string, @Request() req: { user?: { id?: string } }) {
+    const userId = req.user?.id || 'system';
+    await this.uploadsService.reprocessar(id, userId);
+    return this.uploadsService.findOne(id);
+  }
+
   @Get(':id')
   detail(@Param('id') id: string) {
     return this.uploadsService.findOne(id);
   }
 
-  @Patch(':id/reprocessar')
-  async reprocessar(@Param('id') id: string) {
-    // Limpar linhas e alertas existentes
-    await this.uploadsService.limparProcessamento(id);
-
-    // Reprocessar
-    await this.excelProcessor.processUpload(id);
-
-    return this.uploadsService.findOne(id);
-  }
-
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return this.uploadsService.remove(id);
+  async remove(@Param('id') id: string, @Request() req: { user?: { id?: string } }) {
+    const userId = req.user?.id || 'system';
+    return this.uploadsService.remove(id, userId);
   }
 
   @Post()

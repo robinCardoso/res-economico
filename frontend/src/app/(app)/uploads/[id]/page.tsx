@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUpload } from '@/hooks/use-uploads';
-import { formatPeriodo, getStatusLabel } from '@/lib/format';
+import { useUploadProgress } from '@/hooks/use-upload-progress';
+import { formatPeriodo, getStatusLabel, formatDateTime } from '@/lib/format';
 import { uploadsService } from '@/services/uploads.service';
-import { Trash2, AlertTriangle, X } from 'lucide-react';
+import { Trash2, AlertTriangle, X, Loader2 } from 'lucide-react';
 
 type UploadDetalheProps = {
   params: Promise<{ id: string }>;
@@ -16,6 +17,8 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
   const { id } = use(params);
   const router = useRouter();
   const { data: upload, isLoading, error } = useUpload(id);
+  const isProcessing = upload?.status === 'PROCESSANDO';
+  const { data: progress } = useUploadProgress(id, isProcessing || false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -75,6 +78,33 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
           </button>
         </div>
       </header>
+
+      {/* Barra de Progresso - Aparece apenas quando o upload está em status PROCESSANDO */}
+      {isProcessing && (
+        <section className="rounded-xl border border-sky-200 bg-sky-50/50 p-6 shadow-sm dark:border-sky-800 dark:bg-sky-900/20">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+              Processamento em andamento
+            </h2>
+            <span className="text-xs font-medium text-sky-600 dark:text-sky-400">
+              {progress?.progress || 0}%
+            </span>
+          </div>
+          <div className="w-full bg-slate-200 rounded-full h-3 dark:bg-slate-700 mb-2">
+            <div
+              className="bg-sky-500 h-3 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progress?.progress || 0}%` }}
+            />
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+            <Loader2 className="h-3 w-3 animate-spin text-sky-500" />
+            <span>{progress?.etapa || 'Iniciando processamento...'}</span>
+          </div>
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            O processamento está sendo executado em background. Esta página será atualizada automaticamente.
+          </p>
+        </section>
+      )}
 
       <section className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
