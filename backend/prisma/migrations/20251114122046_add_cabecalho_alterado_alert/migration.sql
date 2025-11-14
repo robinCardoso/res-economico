@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "AlertaTipo" ADD VALUE 'CABECALHO_ALTERADO';

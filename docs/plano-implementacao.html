@@ -58,7 +58,7 @@
         Documento de referência para o desenvolvimento do sistema de resultado
         econômico com base no arquivo
         <code>Balancete Consolidado 2025.xls</code>. Status atual:
-        <span class="status">Autenticação e gestão de empresas concluídas - Processamento de Excel em desenvolvimento</span>.
+        <span class="status">Processamento completo de Excel implementado - Sistema de alertas funcional - Templates globais disponíveis</span>.
       </p>
     </header>
 
@@ -87,11 +87,24 @@
         </li>
         <li>
           <strong>Upload de Arquivos:</strong> Página de upload implementada com pré-visualização,
-          validação e seleção de empresa/template. Falta processamento completo do Excel.
+          validação e seleção de empresa/template. Processamento completo de Excel implementado.
         </li>
         <li>
-          Próximos passos: implementar processamento completo de Excel (parsing, validação, alertas),
-          sistema de alertas, templates dinâmicos, Web Push via VAPID e integração Groq.
+          <strong>Processamento de Excel:</strong> Parser completo implementado com detecção automática de cabeçalhos,
+          conversão de formatos brasileiros (números com vírgula), validação de dados, criação de LinhaUpload,
+          atualização de catálogo de contas e geração de alertas.
+        </li>
+        <li>
+          <strong>Templates de Importação:</strong> CRUD completo implementado com suporte a templates globais
+          (disponíveis para todas as empresas) e templates específicos por empresa.
+        </li>
+        <li>
+          <strong>Sistema de Alertas:</strong> Detecção automática de saldos divergentes, contas novas,
+          dados inconsistentes (incluindo células vazias) e alterações no cabeçalho do Excel.
+        </li>
+        <li>
+          Próximos passos: implementar worker/queue para processamento assíncrono (BullMQ),
+          Web Push via VAPID, integração Groq e dashboard com KPIs.
         </li>
       </ul>
     </section>
@@ -107,6 +120,7 @@
         <li>[✓] Ajustar estados de carregamento/erro no frontend conforme respostas reais.</li>
         <li>[✓] Implementar CRUD completo de empresas (criar, editar, excluir, listar).</li>
         <li>[✓] Remover estrutura de filiais - simplificação para usar apenas empresas com tipo (MATRIZ/FILIAL).</li>
+        <li>[✓] Corrigir erros de lint no frontend e backend (tipos TypeScript, variáveis não utilizadas, etc.).</li>
       </ul>
     </section>
 
@@ -136,40 +150,59 @@
         <li>[✓] Implementar validação de exclusão (verificar uploads, contas, templates, usuários associados).</li>
       </ul>
 
-      <h3>2. Upload de Arquivos Excel (🔄 Parcialmente Concluído)</h3>
+      <h3>2. Upload de Arquivos Excel (✓ Concluído)</h3>
       <ul>
         <li>[✓] Criar página <code>/uploads/novo</code> com formulário de upload.</li>
         <li>[✓] Implementar pré-visualização com SheetJS (xlsx).</li>
-        <li>[✓] Permitir seleção de empresa e template de importação.</li>
+        <li>[✓] Permitir seleção de empresa e template de importação (incluindo templates globais).</li>
         <li>[✓] Validar formato e tamanho do arquivo (frontend e backend).</li>
         <li>[✓] Salvar metadados do upload no banco (empresaId, mes, ano, hash).</li>
         <li>[✓] Implementar armazenamento local de arquivos (temporário - migrar para Supabase depois).</li>
+        <li>[✓] Corrigir rolagem horizontal da tabela de pré-visualização (scroll contido no DIV).</li>
         <li>[&nbsp;] Integrar com Supabase Storage para armazenar arquivos (pendente).</li>
         <li>[&nbsp;] Mostrar progresso do upload (pendente).</li>
-        <li>[&nbsp;] Implementar processamento completo do arquivo Excel (pendente - ver próximo passo).</li>
+        <li>[✓] Implementar processamento completo do arquivo Excel (ver próximo passo).</li>
       </ul>
 
-      <h3>3. Processamento de Excel (⏳ Próximo Passo)</h3>
+      <h3>3. Processamento de Excel (✓ Concluído)</h3>
       <ul>
-        <li>[&nbsp;] Criar worker/queue para processamento assíncrono (BullMQ).</li>
-        <li>[&nbsp;] Implementar parser de planilhas Excel usando SheetJS no backend.</li>
-        <li>[&nbsp;] Mapear colunas conforme template de importação.</li>
-        <li>[&nbsp;] Validar e converter dados (números, datas, textos).</li>
-        <li>[&nbsp;] Criar registros em <code>LinhaUpload</code>.</li>
-        <li>[&nbsp;] Calcular hash de cada linha para detecção de mudanças.</li>
-        <li>[&nbsp;] Atualizar status do upload (PROCESSANDO → CONCLUIDO/COM_ALERTAS).</li>
-        <li>[&nbsp;] Atualizar catálogo de contas (<code>ContaCatalogo</code>).</li>
+        <li>[&nbsp;] Criar worker/queue para processamento assíncrono (BullMQ) - pendente para melhorar performance.</li>
+        <li>[✓] Implementar parser de planilhas Excel usando SheetJS no backend.</li>
+        <li>[✓] Detecção automática de linha de cabeçalho (busca por primeira linha com texto não-numérico).</li>
+        <li>[✓] Mapear colunas conforme template de importação ou auto-detecção por palavras-chave.</li>
+        <li>[✓] Validar e converter dados (números brasileiros com vírgula, booleanos, textos).</li>
+        <li>[✓] Tratamento de células vazias (convertidas para null).</li>
+        <li>[✓] Criar registros em <code>LinhaUpload</code> em lotes para melhor performance.</li>
+        <li>[✓] Calcular hash de cada linha para detecção de mudanças.</li>
+        <li>[✓] Atualizar status do upload (PROCESSANDO → CONCLUIDO/COM_ALERTAS).</li>
+        <li>[✓] Atualizar catálogo de contas (<code>ContaCatalogo</code>) automaticamente.</li>
+        <li>[✓] Logging extensivo para debugging do processo de parsing.</li>
       </ul>
 
-      <h3>4. Sistema de Alertas</h3>
+      <h3>3.1. Templates de Importação (✓ Concluído)</h3>
       <ul>
-        <li>Detectar divergências de saldo (saldo anterior + débito - crédito ≠ saldo atual).</li>
-        <li>Identificar contas novas comparando com catálogo existente.</li>
-        <li>Detectar dados inconsistentes (valores nulos, formatos inválidos).</li>
-        <li>Criar registros de alerta no banco.</li>
-        <li>Implementar workflow de resolução de alertas.</li>
-        <li>Adicionar filtros e busca na página de alertas.</li>
-        <li>Permitir marcar alertas como resolvidos/em análise.</li>
+        <li>[✓] Criar modelo <code>TemplateImportacao</code> no Prisma com campo <code>empresaId</code> opcional.</li>
+        <li>[✓] Implementar CRUD completo de templates no backend.</li>
+        <li>[✓] Suporte a templates globais (empresaId = null) disponíveis para todas as empresas.</li>
+        <li>[✓] Suporte a templates específicos por empresa (empresaId definido).</li>
+        <li>[✓] Criar página <code>/templates</code> no frontend com formulários e listagem.</li>
+        <li>[✓] Atualizar página de upload para filtrar templates globais e da empresa selecionada.</li>
+        <li>[✓] Interface visual para identificar templates globais vs. específicos.</li>
+      </ul>
+
+      <h3>4. Sistema de Alertas (✓ Parcialmente Concluído)</h3>
+      <ul>
+        <li>[✓] Detectar divergências de saldo (saldo anterior + débito - crédito ≠ saldo atual) com tolerância de 0.01.</li>
+        <li>[✓] Identificar contas novas comparando com catálogo existente.</li>
+        <li>[✓] Detectar dados inconsistentes (valores nulos, formatos inválidos, campos obrigatórios ausentes).</li>
+        <li>[✓] Detectar células vazias em campos importantes (Classificação, Conta, Nome da Conta, valores numéricos).</li>
+        <li>[✓] Detectar alterações no cabeçalho do Excel (colunas ausentes, colunas novas, mudanças no número de colunas).</li>
+        <li>[✓] Criar registros de alerta no banco com tipos: SALDO_DIVERGENTE, CONTA_NOVA, DADO_INCONSISTENTE, CABECALHO_ALTERADO.</li>
+        <li>[✓] Classificar alertas por severidade (BAIXA, MEDIA, ALTA) baseado no impacto.</li>
+        <li>[✓] Mensagens descritivas para cada tipo de alerta.</li>
+        <li>[&nbsp;] Implementar workflow de resolução de alertas (pendente).</li>
+        <li>[&nbsp;] Adicionar filtros e busca na página de alertas (pendente).</li>
+        <li>[&nbsp;] Permitir marcar alertas como resolvidos/em análise (pendente).</li>
       </ul>
 
       <h3>5. Funcionalidades Avançadas</h3>
@@ -193,8 +226,11 @@
           e campos dinâmicos).
         </li>
         <li>
-          Detecção automática de divergências de saldo, novas contas e alterações
-          em relação a importações anteriores.
+          Detecção automática de divergências de saldo, novas contas, dados inconsistentes,
+          células vazias e alterações no cabeçalho do Excel em relação a importações anteriores.
+        </li>
+        <li>
+          Templates de importação globais (disponíveis para todas as empresas) ou específicos por empresa.
         </li>
         <li>Push notifications e e-mails (Resend) para alertas e atualizações.</li>
         <li>
@@ -300,7 +336,7 @@
         <li><strong>empresa</strong>: id, cnpj, razaoSocial, nomeFantasia, tipo (MATRIZ/FILIAL), createdAt, updatedAt.</li>
         <li><strong>usuario</strong>: id, email, senha (hash), nome, roles, departamento, empresaId, createdAt, updatedAt.</li>
         <li>
-          <strong>template_importacao</strong>: id, empresaId, nome, descricao, configuracao (JSON), createdAt, updatedAt.
+          <strong>template_importacao</strong>: id, empresaId (opcional - null = template global), nome, descricao, configuracao (JSON), createdAt, updatedAt.
         </li>
         <li>
           <strong>upload</strong>: id, empresaId, templateId, mes, ano, arquivoUrl, hashArquivo, status, totalLinhas, createdBy, createdAt, updatedAt.
@@ -312,7 +348,7 @@
           <strong>conta_catalogo</strong>: id, empresaId, classificacao, nomeConta, tipoConta, nivel, primeiraImportacao, ultimaImportacao, status.
         </li>
         <li>
-          <strong>alerta</strong>: id, uploadId, linhaId, tipo, severidade, mensagem, status, createdAt, resolvedAt.
+          <strong>alerta</strong>: id, uploadId, linhaId, tipo (SALDO_DIVERGENTE, CONTA_NOVA, DADO_INCONSISTENTE, CABECALHO_ALTERADO), severidade (BAIXA, MEDIA, ALTA), mensagem, status, createdAt, resolvedAt.
         </li>
         <li>
           <strong>log_auditoria</strong>: id, usuarioId, recurso, acao, dados (JSON), createdAt.
@@ -326,25 +362,48 @@
       <ol>
         <li>
           Usuário faz upload do Excel → pré-visualização com SheetJS e seleção
-          de template.
+          de empresa e template (global ou específico da empresa).
         </li>
         <li>
           Arquivo é enviado ao backend, armazenado localmente (temporário - migrar para Supabase Storage) e
-          registrado em <code>upload</code> com empresaId, mes, ano e hash do arquivo.
+          registrado em <code>upload</code> com empresaId, templateId (opcional), mes, ano e hash do arquivo.
+          Status inicial: PROCESSANDO.
         </li>
         <li>
-          <strong>[Pendente]</strong> Worker processa linhas: converte valores, calcula hash, valida saldo
-          (<code>saldo anterior + débito - crédito</code> vs. <code>saldo atual</code>).
+          <strong>[Implementado]</strong> Backend processa o arquivo Excel:
+          <ul>
+            <li>Detecta automaticamente a linha de cabeçalho (busca primeira linha com texto não-numérico).</li>
+            <li>Mapeia colunas usando template configurado ou auto-detecção por palavras-chave.</li>
+            <li>Converte valores (números brasileiros com vírgula, booleanos, textos).</li>
+            <li>Trata células vazias (converte para null).</li>
+            <li>Cria registros em <code>LinhaUpload</code> em lotes.</li>
+            <li>Calcula hash de cada linha para detecção de mudanças.</li>
+            <li>Atualiza catálogo de contas (<code>ContaCatalogo</code>).</li>
+          </ul>
         </li>
         <li>
-          <strong>[Pendente]</strong> Identifica contas novas ou alterações em relação ao catálogo existente.
+          <strong>[Implementado]</strong> Sistema de detecção de alertas:
+          <ul>
+            <li>Valida saldo (<code>saldo anterior + débito - crédito</code> vs. <code>saldo atual</code>) com tolerância de 0.01.</li>
+            <li>Identifica contas novas comparando com catálogo existente.</li>
+            <li>Detecta dados inconsistentes (campos obrigatórios ausentes, células vazias em campos importantes).</li>
+            <li>Detecta alterações no cabeçalho (colunas ausentes, colunas novas, mudanças no número de colunas).</li>
+            <li>Cria alertas com severidade apropriada (BAIXA, MEDIA, ALTA).</li>
+          </ul>
         </li>
         <li>
-          <strong>[Pendente]</strong> Gera alertas, atualiza status e dispara notificações (push/e-mail).
+          <strong>[Implementado]</strong> Atualiza status do upload:
+          <ul>
+            <li>Se houver alertas: status = COM_ALERTAS</li>
+            <li>Se não houver alertas: status = CONCLUIDO</li>
+          </ul>
         </li>
         <li>
-          Usuário acessa detalhes do upload, pode editar/remover linhas, marcar
-          alertas como resolvidos ou reprocessar.
+          <strong>[Pendente]</strong> Disparar notificações (push/e-mail) quando houver alertas.
+        </li>
+        <li>
+          Usuário acessa detalhes do upload, pode visualizar alertas, editar/remover linhas,
+          marcar alertas como resolvidos ou reprocessar.
         </li>
       </ol>
     </section>
@@ -439,9 +498,11 @@
     <footer>
       <p>
         Última atualização:
-        <time datetime="2025-11-13">13 de novembro de 2025</time>. Documento
-        atualizado com progresso recente: autenticação concluída, gestão de empresas implementada,
-        estrutura de filiais removida e simplificada.
+        <time datetime="2025-11-14">14 de novembro de 2025</time>. Documento
+        atualizado com progresso recente: processamento completo de Excel implementado,
+        sistema de alertas funcional (incluindo detecção de alterações no cabeçalho),
+        templates globais disponíveis, detecção de células vazias e melhorias no parsing
+        de números brasileiros.
       </p>
     </footer>
   </body>

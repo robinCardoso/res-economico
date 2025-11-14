@@ -154,6 +154,7 @@ enum AlertaTipo {
   SALDO_DIVERGENTE
   CONTA_NOVA
   DADO_INCONSISTENTE
+  CABECALHO_ALTERADO
 }
 
 enum AlertaSeveridade {

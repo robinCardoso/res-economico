@@ -12,6 +12,7 @@ import { maskCNPJ } from '@/lib/masks';
 import { useEmpresas } from '@/hooks/use-empresas';
 import { useTemplates } from '@/hooks/use-templates';
 import { uploadsService } from '@/services/uploads.service';
+import { validateExcelFile, type ValidationAlert } from '@/lib/excel-validator';
 
 const uploadSchema = z.object({
   empresaId: z.string().min(1, 'Selecione uma empresa'),
@@ -47,6 +48,8 @@ const NovoUploadPage = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationAlerts, setValidationAlerts] = useState<ValidationAlert[]>([]);
+  const [showValidation, setShowValidation] = useState(false);
 
   const {
     register,
@@ -85,7 +88,7 @@ const NovoUploadPage = () => {
     setError(null);
     setFile(selectedFile);
 
-    // Pré-visualizar arquivo
+    // Pré-visualizar arquivo e validar
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -94,9 +97,27 @@ const NovoUploadPage = () => {
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
         setPreview(jsonData.slice(0, 10) as unknown[][]); // Primeiras 10 linhas
+
+        // Validar arquivo completo
+        const validation = validateExcelFile(workbook, []);
+        setValidationAlerts(validation.alerts);
+        setShowValidation(validation.alerts.length > 0);
+        
+        if (validation.alerts.length > 0) {
+          const criticalErrors = validation.alerts.filter(a => a.severidade === 'ALTA').length;
+          if (criticalErrors > 0) {
+            setError(`⚠️ ${criticalErrors} erro(s) crítico(s) encontrado(s) na validação. Revise os alertas antes de enviar.`);
+          } else {
+            setError(null); // Apenas avisos, não bloquear
+          }
+        } else {
+          setError(null);
+        }
       } catch {
         setError('Erro ao ler o arquivo Excel. Verifique se o arquivo está válido.');
         setFile(null);
+        setValidationAlerts([]);
+        setShowValidation(false);
       }
     };
     reader.readAsArrayBuffer(selectedFile);
@@ -135,6 +156,14 @@ const NovoUploadPage = () => {
       return;
     }
 
+    // Verificar se há erros críticos na validação
+    const criticalErrors = validationAlerts.filter(a => a.severidade === 'ALTA');
+    if (criticalErrors.length > 0) {
+      setError(`Não é possível enviar o arquivo. Existem ${criticalErrors.length} erro(s) crítico(s) que precisam ser corrigidos.`);
+      setShowValidation(true);
+      return;
+    }
+
     setIsUploading(true);
     setError(null);
 
@@ -148,8 +177,37 @@ const NovoUploadPage = () => {
       
       router.push('/uploads');
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } }; message?: string };
-      setError(error.response?.data?.message || error.message || 'Erro ao fazer upload. Tente novamente.');
+      console.error('Erro no upload:', err);
+      const error = err as { 
+        response?: { 
+          data?: { 
+            message?: string | string[];
+            error?: string;
+          }; 
+          status?: number;
+        }; 
+        message?: string;
+      };
+      
+      // Extrair mensagem de erro
+      let errorMessage = 'Erro ao fazer upload. Tente novamente.';
+      
+      if (error.response?.data) {
+        const data = error.response.data;
+        if (data.message) {
+          if (Array.isArray(data.message)) {
+            errorMessage = data.message.join(', ');
+          } else {
+            errorMessage = data.message;
+          }
+        } else if (data.error) {
+          errorMessage = data.error;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsUploading(false);
     }
@@ -381,6 +439,58 @@ const NovoUploadPage = () => {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Alertas de Validação */}
+              {showValidation && validationAlerts.length > 0 && (
+                <div className="mt-4 rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+                  <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        Alertas de Validação ({validationAlerts.length})
+                      </p>
+                      <button
+                        onClick={() => setShowValidation(false)}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="max-h-96 overflow-y-auto p-4">
+                    <div className="space-y-2">
+                      {validationAlerts.map((alert, index) => {
+                        const bgColor =
+                          alert.severidade === 'ALTA'
+                            ? 'bg-rose-50 border-rose-200 dark:bg-rose-900/20 dark:border-rose-800'
+                            : alert.severidade === 'MEDIA'
+                              ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800'
+                              : 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800';
+                        
+                        const textColor =
+                          alert.severidade === 'ALTA'
+                            ? 'text-rose-700 dark:text-rose-300'
+                            : alert.severidade === 'MEDIA'
+                              ? 'text-amber-700 dark:text-amber-300'
+                              : 'text-blue-700 dark:text-blue-300';
+
+                        return (
+                          <div
+                            key={index}
+                            className={`rounded-md border px-3 py-2 text-sm ${bgColor} ${textColor}`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className="font-semibold">
+                                [{alert.severidade}] Linha {alert.linha}:
+                              </span>
+                              <span>{alert.mensagem}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

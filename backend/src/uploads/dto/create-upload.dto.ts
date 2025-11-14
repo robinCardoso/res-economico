@@ -14,23 +14,37 @@ export class CreateUploadDto {
   empresaId: string;
 
   @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return parseInt(value, 10);
+    if (value === null || value === undefined || value === '') {
+      return undefined;
     }
-    return value as number;
+    if (typeof value === 'string') {
+      const parsed = parseInt(value, 10);
+      return isNaN(parsed) ? undefined : parsed;
+    }
+    if (typeof value === 'number') {
+      return value;
+    }
+    return undefined;
   })
-  @IsInt()
+  @IsInt({ message: 'Mês deve ser um número inteiro' })
   @Min(1, { message: 'Mês deve ser entre 1 e 12' })
   @Max(12, { message: 'Mês deve ser entre 1 e 12' })
   mes: number;
 
   @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return parseInt(value, 10);
+    if (value === null || value === undefined || value === '') {
+      return undefined;
     }
-    return value as number;
+    if (typeof value === 'string') {
+      const parsed = parseInt(value, 10);
+      return isNaN(parsed) ? undefined : parsed;
+    }
+    if (typeof value === 'number') {
+      return value;
+    }
+    return undefined;
   })
-  @IsInt()
+  @IsInt({ message: 'Ano deve ser um número inteiro' })
   @Min(2020, { message: 'Ano inválido' })
   @Max(2100, { message: 'Ano inválido' })
   ano: number;

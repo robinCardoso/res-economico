@@ -68,7 +68,20 @@ api.interceptors.response.use(
         headers: error.response.headers,
       };
       console.error("API error:", errorDetails);
-      console.error("Error response data:", JSON.stringify(error.response.data, null, 2));
+      
+      // Tentar extrair mensagem de erro mais detalhada
+      const errorData = error.response.data;
+      if (errorData) {
+        if (typeof errorData === 'string') {
+          console.error("Error message:", errorData);
+        } else if (errorData.message) {
+          console.error("Error message:", errorData.message);
+        } else if (Array.isArray(errorData.message)) {
+          console.error("Validation errors:", errorData.message);
+        } else {
+          console.error("Error response data:", JSON.stringify(errorData, null, 2));
+        }
+      }
     } else if (error.request) {
       // Requisição foi feita mas não houve resposta
       console.error("Network error - sem resposta do servidor:", {

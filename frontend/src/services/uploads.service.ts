@@ -37,5 +37,9 @@ export const uploadsService = {
     });
     return data;
   },
+
+  async remove(id: string): Promise<void> {
+    await api.delete(`/uploads/${id}`);
+  },
 };
 

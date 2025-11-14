@@ -1,9 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { use } from 'react';
+import { use, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUpload } from '@/hooks/use-uploads';
 import { formatPeriodo, getStatusLabel } from '@/lib/format';
+import { uploadsService } from '@/services/uploads.service';
+import { Trash2, AlertTriangle, X } from 'lucide-react';
 
 type UploadDetalheProps = {
   params: Promise<{ id: string }>;
@@ -11,7 +14,10 @@ type UploadDetalheProps = {
 
 const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
   const { id } = use(params);
+  const router = useRouter();
   const { data: upload, isLoading, error } = useUpload(id);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   if (isLoading) {
     return (
@@ -33,6 +39,18 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
 
   const alertasPendentes = upload.alertas?.filter((a) => a.status === 'ABERTO') || [];
 
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await uploadsService.remove(id);
+      router.push('/uploads');
+    } catch (err) {
+      console.error('Erro ao remover upload:', err);
+      alert('Erro ao remover upload. Tente novamente.');
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -48,7 +66,11 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
           <button className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
             Reprocessar
           </button>
-          <button className="rounded-md border border-rose-400 px-4 py-2 text-sm font-medium text-rose-500 hover:bg-rose-500/10 dark:border-rose-500/60 dark:text-rose-300">
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="inline-flex items-center gap-2 rounded-md border border-rose-400 px-4 py-2 text-sm font-medium text-rose-500 hover:bg-rose-500/10 dark:border-rose-500/60 dark:text-rose-300 transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
             Remover upload
           </button>
         </div>
@@ -137,6 +159,87 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
           )}
         </div>
       </section>
+
+      {/* Modal de Confirmação de Exclusão */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-rose-100 p-2 dark:bg-rose-900/20">
+                  <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  Confirmar exclusão
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                disabled={isDeleting}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-4">
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                Tem certeza que deseja remover este upload? Esta ação não pode ser desfeita.
+              </p>
+
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20 mb-4">
+                <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-2">
+                  Será removido permanentemente:
+                </p>
+                <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1 list-disc list-inside">
+                  <li>O registro do upload</li>
+                  <li>Todas as {upload.totalLinhas || 0} linhas importadas</li>
+                  <li>Todos os {upload.alertas?.length || 0} alertas relacionados</li>
+                  <li>O arquivo Excel físico do servidor</li>
+                </ul>
+              </div>
+
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                <p className="text-xs font-semibold text-blue-800 dark:text-blue-200 mb-1">
+                  Não será afetado:
+                </p>
+                <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1 list-disc list-inside">
+                  <li>O catálogo de contas (ContaCatalogo)</li>
+                  <li>A empresa associada</li>
+                  <li>Outros uploads</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-800">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-2 rounded-md bg-rose-500 px-4 py-2 text-sm font-medium text-white hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Removendo...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Sim, remover
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

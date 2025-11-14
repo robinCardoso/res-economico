@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useUploads } from '@/hooks/use-uploads';
 import { formatPeriodo, formatDateTime, getStatusLabel } from '@/lib/format';
+import { maskCNPJ } from '@/lib/masks';
+import { Building2, AlertCircle, FileText, Calendar, Clock } from 'lucide-react';
 
 const UploadsPage = () => {
   const { data: uploads, isLoading, error } = useUploads();
@@ -53,53 +55,108 @@ const UploadsPage = () => {
             Nenhum upload encontrado. Comece criando um novo upload.
           </div>
         ) : (
-          <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-            <thead className="bg-slate-50/60 dark:bg-slate-900/80">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">Empresa</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">Período</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">Alertas</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">Linhas</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">Atualizado</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {uploadsList.map((upload) => (
-                <tr key={upload.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900">
-                  <td className="px-4 py-3">{upload.empresa?.razaoSocial || 'N/A'}</td>
-                  <td className="px-4 py-3">{formatPeriodo(upload.mes, upload.ano)}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                        upload.status === 'CONCLUIDO'
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200'
-                          : upload.status === 'COM_ALERTAS'
-                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-400/20 dark:text-amber-200'
-                            : 'bg-slate-100 text-slate-700 dark:bg-slate-400/20 dark:text-slate-200'
-                      }`}
-                    >
-                      {getStatusLabel(upload.status)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{upload.alertas?.length || 0}</td>
-                  <td className="px-4 py-3">{upload.totalLinhas}</td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {formatDateTime(upload.updatedAt)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/uploads/${upload.id}`}
-                      className="text-sm font-medium text-sky-500 hover:text-sky-400"
-                    >
-                      Ver detalhes
-                    </Link>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-xs dark:divide-slate-800">
+              <thead className="bg-slate-50/60 dark:bg-slate-900/80">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 min-w-[240px]">
+                    Empresa
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Período</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Status</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Alertas</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Linhas</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Atualizado</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Ações</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                {uploadsList.map((upload) => (
+                  <tr key={upload.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-start gap-2">
+                        <div className="flex-shrink-0 mt-0.5">
+                          <Building2 className="h-4 w-4 text-slate-400" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                            {upload.empresa?.razaoSocial || 'N/A'}
+                          </div>
+                          {upload.empresa?.nomeFantasia && (
+                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                              {upload.empresa.nomeFantasia}
+                            </div>
+                          )}
+                          {upload.empresa?.cnpj && (
+                            <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-mono">
+                              CNPJ: {maskCNPJ(upload.empresa.cnpj)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-300">
+                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                        <span>{formatPeriodo(upload.mes, upload.ano)}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                          upload.status === 'CONCLUIDO'
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200'
+                            : upload.status === 'COM_ALERTAS'
+                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-400/20 dark:text-amber-200'
+                              : upload.status === 'PROCESSANDO'
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-400/20 dark:text-blue-200'
+                                : 'bg-slate-100 text-slate-700 dark:bg-slate-400/20 dark:text-slate-200'
+                        }`}
+                      >
+                        {getStatusLabel(upload.status)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <AlertCircle className={`h-3.5 w-3.5 ${
+                          (upload.alertas?.length || 0) > 0 
+                            ? 'text-amber-500' 
+                            : 'text-slate-300 dark:text-slate-600'
+                        }`} />
+                        <span className={`text-sm font-medium ${
+                          (upload.alertas?.length || 0) > 0 
+                            ? 'text-amber-700 dark:text-amber-300' 
+                            : 'text-slate-500 dark:text-slate-400'
+                        }`}>
+                          {upload.alertas?.length || 0}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-300">
+                        <FileText className="h-3.5 w-3.5 text-slate-400" />
+                        <span>{upload.totalLinhas || 0}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-slate-500 dark:text-slate-400">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="text-xs">{formatDateTime(upload.updatedAt)}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/uploads/${upload.id}`}
+                        className="inline-flex items-center text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300 transition-colors"
+                      >
+                        Ver detalhes
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>

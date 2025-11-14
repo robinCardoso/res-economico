@@ -193,6 +193,21 @@ export class ExcelProcessorService {
         });
       }
 
+      // Detectar alterações no cabeçalho (antes de processar linhas)
+      await this.detectHeaderChanges(
+        uploadId,
+        cleanHeaders,
+        mapping,
+        upload.empresaId,
+        upload.template
+          ? {
+              configuracao: upload.template.configuracao as
+                | { columnMapping?: TemplateMapping }
+                | undefined,
+            }
+          : null,
+      );
+
       // Processar linhas
       const linhas = this.parseRows(dataRows, mapping);
       this.logger.log(`Processadas ${linhas.length} linhas do arquivo`);
@@ -642,6 +657,137 @@ export class ExcelProcessorService {
   }
 
   /**
+   * Detecta alterações no cabeçalho do Excel
+   */
+  private async detectHeaderChanges(
+    uploadId: string,
+    currentHeaders: string[],
+    mapping: TemplateMapping,
+    empresaId: string,
+    template?: { configuracao?: { columnMapping?: TemplateMapping } } | null,
+  ): Promise<void> {
+    const alertas: Array<{
+      uploadId: string;
+      tipo: 'CABECALHO_ALTERADO';
+      severidade: 'BAIXA' | 'MEDIA' | 'ALTA';
+      mensagem: string;
+    }> = [];
+
+    // Obter cabeçalhos esperados do template ou do último upload
+    const ultimoUpload = await this.prisma.upload.findFirst({
+      where: {
+        empresaId,
+        status: { in: ['CONCLUIDO', 'COM_ALERTAS'] },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    });
+
+    // Cabeçalhos esperados baseados no mapeamento
+    const expectedHeaders = new Set<string>();
+    Object.values(mapping).forEach((colName) => {
+      if (colName && typeof colName === 'string') {
+        expectedHeaders.add(colName);
+      }
+    });
+
+    // Se há template configurado, usar os cabeçalhos do template como referência
+    let templateHeaders: string[] = [];
+    if (template?.configuracao?.columnMapping) {
+      templateHeaders = Object.values(template.configuracao.columnMapping).filter(
+        (col): col is string => typeof col === 'string' && col !== '',
+      );
+    }
+
+    // Detectar colunas esperadas que não foram encontradas
+    const colunasAusentes: string[] = [];
+    expectedHeaders.forEach((expectedCol) => {
+      // Verificar se a coluna existe (comparação case-insensitive e com normalização)
+      const found = currentHeaders.some(
+        (currentCol) =>
+          currentCol.toLowerCase().trim() === expectedCol.toLowerCase().trim(),
+      );
+      if (!found) {
+        colunasAusentes.push(expectedCol);
+      }
+    });
+
+    // Detectar colunas novas (que não estavam no mapeamento esperado)
+    const colunasNovas: string[] = [];
+    currentHeaders.forEach((currentCol) => {
+      if (currentCol && currentCol.trim() !== '') {
+        const found = Array.from(expectedHeaders).some(
+          (expectedCol) =>
+            currentCol.toLowerCase().trim() === expectedCol.toLowerCase().trim(),
+        );
+        if (!found) {
+          colunasNovas.push(currentCol);
+        }
+      }
+    });
+
+    // Gerar alertas
+    if (colunasAusentes.length > 0) {
+      const colunasAusentesStr = colunasAusentes.join(', ');
+      const templateInfo = templateHeaders.length > 0 
+        ? ' (conforme template configurado)' 
+        : ' (conforme mapeamento esperado)';
+      alertas.push({
+        uploadId,
+        tipo: 'CABECALHO_ALTERADO',
+        severidade: 'ALTA',
+        mensagem: `Colunas esperadas não encontradas no arquivo${templateInfo}: ${colunasAusentesStr}. Verifique se o formato do arquivo foi alterado pela contabilidade.`,
+      });
+    }
+
+    if (colunasNovas.length > 0) {
+      const colunasNovasStr = colunasNovas.join(', ');
+      const templateInfo = templateHeaders.length > 0 
+        ? ' (não estão no template configurado)' 
+        : ' (não estavam no mapeamento esperado)';
+      alertas.push({
+        uploadId,
+        tipo: 'CABECALHO_ALTERADO',
+        severidade: colunasNovas.length > 3 ? 'ALTA' : 'MEDIA',
+        mensagem: `Colunas novas detectadas no arquivo${templateInfo}: ${colunasNovasStr}. O formato do arquivo pode ter sido alterado pela contabilidade.`,
+      });
+    }
+
+    // Comparar com último upload (se existir)
+    if (ultimoUpload && ultimoUpload.id !== uploadId) {
+      // Buscar headers do último upload (armazenar em metadata ou comparar estrutura)
+      // Por enquanto, vamos apenas alertar sobre diferença no número de colunas
+      const ultimoUploadLinhas = await this.prisma.linhaUpload.findFirst({
+        where: { uploadId: ultimoUpload.id },
+      });
+
+      if (ultimoUploadLinhas) {
+        // Comparar número de colunas detectadas
+        const numColunasAtual = currentHeaders.filter((h) => h && h.trim() !== '').length;
+        // Estimativa: se o número de colunas mudou significativamente, alertar
+        if (numColunasAtual < expectedHeaders.size * 0.8) {
+          alertas.push({
+            uploadId,
+            tipo: 'CABECALHO_ALTERADO',
+            severidade: 'ALTA',
+            mensagem: `Número de colunas detectado (${numColunasAtual}) é significativamente menor que o esperado. O formato do arquivo pode ter sido alterado.`,
+          });
+        }
+      }
+    }
+
+    // Criar alertas
+    if (alertas.length > 0) {
+      await this.prisma.alerta.createMany({
+        data: alertas,
+      });
+      this.logger.warn(
+        `Alterações no cabeçalho detectadas: ${alertas.length} alertas criados`,
+      );
+    }
+  }
+
+  /**
    * Detecta alertas (saldos divergentes, contas novas)
    */
   private async detectAlerts(
@@ -678,14 +824,16 @@ export class ExcelProcessorService {
       const linhaCriada = linhasCriadas[i];
 
       // Verificar saldo divergente
+      // Fórmula contábil conforme formato do Excel: Saldo Atual = Saldo Anterior + Débito + Crédito
+      // No Excel, o crédito já vem com o sinal correto (negativo para saída, positivo para entrada)
+      // Então simplesmente somamos todos os valores
       if (
         linha.saldoAnterior !== undefined &&
         linha.debito !== undefined &&
         linha.credito !== undefined &&
         linha.saldoAtual !== undefined
       ) {
-        const saldoCalculado =
-          linha.saldoAnterior + linha.debito - linha.credito;
+        const saldoCalculado = linha.saldoAnterior + linha.debito + linha.credito;
         const diferenca = Math.abs(saldoCalculado - linha.saldoAtual);
 
         // Tolerância de 0.01 para diferenças de arredondamento
@@ -696,7 +844,7 @@ export class ExcelProcessorService {
             tipo: 'SALDO_DIVERGENTE',
             severidade:
               diferenca > 1000 ? 'ALTA' : diferenca > 100 ? 'MEDIA' : 'BAIXA',
-            mensagem: `Saldo divergente na conta ${linha.classificacao}: esperado ${saldoCalculado.toFixed(2)}, encontrado ${linha.saldoAtual.toFixed(2)}`,
+            mensagem: `Saldo divergente na conta ${linha.classificacao}: esperado ${saldoCalculado.toFixed(2)}, encontrado ${linha.saldoAtual.toFixed(2)} (Saldo Anterior: ${linha.saldoAnterior.toFixed(2)}, Débito: ${linha.debito.toFixed(2)}, Crédito: ${linha.credito.toFixed(2)})`,
           });
         }
       }

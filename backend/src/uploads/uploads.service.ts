@@ -122,4 +122,34 @@ export class UploadsService {
       },
     });
   }
+
+  async remove(id: string) {
+    // Buscar upload para obter o caminho do arquivo
+    const upload = await this.prisma.upload.findUnique({
+      where: { id },
+    });
+
+    if (!upload) {
+      throw new BadRequestException('Upload não encontrado');
+    }
+
+    // Remover arquivo físico se existir
+    const filePath = upload.arquivoUrl.replace('/uploads/', './uploads/');
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (error) {
+        console.error(`Erro ao remover arquivo ${filePath}:`, error);
+        // Continuar mesmo se não conseguir remover o arquivo
+      }
+    }
+
+    // Deletar upload (Prisma vai deletar em cascata: linhas e alertas)
+    // onDelete: Cascade no schema garante que LinhaUpload e Alerta serão deletados automaticamente
+    await this.prisma.upload.delete({
+      where: { id },
+    });
+
+    return { message: 'Upload removido com sucesso' };
+  }
 }
