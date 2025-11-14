@@ -156,20 +156,24 @@ const UploadsPage = () => {
                       </span>
                     </td>
                     <td className="px-3 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <AlertCircle className={`h-3.5 w-3.5 ${
-                          (upload.alertas?.length || 0) > 0 
-                            ? 'text-amber-500' 
-                            : 'text-slate-300 dark:text-slate-600'
-                        }`} />
-                        <span className={`text-sm font-medium ${
-                          (upload.alertas?.length || 0) > 0 
-                            ? 'text-amber-700 dark:text-amber-300' 
-                            : 'text-slate-500 dark:text-slate-400'
-                        }`}>
-                          {upload.alertas?.length || 0}
-                        </span>
-                      </div>
+                      {(upload.alertas?.length || 0) > 0 ? (
+                        <Link
+                          href={`/alertas?uploadId=${upload.id}`}
+                          className="flex items-center gap-1.5 group hover:opacity-80 transition-opacity"
+                        >
+                          <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                          <span className="text-sm font-medium text-amber-700 dark:text-amber-300 group-hover:underline">
+                            {upload.alertas.length}
+                          </span>
+                        </Link>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <AlertCircle className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600" />
+                          <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                            0
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-300">

@@ -118,17 +118,35 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
               {upload.alertas.map((alerta) => (
                 <li
                   key={alerta.id}
-                  className={`rounded-lg border p-4 ${
+                  className={`rounded-lg border p-4 transition-all ${
                     alerta.severidade === 'ALTA'
                       ? 'border-rose-300/60 bg-rose-50/60 dark:border-rose-400/30 dark:bg-rose-400/10'
                       : alerta.tipo === 'CONTA_NOVA'
                         ? 'border-sky-300/60 bg-sky-50/60 dark:border-sky-400/30 dark:bg-sky-400/10'
                         : 'border-amber-300/60 bg-amber-50/60 dark:border-amber-400/30 dark:bg-amber-400/10'
-                  }`}
+                  } group hover:shadow-md`}
                 >
-                  {alerta.linha
-                    ? `${getStatusLabel(alerta.tipo)} na conta ${alerta.linha.classificacao} - ${alerta.linha.nomeConta}`
-                    : alerta.mensagem}
+                  <Link
+                    href={`/alertas?alertaId=${alerta.id}`}
+                    className="flex items-start justify-between gap-3 cursor-pointer"
+                  >
+                    <div className="flex-1">
+                      {alerta.linha
+                        ? `${getStatusLabel(alerta.tipo)} na conta ${alerta.linha.classificacao} - ${alerta.linha.nomeConta}`
+                        : alerta.mensagem}
+                    </div>
+                    <span
+                      className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        alerta.status === 'ABERTO'
+                          ? 'bg-rose-100 text-rose-700 dark:bg-rose-400/20 dark:text-rose-200'
+                          : alerta.status === 'EM_ANALISE'
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-400/20 dark:text-amber-200'
+                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200'
+                      }`}
+                    >
+                      {getStatusLabel(alerta.status)}
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>

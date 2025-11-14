@@ -1,11 +1,24 @@
-import { useQuery } from '@tanstack/react-query';
-import { alertasService } from '@/services/alertas.service';
-import type { AlertaWithRelations } from '@/types/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { alertasService, type FilterAlertasParams } from '@/services/alertas.service';
+import type { AlertaWithRelations, AlertaStatus } from '@/types/api';
 
-export function useAlertas() {
+export function useAlertas(filters?: FilterAlertasParams) {
   return useQuery<AlertaWithRelations[]>({
-    queryKey: ['alertas'],
-    queryFn: () => alertasService.list(),
+    queryKey: ['alertas', filters],
+    queryFn: () => alertasService.list(filters),
+  });
+}
+
+export function useUpdateAlertaStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: AlertaStatus }) =>
+      alertasService.updateStatus(id, status),
+    onSuccess: () => {
+      // Invalidar queries de alertas para atualizar a lista
+      queryClient.invalidateQueries({ queryKey: ['alertas'] });
+    },
   });
 }
 

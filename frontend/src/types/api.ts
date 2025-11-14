@@ -1,7 +1,7 @@
 // Tipos baseados nas respostas da API do backend
 
 export type UploadStatus = 'PROCESSANDO' | 'CONCLUIDO' | 'COM_ALERTAS' | 'CANCELADO';
-export type AlertaTipo = 'SALDO_DIVERGENTE' | 'CONTA_NOVA' | 'DADO_INCONSISTENTE';
+export type AlertaTipo = 'SALDO_DIVERGENTE' | 'CONTA_NOVA' | 'DADO_INCONSISTENTE' | 'CABECALHO_ALTERADO';
 export type AlertaSeveridade = 'BAIXA' | 'MEDIA' | 'ALTA';
 export type AlertaStatus = 'ABERTO' | 'EM_ANALISE' | 'RESOLVIDO';
 export type ContaStatus = 'ATIVA' | 'NOVA' | 'ARQUIVADA';
