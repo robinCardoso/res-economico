@@ -83,7 +83,6 @@ export interface Upload {
 
 export interface ContaCatalogo {
   id: string;
-  empresaId: string;
   classificacao: string;
   nomeConta: string;
   tipoConta: string;
@@ -91,7 +90,6 @@ export interface ContaCatalogo {
   primeiraImportacao: string;
   ultimaImportacao: string;
   status: ContaStatus;
-  empresa?: Empresa;
 }
 
 // Tipos WithRelations (incluem relações)
@@ -111,7 +109,5 @@ export type TemplateImportacaoWithRelations = TemplateImportacao & {
   empresa?: Empresa;
 };
 
-export type ContaCatalogoWithRelations = ContaCatalogo & {
-  empresa?: Empresa;
-};
+export type ContaCatalogoWithRelations = ContaCatalogo;
 

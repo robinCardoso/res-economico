@@ -75,16 +75,7 @@ export class EmpresasService {
       );
     }
 
-    // Verificar se há contas associadas
-    const contas = await this.prisma.contaCatalogo.count({
-      where: { empresaId: id },
-    });
-
-    if (contas > 0) {
-      throw new BadRequestException(
-        'Não é possível excluir empresa com contas associadas',
-      );
-    }
+    // Contas não estão mais associadas a empresas (catálogo unificado)
 
     // Verificar se há templates associados
     const templates = await this.prisma.templateImportacao.count({

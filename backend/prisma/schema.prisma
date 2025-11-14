@@ -25,7 +25,6 @@ model Empresa {
   nomeFantasia String?
   tipo        TipoEmpresa @default(MATRIZ)
   uploads     Upload[]
-  contas      ContaCatalogo[]
   templates   TemplateImportacao[]
   usuarios    Usuario[]
   createdAt   DateTime    @default(now())
@@ -105,16 +104,13 @@ model LinhaUpload {
 
 model ContaCatalogo {
   id                String      @id @default(uuid())
-  empresaId         String
-  classificacao     String
+  classificacao     String      @unique
   nomeConta         String
   tipoConta         String
   nivel             Int
   primeiraImportacao DateTime   @default(now())
   ultimaImportacao   DateTime   @default(now())
   status            ContaStatus @default(ATIVA)
-
-  empresa           Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 }
 
 model Alerta {

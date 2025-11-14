@@ -66,6 +66,57 @@ const NovoUploadPage = () => {
 
   const empresaId = watch('empresaId');
 
+  // Função para detectar quais colunas são mapeadas vs extras
+  const detectColumnMapping = useCallback((headers: unknown[]): {
+    mappedColumns: Set<number>;
+    extraColumns: Set<number>;
+  } => {
+    const mappedColumns = new Set<number>();
+    const extraColumns = new Set<number>();
+    
+    // Colunas esperadas (mapeadas)
+    const expectedColumns = [
+      'Classificação', 'classificação', 'classificacao',
+      'Conta', 'conta',
+      'Sub', 'sub', 'Sub Conta', 'sub conta',
+      'Nome da conta contábil/C. Custo', 'Nome da conta', 'nome da conta',
+      'Tipo conta', 'tipo conta',
+      'Nível', 'nível', 'nivel',
+      'Cta. título', 'Cta título', 'cta título',
+      'Estab.', 'Estabelecimento', 'estab',
+      'Saldo anterior', 'saldo anterior',
+      'Débito', 'débito', 'debito',
+      'Crédito', 'crédito', 'credito',
+      'Saldo atual', 'saldo atual', 'Saldo final', 'saldo final',
+    ];
+
+    headers.forEach((header, index) => {
+      if (!header) return;
+      
+      const headerStr = String(header).toLowerCase().trim();
+      const isMapped = expectedColumns.some(expected => 
+        headerStr.includes(expected.toLowerCase()) || 
+        expected.toLowerCase().includes(headerStr)
+      );
+      
+      if (isMapped) {
+        mappedColumns.add(index);
+      } else {
+        // Colunas extras conhecidas que devem ser ignoradas
+        const knownExtras = ['mês', 'mes', 'uf'];
+        const isKnownExtra = knownExtras.some(extra => 
+          headerStr === extra || headerStr.includes(extra)
+        );
+        
+        if (isKnownExtra || headerStr.length > 0) {
+          extraColumns.add(index);
+        }
+      }
+    });
+
+    return { mappedColumns, extraColumns };
+  }, []);
+
   const handleFileSelect = useCallback((selectedFile: File) => {
     // Validar tipo de arquivo
     const validTypes = [
@@ -95,8 +146,92 @@ const NovoUploadPage = () => {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-        setPreview(jsonData.slice(0, 10) as unknown[][]); // Primeiras 10 linhas
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { 
+          header: 1,
+          defval: null, // null para células vazias
+          raw: false 
+        }) as unknown[][];
+
+        // Detectar linha do cabeçalho (igual ao backend)
+        // Procurar por palavras-chave comuns de cabeçalho de balancete
+        const headerKeywords = [
+          'classificação', 'classificacao', 'conta', 'nome', 'tipo', 'nível', 'nivel',
+          'saldo', 'débito', 'debito', 'crédito', 'credito', 'título', 'titulo',
+          'estabelecimento', 'estab'
+        ];
+        
+        let headerRowIndex = 0;
+        let bestMatch = 0;
+        let bestMatchScore = 0;
+        
+        for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+          const row = jsonData[i];
+          if (Array.isArray(row)) {
+            // Verificar se a linha tem pelo menos 3 células com texto (não números)
+            const textCells = row.filter((cell: unknown) => {
+              if (cell === null || cell === undefined || cell === '') return false;
+              const str = String(cell).trim();
+              // Se for texto (não número puro) e tiver mais de 2 caracteres
+              return isNaN(Number(str)) && str.length > 2;
+            });
+            
+            if (textCells.length >= 3) {
+              // Calcular score: quantas palavras-chave de cabeçalho aparecem nesta linha
+              const rowText = textCells.map(cell => String(cell).toLowerCase()).join(' ');
+              const matchScore = headerKeywords.filter(keyword => 
+                rowText.includes(keyword)
+              ).length;
+              
+              // Se encontrou uma linha com muitas palavras-chave de cabeçalho, é provavelmente o cabeçalho
+              if (matchScore > bestMatchScore) {
+                bestMatchScore = matchScore;
+                bestMatch = i;
+              }
+              
+              // Se encontrou pelo menos 3 palavras-chave, usar esta linha
+              if (matchScore >= 3) {
+                headerRowIndex = i;
+                break;
+              }
+            }
+          }
+        }
+        
+        // Se não encontrou uma linha perfeita, usar a melhor correspondência
+        if (headerRowIndex === 0 && bestMatchScore > 0) {
+          headerRowIndex = bestMatch;
+        }
+
+        // Garantir que todas as linhas tenham o mesmo número de colunas
+        // Usar o número de colunas do cabeçalho como referência
+        const headerRow = jsonData[headerRowIndex] || [];
+        const numColumns = headerRow.length;
+
+        // Normalizar todas as linhas para ter exatamente o mesmo número de colunas do cabeçalho
+        const normalizedData = jsonData.map((row) => {
+          if (!Array.isArray(row)) {
+            // Se não for array, criar array vazio com o número correto de colunas
+            return new Array(numColumns).fill(null);
+          }
+          
+          const normalized = [...row];
+          
+          // Preencher com null se a linha tiver menos colunas que o cabeçalho
+          while (normalized.length < numColumns) {
+            normalized.push(null);
+          }
+          
+          // Truncar se tiver mais colunas que o cabeçalho (garantir alinhamento)
+          return normalized.slice(0, numColumns);
+        });
+
+        // Criar preview: cabeçalho + primeiras 10 linhas de dados
+        const previewData = [
+          normalizedData[headerRowIndex], // Cabeçalho
+          ...normalizedData.slice(headerRowIndex + 1, headerRowIndex + 11) // Primeiras 10 linhas de dados
+        ];
+        
+        setPreview(previewData);
 
         // Validar arquivo completo
         const validation = validateExcelFile(workbook, []);
@@ -104,11 +239,15 @@ const NovoUploadPage = () => {
         setShowValidation(validation.alerts.length > 0);
         
         if (validation.alerts.length > 0) {
-          const criticalErrors = validation.alerts.filter(a => a.severidade === 'ALTA').length;
+          // Filtrar alertas que não são apenas informativos (colunas extras conhecidas)
+          const nonInfoAlerts = validation.alerts.filter(
+            a => !(a.tipo === 'COLUNA_EXTRA' && a.severidade === 'BAIXA')
+          );
+          const criticalErrors = nonInfoAlerts.filter(a => a.severidade === 'ALTA').length;
           if (criticalErrors > 0) {
             setError(`⚠️ ${criticalErrors} erro(s) crítico(s) encontrado(s) na validação. Revise os alertas antes de enviar.`);
           } else {
-            setError(null); // Apenas avisos, não bloquear
+            setError(null); // Apenas avisos informativos, não bloquear
           }
         } else {
           setError(null);
@@ -156,8 +295,10 @@ const NovoUploadPage = () => {
       return;
     }
 
-    // Verificar se há erros críticos na validação
-    const criticalErrors = validationAlerts.filter(a => a.severidade === 'ALTA');
+    // Verificar se há erros críticos na validação (excluindo alertas informativos de colunas extras)
+    const criticalErrors = validationAlerts.filter(
+      a => a.severidade === 'ALTA' && a.tipo !== 'COLUNA_EXTRA'
+    );
     if (criticalErrors.length > 0) {
       setError(`Não é possível enviar o arquivo. Existem ${criticalErrors.length} erro(s) crítico(s) que precisam ser corrigidos.`);
       setShowValidation(true);
@@ -394,13 +535,32 @@ const NovoUploadPage = () => {
               </div>
 
               {/* Pré-visualização */}
-              {preview.length > 0 && (
-                <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 max-w-full overflow-x-hidden">
-                  <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
-                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                      Pré-visualização (primeiras 10 linhas)
-                    </p>
-                  </div>
+              {preview.length > 0 && (() => {
+                const { extraColumns } = Array.isArray(preview[0]) 
+                  ? detectColumnMapping(preview[0])
+                  : { extraColumns: new Set<number>() };
+                const hasExtras = extraColumns.size > 0;
+                
+                return (
+                  <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 max-w-full overflow-x-hidden">
+                    <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                          Pré-visualização (primeiras 10 linhas)
+                        </p>
+                        {hasExtras && (
+                          <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <span>⚠️</span>
+                            <span>Colunas extras serão ignoradas</span>
+                          </span>
+                        )}
+                      </div>
+                      {hasExtras && (
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          Colunas destacadas em amarelo (Mês, UF, etc.) serão ignoradas no processamento. O sistema já coleta mês/ano via formulário.
+                        </p>
+                      )}
+                    </div>
                   <div className="p-4 max-w-full overflow-x-hidden">
                     <div 
                       className="w-full max-w-full overflow-x-auto overflow-y-visible border border-slate-200 rounded-md dark:border-slate-700"
@@ -410,39 +570,80 @@ const NovoUploadPage = () => {
                     >
                       <table className="text-xs whitespace-nowrap" style={{ width: 'max-content', minWidth: '100%' }}>
                         <thead>
-                          {preview.length > 0 && Array.isArray(preview[0]) && (
-                            <tr className="border-b-2 border-slate-300 bg-slate-100 dark:border-slate-600 dark:bg-slate-800">
-                              {preview[0].map((cell: unknown, cellIndex: number) => (
-                                <th
-                                  key={cellIndex}
-                                  className="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800"
-                                >
-                                  {cell?.toString() || `Coluna ${cellIndex + 1}`}
-                                </th>
-                              ))}
-                            </tr>
-                          )}
+                          {preview.length > 0 && Array.isArray(preview[0]) && (() => {
+                            const { mappedColumns, extraColumns } = detectColumnMapping(preview[0]);
+                            return (
+                              <tr className="border-b-2 border-slate-300 bg-slate-100 dark:border-slate-600 dark:bg-slate-800">
+                                {preview[0].map((cell: unknown, cellIndex: number) => {
+                                  const isExtra = extraColumns.has(cellIndex);
+                                  const isMapped = mappedColumns.has(cellIndex);
+                                  return (
+                                    <th
+                                      key={cellIndex}
+                                      className={`px-3 py-2 text-left text-xs font-semibold bg-slate-100 dark:bg-slate-800 ${
+                                        isExtra
+                                          ? 'text-amber-600 dark:text-amber-400 border-l-2 border-amber-400'
+                                          : isMapped
+                                            ? 'text-slate-700 dark:text-slate-300'
+                                            : 'text-slate-500 dark:text-slate-400'
+                                      }`}
+                                      title={
+                                        isExtra
+                                          ? 'Coluna extra - será ignorada no processamento'
+                                          : isMapped
+                                            ? 'Coluna mapeada - será processada'
+                                            : 'Coluna não identificada'
+                                      }
+                                    >
+                                      <div className="flex items-center gap-1">
+                                        {cell?.toString() || `Coluna ${cellIndex + 1}`}
+                                        {isExtra && (
+                                          <span className="text-[10px] text-amber-500" title="Esta coluna será ignorada no processamento">
+                                            ⚠️
+                                          </span>
+                                        )}
+                                      </div>
+                                    </th>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })()}
                         </thead>
                         <tbody>
-                          {preview.slice(1).map((row, rowIndex) => (
-                            <tr key={rowIndex} className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                              {Array.isArray(row) &&
-                                row.map((cell: unknown, cellIndex: number) => (
-                                  <td
-                                    key={cellIndex}
-                                    className="px-3 py-2 text-slate-700 dark:text-slate-300"
-                                  >
-                                    {cell?.toString() || ''}
-                                  </td>
-                                ))}
-                            </tr>
-                          ))}
+                          {preview.slice(1).map((row, rowIndex) => {
+                            const { extraColumns } = preview.length > 0 && Array.isArray(preview[0]) 
+                              ? detectColumnMapping(preview[0])
+                              : { extraColumns: new Set<number>() };
+                            
+                            return (
+                              <tr key={rowIndex} className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                {Array.isArray(row) &&
+                                  row.map((cell: unknown, cellIndex: number) => {
+                                    const isExtra = extraColumns.has(cellIndex);
+                                    return (
+                                      <td
+                                        key={cellIndex}
+                                        className={`px-3 py-2 ${
+                                          isExtra
+                                            ? 'text-amber-600 dark:text-amber-400 bg-amber-50/30 dark:bg-amber-900/10'
+                                            : 'text-slate-700 dark:text-slate-300'
+                                        }`}
+                                      >
+                                        {cell?.toString() || ''}
+                                      </td>
+                                    );
+                                  })}
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* Alertas de Validação */}
               {showValidation && validationAlerts.length > 0 && (
@@ -463,19 +664,28 @@ const NovoUploadPage = () => {
                   <div className="max-h-96 overflow-y-auto p-4">
                     <div className="space-y-2">
                       {validationAlerts.map((alert, index) => {
+                        // Estilização baseada no tipo e severidade
                         const bgColor =
-                          alert.severidade === 'ALTA'
-                            ? 'bg-rose-50 border-rose-200 dark:bg-rose-900/20 dark:border-rose-800'
-                            : alert.severidade === 'MEDIA'
-                              ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800'
-                              : 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800';
+                          alert.tipo === 'COLUNA_EXTRA'
+                            ? alert.severidade === 'BAIXA'
+                              ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
+                              : 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800'
+                            : alert.severidade === 'ALTA'
+                              ? 'bg-rose-50 border-rose-200 dark:bg-rose-900/20 dark:border-rose-800'
+                              : alert.severidade === 'MEDIA'
+                                ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800'
+                                : 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800';
                         
                         const textColor =
-                          alert.severidade === 'ALTA'
-                            ? 'text-rose-700 dark:text-rose-300'
-                            : alert.severidade === 'MEDIA'
-                              ? 'text-amber-700 dark:text-amber-300'
-                              : 'text-blue-700 dark:text-blue-300';
+                          alert.tipo === 'COLUNA_EXTRA'
+                            ? alert.severidade === 'BAIXA'
+                              ? 'text-blue-700 dark:text-blue-300'
+                              : 'text-amber-700 dark:text-amber-300'
+                            : alert.severidade === 'ALTA'
+                              ? 'text-rose-700 dark:text-rose-300'
+                              : alert.severidade === 'MEDIA'
+                                ? 'text-amber-700 dark:text-amber-300'
+                                : 'text-blue-700 dark:text-blue-300';
 
                         return (
                           <div
@@ -484,7 +694,12 @@ const NovoUploadPage = () => {
                           >
                             <div className="flex items-start gap-2">
                               <span className="font-semibold">
-                                [{alert.severidade}] Linha {alert.linha}:
+                                {alert.tipo === 'COLUNA_EXTRA' && alert.severidade === 'BAIXA' 
+                                  ? 'ℹ️' 
+                                  : alert.severidade === 'ALTA'
+                                    ? '⚠️'
+                                    : '⚠️'
+                                } {alert.tipo === 'COLUNA_EXTRA' ? 'Cabeçalho' : `Linha ${alert.linha}`}:
                               </span>
                               <span>{alert.mensagem}</span>
                             </div>

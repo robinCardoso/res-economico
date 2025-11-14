@@ -1,13 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useUploads } from '@/hooks/use-uploads';
+import { useEmpresas } from '@/hooks/use-empresas';
 import { formatPeriodo, formatDateTime, getStatusLabel } from '@/lib/format';
 import { maskCNPJ } from '@/lib/masks';
 import { Building2, AlertCircle, FileText, Calendar, Clock } from 'lucide-react';
 
 const UploadsPage = () => {
   const { data: uploads, isLoading, error } = useUploads();
+  const { data: empresas } = useEmpresas();
+  const [empresaFiltro, setEmpresaFiltro] = useState<string>('');
 
   if (isLoading) {
     return (
@@ -29,6 +33,12 @@ const UploadsPage = () => {
 
   // Garantir que uploads seja sempre um array
   const uploadsList = Array.isArray(uploads) ? uploads : [];
+  const empresasList = Array.isArray(empresas) ? empresas : [];
+
+  // Filtrar uploads por empresa se filtro estiver selecionado
+  const uploadsFiltrados = empresaFiltro
+    ? uploadsList.filter((upload) => upload.empresaId === empresaFiltro)
+    : uploadsList;
 
   return (
     <div className="space-y-6">
@@ -49,10 +59,39 @@ const UploadsPage = () => {
         </Link>
       </header>
 
+      {/* Filtro por empresa */}
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="flex items-center gap-4">
+          <label htmlFor="empresa-filtro" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            Filtrar por empresa:
+          </label>
+          <select
+            id="empresa-filtro"
+            value={empresaFiltro}
+            onChange={(e) => setEmpresaFiltro(e.target.value)}
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          >
+            <option value="">Todas as empresas</option>
+            {empresasList.map((empresa) => (
+              <option key={empresa.id} value={empresa.id}>
+                {empresa.razaoSocial} {empresa.nomeFantasia ? `(${empresa.nomeFantasia})` : ''} - {maskCNPJ(empresa.cnpj)}
+              </option>
+            ))}
+          </select>
+          {empresaFiltro && (
+            <span className="text-xs text-slate-500">
+              {uploadsFiltrados.length} upload(s) encontrado(s)
+            </span>
+          )}
+        </div>
+      </section>
+
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-        {uploadsList.length === 0 ? (
+        {uploadsFiltrados.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-slate-500">
-            Nenhum upload encontrado. Comece criando um novo upload.
+            {empresaFiltro
+              ? 'Nenhum upload encontrado para esta empresa.'
+              : 'Nenhum upload encontrado. Comece criando um novo upload.'}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -71,7 +110,7 @@ const UploadsPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                {uploadsList.map((upload) => (
+                {uploadsFiltrados.map((upload) => (
                   <tr key={upload.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-start gap-2">

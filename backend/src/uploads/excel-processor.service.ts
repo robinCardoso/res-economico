@@ -609,7 +609,7 @@ export class ExcelProcessorService {
    * Atualiza o catálogo de contas
    */
   private async updateContaCatalogo(
-    empresaId: string,
+    empresaId: string, // Mantido para compatibilidade, mas não será usado
     linhas: ExcelRow[],
   ): Promise<void> {
     for (const linha of linhas) {
@@ -622,9 +622,9 @@ export class ExcelProcessorService {
         continue;
       }
 
-      const contaExistente = await this.prisma.contaCatalogo.findFirst({
+      // Buscar conta pela classificação (única no sistema)
+      const contaExistente = await this.prisma.contaCatalogo.findUnique({
         where: {
-          empresaId,
           classificacao: linha.classificacao,
         },
       });
@@ -639,10 +639,9 @@ export class ExcelProcessorService {
           },
         });
       } else {
-        // Nova conta
+        // Nova conta (única no sistema, não por empresa)
         await this.prisma.contaCatalogo.create({
           data: {
-            empresaId,
             classificacao: linha.classificacao,
             nomeConta: linha.nomeConta,
             tipoConta: linha.tipoConta,
@@ -736,7 +735,7 @@ export class ExcelProcessorService {
         uploadId,
         tipo: 'CABECALHO_ALTERADO',
         severidade: 'ALTA',
-        mensagem: `Colunas esperadas não encontradas no arquivo${templateInfo}: ${colunasAusentesStr}. Verifique se o formato do arquivo foi alterado pela contabilidade.`,
+        mensagem: `⚠️ ATENÇÃO: Colunas esperadas não encontradas no arquivo${templateInfo}: ${colunasAusentesStr}. Verifique se o formato do arquivo foi alterado pela contabilidade. O processamento pode ser afetado.`,
       });
     }
 
@@ -745,12 +744,39 @@ export class ExcelProcessorService {
       const templateInfo = templateHeaders.length > 0 
         ? ' (não estão no template configurado)' 
         : ' (não estavam no mapeamento esperado)';
-      alertas.push({
-        uploadId,
-        tipo: 'CABECALHO_ALTERADO',
-        severidade: colunasNovas.length > 3 ? 'ALTA' : 'MEDIA',
-        mensagem: `Colunas novas detectadas no arquivo${templateInfo}: ${colunasNovasStr}. O formato do arquivo pode ter sido alterado pela contabilidade.`,
+      
+      // Verificar se são colunas extras conhecidas (Mês, UF) que devem ser ignoradas
+      const colunasExtrasConhecidas = colunasNovas.filter(col => {
+        const colLower = col.toLowerCase().trim();
+        return colLower === 'mês' || colLower === 'mes' || colLower === 'uf';
       });
+      
+      const colunasExtrasDesconhecidas = colunasNovas.filter(col => {
+        const colLower = col.toLowerCase().trim();
+        return colLower !== 'mês' && colLower !== 'mes' && colLower !== 'uf';
+      });
+
+      // Alerta para colunas extras conhecidas (informativo, severidade baixa)
+      if (colunasExtrasConhecidas.length > 0) {
+        const extrasStr = colunasExtrasConhecidas.join(', ');
+        alertas.push({
+          uploadId,
+          tipo: 'CABECALHO_ALTERADO',
+          severidade: 'BAIXA',
+          mensagem: `ℹ️ Colunas extras detectadas: ${extrasStr}. Essas colunas serão ignoradas no processamento (o sistema já coleta mês/ano via formulário e UF não é necessário).`,
+        });
+      }
+
+      // Alerta para colunas extras desconhecidas (mais crítico)
+      if (colunasExtrasDesconhecidas.length > 0) {
+        const desconhecidasStr = colunasExtrasDesconhecidas.join(', ');
+        alertas.push({
+          uploadId,
+          tipo: 'CABECALHO_ALTERADO',
+          severidade: colunasExtrasDesconhecidas.length > 3 ? 'ALTA' : 'MEDIA',
+          mensagem: `⚠️ Colunas novas detectadas no arquivo${templateInfo}: ${desconhecidasStr}. Essas colunas serão ignoradas no processamento. O formato do arquivo pode ter sido alterado pela contabilidade.`,
+        });
+      }
     }
 
     // Comparar com último upload (se existir)
@@ -809,10 +835,9 @@ export class ExcelProcessorService {
       orderBy: { createdAt: 'asc' },
     });
 
-    // Buscar contas novas do catálogo
+    // Buscar contas novas do catálogo (agora unificado, sem empresaId)
     const contasNovas = await this.prisma.contaCatalogo.findMany({
       where: {
-        empresaId,
         status: 'NOVA',
       },
     });

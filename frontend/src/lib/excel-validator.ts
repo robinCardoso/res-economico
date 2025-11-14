@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 
 export interface ValidationAlert {
-  tipo: 'SALDO_DIVERGENTE' | 'CELULA_VAZIA' | 'DADO_INCONSISTENTE';
+  tipo: 'SALDO_DIVERGENTE' | 'CELULA_VAZIA' | 'DADO_INCONSISTENTE' | 'COLUNA_EXTRA';
   severidade: 'BAIXA' | 'MEDIA' | 'ALTA';
   linha: number;
   coluna?: string;
@@ -93,9 +93,40 @@ export function validateExcelFile(
   const colIndices: Record<string, number> = {};
   const headerRow = jsonData[headerRowIndex] as unknown[];
   
+  // Colunas esperadas (mapeadas)
+  const expectedColumns = [
+    'classificação', 'classificacao',
+    'conta',
+    'sub', 'sub conta',
+    'nome da conta', 'nome da conta contábil',
+    'tipo conta',
+    'nível', 'nivel',
+    'cta título', 'cta. título',
+    'estab', 'estabelecimento',
+    'saldo anterior',
+    'débito', 'debito',
+    'crédito', 'credito',
+    'saldo atual', 'saldo final',
+  ];
+
+  // Detectar colunas extras
+  const extraColumns: string[] = [];
+  
   headerRow.forEach((header, index) => {
     if (header) {
       const headerStr = String(header).toLowerCase().trim();
+      
+      // Verificar se é coluna esperada
+      const isExpected = expectedColumns.some(expected => 
+        headerStr.includes(expected) || expected.includes(headerStr)
+      );
+      
+      if (!isExpected && headerStr.length > 0) {
+        // É uma coluna extra
+        extraColumns.push(String(header));
+      }
+      
+      // Mapear colunas importantes
       if (headerStr.includes('saldo') && headerStr.includes('anterior')) {
         colIndices.saldoAnterior = index;
       } else if (headerStr.includes('débito') || headerStr.includes('debito')) {
@@ -113,6 +144,39 @@ export function validateExcelFile(
       }
     }
   });
+
+  // Adicionar alertas informativos sobre colunas extras
+  if (extraColumns.length > 0) {
+    const knownExtras = extraColumns.filter(col => {
+      const colLower = col.toLowerCase().trim();
+      return colLower === 'mês' || colLower === 'mes' || colLower === 'uf';
+    });
+    
+    const unknownExtras = extraColumns.filter(col => {
+      const colLower = col.toLowerCase().trim();
+      return colLower !== 'mês' && colLower !== 'mes' && colLower !== 'uf';
+    });
+
+    // Alerta informativo para colunas extras conhecidas
+    if (knownExtras.length > 0) {
+      alerts.push({
+        tipo: 'COLUNA_EXTRA',
+        severidade: 'BAIXA',
+        linha: headerRowIndex + 1,
+        mensagem: `ℹ️ Colunas extras detectadas: ${knownExtras.join(', ')}. Essas colunas serão ignoradas no processamento (o sistema já coleta mês/ano via formulário e UF não é necessário).`,
+      });
+    }
+
+    // Alerta para colunas extras desconhecidas
+    if (unknownExtras.length > 0) {
+      alerts.push({
+        tipo: 'COLUNA_EXTRA',
+        severidade: 'MEDIA',
+        linha: headerRowIndex + 1,
+        mensagem: `⚠️ Colunas extras não esperadas detectadas: ${unknownExtras.join(', ')}. Essas colunas serão ignoradas no processamento.`,
+      });
+    }
+  }
 
   // Validar cada linha
   dataRows.forEach((row, index) => {
