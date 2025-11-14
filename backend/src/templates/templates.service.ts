@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
@@ -32,23 +36,28 @@ export class TemplatesService {
   }
 
   async create(dto: CreateTemplateDto) {
-    // Verificar se a empresa existe
-    const empresa = await this.prisma.empresa.findUnique({
-      where: { id: dto.empresaId },
-    });
+    // Normalizar empresaId: string vazia ou null = template global
+    const empresaId = dto.empresaId && dto.empresaId.trim() !== '' ? dto.empresaId : null;
+    
+    // Se empresaId foi fornecido, verificar se a empresa existe
+    if (empresaId) {
+      const empresa = await this.prisma.empresa.findUnique({
+        where: { id: empresaId },
+      });
 
-    if (!empresa) {
-      throw new BadRequestException('Empresa não encontrada');
+      if (!empresa) {
+        throw new BadRequestException('Empresa não encontrada');
+      }
     }
 
     return this.prisma.templateImportacao.create({
       data: {
-        empresaId: dto.empresaId,
+        empresaId, // null = template global
         nome: dto.nome,
         descricao: dto.descricao || null,
         configuracao: {
-          columnMapping: dto.columnMapping,
-        },
+          columnMapping: dto.columnMapping as Record<string, unknown>,
+        } as any, // Prisma JSON type
       },
       include: {
         empresa: true,
@@ -59,10 +68,16 @@ export class TemplatesService {
   async update(id: string, dto: UpdateTemplateDto) {
     await this.findOne(id); // Verificar se existe
 
-    if (dto.empresaId) {
-      // Verificar se a empresa existe
+    // Normalizar empresaId: string vazia ou null = template global
+    let empresaId: string | null = null;
+    if (dto.empresaId !== undefined && dto.empresaId !== null) {
+      empresaId = dto.empresaId.trim() !== '' ? dto.empresaId : null;
+    }
+    
+    // Se empresaId foi fornecido, verificar se a empresa existe
+    if (dto.empresaId !== undefined && empresaId) {
       const empresa = await this.prisma.empresa.findUnique({
-        where: { id: dto.empresaId },
+        where: { id: empresaId },
       });
 
       if (!empresa) {
@@ -70,19 +85,29 @@ export class TemplatesService {
       }
     }
 
-    const updateData: any = {};
+    const updateData: {
+      nome?: string;
+      descricao?: string | null;
+      empresaId?: string | null;
+      configuracao?: any; // Prisma JSON type
+    } = {};
+
     if (dto.nome) updateData.nome = dto.nome;
-    if (dto.descricao !== undefined) updateData.descricao = dto.descricao || null;
-    if (dto.empresaId) updateData.empresaId = dto.empresaId;
+    if (dto.descricao !== undefined)
+      updateData.descricao = dto.descricao || null;
+    // Permite definir empresaId como null (template global) ou uma empresa específica
+    if (dto.empresaId !== undefined) {
+      updateData.empresaId = empresaId;
+    }
     if (dto.columnMapping) {
       updateData.configuracao = {
-        columnMapping: dto.columnMapping,
+        columnMapping: dto.columnMapping as Record<string, unknown>,
       };
     }
 
     return this.prisma.templateImportacao.update({
       where: { id },
-      data: updateData,
+      data: updateData as any, // Prisma types with nullable empresaId
       include: {
         empresa: true,
       },

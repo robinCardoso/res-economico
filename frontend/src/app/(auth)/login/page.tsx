@@ -28,18 +28,23 @@ const LoginPage = () => {
       const response = await authService.login(data);
       setAuth(response.user, response.token);
       router.push('/dashboard');
-    } catch (err: any) {
+    } catch (err: unknown) {
       let errorMessage = 'Erro ao fazer login. Verifique suas credenciais.';
+      const error = err as { 
+        response?: { data?: { message?: string; error?: string } }; 
+        request?: unknown;
+        message?: string;
+      };
       
-      if (err.response) {
+      if (error.response) {
         // Erro com resposta do servidor
-        errorMessage = err.response.data?.message || err.response.data?.error || errorMessage;
-      } else if (err.request) {
+        errorMessage = error.response.data?.message || error.response.data?.error || errorMessage;
+      } else if (error.request) {
         // Requisição foi feita mas não houve resposta
         errorMessage = 'Não foi possível conectar ao servidor. Verifique se o backend está rodando em http://localhost:3000';
       } else {
         // Erro ao configurar a requisição
-        errorMessage = err.message || errorMessage;
+        errorMessage = error.message || errorMessage;
       }
       
       setError(errorMessage);

@@ -50,14 +50,14 @@ model Usuario {
 
 model TemplateImportacao {
   id           String   @id @default(uuid())
-  empresaId    String
+  empresaId    String?  // Opcional: null = template global (todas as empresas)
   nome         String
   descricao    String?
   configuracao Json
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  empresa      Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresa      Empresa? @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   uploads      Upload[]
 }
 

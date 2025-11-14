@@ -33,9 +33,11 @@ export class AuthService {
       return null;
     }
 
-    console.log(`[AuthService] Usuário encontrado: ${user.email}, verificando senha...`);
+    console.log(
+      `[AuthService] Usuário encontrado: ${user.email}, verificando senha...`,
+    );
     const isPasswordValid = await bcrypt.compare(password, user.senha);
-    
+
     if (!isPasswordValid) {
       console.log(`[AuthService] Senha inválida para: ${email}`);
       return null;

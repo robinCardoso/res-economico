@@ -18,6 +18,8 @@ interface ExcelRow {
   debito?: number;
   credito?: number;
   saldoAtual?: number;
+  // Rastreamento de células vazias para alertas
+  _celulasVazias?: string[]; // Nomes das colunas que estavam vazias
 }
 
 interface TemplateMapping {
@@ -71,15 +73,15 @@ export class ExcelProcessorService {
       const worksheet = workbook.Sheets[sheetName];
 
       // Converter para array de arrays (mantém estrutura original)
-      const rawData = XLSX.utils.sheet_to_json(worksheet, { 
+      const rawData = XLSX.utils.sheet_to_json(worksheet, {
         raw: false,
         defval: null, // null para células vazias (não string vazia)
         header: 1, // Primeira linha como array de valores
-      }) as any[][];
+      });
 
       // Log para debug - verificar estrutura
       this.logger.log(`Total de linhas no Excel: ${rawData.length}`);
-      
+
       // Encontrar a primeira linha que parece ser cabeçalho (tem texto, não números)
       let headerRowIndex = 0;
       for (let i = 0; i < Math.min(5, rawData.length); i++) {
@@ -87,7 +89,8 @@ export class ExcelProcessorService {
         if (Array.isArray(row)) {
           // Verificar se a linha tem pelo menos 3 células com texto (não números)
           const textCells = row.filter((cell: any) => {
-            if (cell === null || cell === undefined || cell === '') return false;
+            if (cell === null || cell === undefined || cell === '')
+              return false;
             const str = String(cell).trim();
             // Se for texto (não número puro) e tiver mais de 2 caracteres
             return isNaN(Number(str)) && str.length > 2;
@@ -104,57 +107,88 @@ export class ExcelProcessorService {
         throw new Error('Arquivo Excel está vazio');
       }
 
-      const headers = rawData[headerRowIndex] as any[];
-      this.logger.log(`Cabeçalhos detectados (linha ${headerRowIndex + 1}): ${JSON.stringify(headers)}`);
+      const headers = rawData[headerRowIndex];
+      this.logger.log(
+        `Cabeçalhos detectados (linha ${headerRowIndex + 1}): ${JSON.stringify(headers)}`,
+      );
 
       // Limpar e normalizar cabeçalhos
-      const cleanHeaders = headers.map((h, idx) => {
-        if (h === null || h === undefined || h === '') {
+
+      const cleanHeaders = (headers as unknown[]).map(
+        (h: unknown, idx: number) => {
+          if (h === null || h === undefined || h === '') {
+            return `Coluna_${idx + 1}`;
+          }
+          if (typeof h === 'string' || typeof h === 'number') {
+            return String(h).trim();
+          }
           return `Coluna_${idx + 1}`;
-        }
-        return String(h).trim();
-      });
+        },
+      );
 
       this.logger.log(`Cabeçalhos limpos: ${JSON.stringify(cleanHeaders)}`);
 
       // Converter linhas de dados para objetos (pular linha do cabeçalho)
-      const dataRows = rawData.slice(headerRowIndex + 1)
-        .filter((row: any[]) => {
+
+      const dataRows = (rawData as unknown[][])
+        .slice(headerRowIndex + 1)
+        .filter((row: unknown) => {
           // Filtrar linhas completamente vazias
-          return Array.isArray(row) && row.some((cell: any) => cell !== null && cell !== undefined && cell !== '');
+          return (
+            Array.isArray(row) &&
+            row.some(
+              (cell: unknown) =>
+                cell !== null && cell !== undefined && cell !== '',
+            )
+          );
         })
-        .map((row: any[]) => {
-          const obj: any = {};
+        .map((row: unknown[]) => {
+          const obj: Record<string, unknown> = {};
           cleanHeaders.forEach((header, index) => {
             const value = row[index];
             // Manter null/undefined como está, mas converter strings vazias para null
-            obj[header] = (value === '' || value === undefined) ? null : value;
+            obj[header] = value === '' || value === undefined ? null : value;
           });
           return obj;
         });
 
       this.logger.log(`Total de linhas de dados: ${dataRows.length}`);
       if (dataRows.length > 0) {
-        this.logger.log(`Primeira linha de dados: ${JSON.stringify(dataRows[0])}`);
+        this.logger.log(
+          `Primeira linha de dados: ${JSON.stringify(dataRows[0])}`,
+        );
       }
 
       // Obter mapeamento de colunas (template ou padrão ou auto-detect)
+
       const mapping = this.getColumnMapping(
-        upload.template?.configuracao as any,
+        upload.template?.configuracao as
+          | { columnMapping?: TemplateMapping }
+          | undefined,
         dataRows.length > 0 ? dataRows[0] : {},
         cleanHeaders,
       );
 
       this.logger.log(`Mapeamento de colunas: ${JSON.stringify(mapping)}`);
-      
+
       // Verificar se todas as colunas mapeadas existem nos dados
       if (dataRows.length > 0) {
         const firstRow = dataRows[0];
         Object.entries(mapping).forEach(([key, colName]) => {
-          if (colName && firstRow[colName] === undefined) {
-            this.logger.warn(`Coluna mapeada "${colName}" (${key}) não encontrada na primeira linha. Chaves disponíveis: ${Object.keys(firstRow).join(', ')}`);
-          } else if (colName) {
-            this.logger.log(`Coluna "${colName}" (${key}) = "${firstRow[colName]}"`);
+          const colNameStr = colName as string | undefined;
+          if (colNameStr && firstRow[colNameStr] === undefined) {
+            this.logger.warn(
+              `Coluna mapeada "${colNameStr}" (${key}) não encontrada na primeira linha. Chaves disponíveis: ${Object.keys(firstRow).join(', ')}`,
+            );
+          } else if (colNameStr) {
+            const value = firstRow[colNameStr];
+            const valueStr =
+              value === null || value === undefined
+                ? ''
+                : typeof value === 'string' || typeof value === 'number'
+                  ? String(value)
+                  : JSON.stringify(value);
+            this.logger.log(`Coluna "${colNameStr}" (${key}) = "${valueStr}"`);
           }
         });
       }
@@ -189,10 +223,12 @@ export class ExcelProcessorService {
         },
       });
 
-      this.logger.log(`Upload ${uploadId} processado com sucesso. ${alertasCount} alertas gerados.`);
+      this.logger.log(
+        `Upload ${uploadId} processado com sucesso. ${alertasCount} alertas gerados.`,
+      );
     } catch (error) {
       this.logger.error(`Erro ao processar upload ${uploadId}:`, error);
-      
+
       await this.prisma.upload.update({
         where: { id: uploadId },
         data: {
@@ -207,74 +243,132 @@ export class ExcelProcessorService {
   /**
    * Obtém o mapeamento de colunas do template ou usa padrão/auto-detect
    */
-  private getColumnMapping(templateConfig?: any, firstRow?: any, headers?: string[]): TemplateMapping {
+
+  private getColumnMapping(
+    templateConfig?:
+      | { columnMapping?: TemplateMapping }
+      | Record<string, unknown>,
+
+    firstRow?: Record<string, unknown>,
+    headers?: string[],
+  ): TemplateMapping {
     if (templateConfig?.columnMapping) {
       return templateConfig.columnMapping;
     }
 
     // Usar headers se disponível, senão usar keys do firstRow
+
     const columnNames = headers || (firstRow ? Object.keys(firstRow) : []);
     const mapping: TemplateMapping = {};
 
     // Mapear por palavras-chave (case-insensitive)
     for (const colName of columnNames) {
       if (!colName) continue;
-      
+
       const colLower = colName.toLowerCase().trim();
-      
+
       // Classificação - pode ter acento ou não
-      if ((colLower.includes('classificação') || colLower.includes('classificacao')) && !mapping.classificacao) {
+      if (
+        (colLower.includes('classificação') ||
+          colLower.includes('classificacao')) &&
+        !mapping.classificacao
+      ) {
         mapping.classificacao = colName;
       }
       // Conta - mas não "Sub Conta" ou "Nome da Conta"
-      else if (colLower.includes('conta') && !colLower.includes('sub') && !colLower.includes('nome') && !colLower.includes('título') && !colLower.includes('titulo') && !mapping.conta) {
+      else if (
+        colLower.includes('conta') &&
+        !colLower.includes('sub') &&
+        !colLower.includes('nome') &&
+        !colLower.includes('título') &&
+        !colLower.includes('titulo') &&
+        !mapping.conta
+      ) {
         mapping.conta = colName;
       }
       // Sub Conta
-      else if ((colLower.includes('sub') || colLower === 'sub') && !mapping.subConta) {
+      else if (
+        (colLower.includes('sub') || colLower === 'sub') &&
+        !mapping.subConta
+      ) {
         mapping.subConta = colName;
       }
       // Nome da conta
-      else if (colLower.includes('nome') && (colLower.includes('conta') || colLower.includes('contábil')) && !mapping.nomeConta) {
+      else if (
+        colLower.includes('nome') &&
+        (colLower.includes('conta') || colLower.includes('contábil')) &&
+        !mapping.nomeConta
+      ) {
         mapping.nomeConta = colName;
       }
       // Tipo conta
-      else if (colLower.includes('tipo') && colLower.includes('conta') && !mapping.tipoConta) {
+      else if (
+        colLower.includes('tipo') &&
+        colLower.includes('conta') &&
+        !mapping.tipoConta
+      ) {
         mapping.tipoConta = colName;
       }
       // Nível
-      else if ((colLower.includes('nível') || colLower.includes('nivel')) && !mapping.nivel) {
+      else if (
+        (colLower.includes('nível') || colLower.includes('nivel')) &&
+        !mapping.nivel
+      ) {
         mapping.nivel = colName;
       }
       // Cta. título ou Título
-      else if ((colLower.includes('título') || colLower.includes('titulo') || colLower.includes('cta. título')) && !mapping.titulo) {
+      else if (
+        (colLower.includes('título') ||
+          colLower.includes('titulo') ||
+          colLower.includes('cta. título')) &&
+        !mapping.titulo
+      ) {
         mapping.titulo = colName;
       }
       // Estabelecimento ou Estab.
-      else if ((colLower.includes('estabelecimento') || colLower.includes('estab.')) && !mapping.estabelecimento) {
+      else if (
+        (colLower.includes('estabelecimento') || colLower.includes('estab.')) &&
+        !mapping.estabelecimento
+      ) {
         mapping.estabelecimento = colName;
       }
       // Saldo anterior
-      else if (colLower.includes('saldo') && colLower.includes('anterior') && !mapping.saldoAnterior) {
+      else if (
+        colLower.includes('saldo') &&
+        colLower.includes('anterior') &&
+        !mapping.saldoAnterior
+      ) {
         mapping.saldoAnterior = colName;
       }
       // Débito
-      else if ((colLower.includes('débito') || colLower.includes('debito')) && !mapping.debito) {
+      else if (
+        (colLower.includes('débito') || colLower.includes('debito')) &&
+        !mapping.debito
+      ) {
         mapping.debito = colName;
       }
       // Crédito
-      else if ((colLower.includes('crédito') || colLower.includes('credito')) && !mapping.credito) {
+      else if (
+        (colLower.includes('crédito') || colLower.includes('credito')) &&
+        !mapping.credito
+      ) {
         mapping.credito = colName;
       }
       // Saldo atual
-      else if (colLower.includes('saldo') && (colLower.includes('atual') || colLower.includes('final')) && !mapping.saldoAtual) {
+      else if (
+        colLower.includes('saldo') &&
+        (colLower.includes('atual') || colLower.includes('final')) &&
+        !mapping.saldoAtual
+      ) {
         mapping.saldoAtual = colName;
       }
     }
 
     // Se encontrou pelo menos alguns campos, usar o mapeamento auto-detectado
     if (Object.keys(mapping).length >= 3) {
-      this.logger.log(`Auto-detecção encontrou ${Object.keys(mapping).length} colunas mapeadas`);
+      this.logger.log(
+        `Auto-detecção encontrou ${Object.keys(mapping).length} colunas mapeadas`,
+      );
       return mapping;
     }
 
@@ -299,54 +393,145 @@ export class ExcelProcessorService {
   /**
    * Parse das linhas do Excel para o formato esperado
    */
-  private parseRows(rawData: any[], mapping: TemplateMapping): ExcelRow[] {
-    return rawData.map((row, index) => {
+
+  private parseRows(
+    rawData: Record<string, unknown>[],
+    mapping: TemplateMapping,
+  ): ExcelRow[] {
+    return rawData.map((row: Record<string, unknown>, index: number) => {
       const parsed: ExcelRow = {};
+      const celulasVazias: string[] = [];
+
+      // Função auxiliar para verificar se célula está vazia
+
+      const isCellEmpty = (value: unknown): boolean => {
+        return (
+          value === undefined ||
+          value === null ||
+          value === '' ||
+          (typeof value === 'string' && value.trim() === '')
+        );
+      };
 
       // Mapear colunas - verificar se a chave existe no objeto
-      if (mapping.classificacao && row[mapping.classificacao] !== undefined && row[mapping.classificacao] !== null && row[mapping.classificacao] !== '') {
-        parsed.classificacao = String(row[mapping.classificacao]).trim();
+
+      if (mapping.classificacao) {
+        if (isCellEmpty(row[mapping.classificacao])) {
+          celulasVazias.push('Classificação');
+        } else {
+          parsed.classificacao = String(row[mapping.classificacao]).trim();
+        }
       }
-      if (mapping.conta && row[mapping.conta] !== undefined && row[mapping.conta] !== null && row[mapping.conta] !== '') {
-        parsed.conta = String(row[mapping.conta]).trim();
+
+      if (mapping.conta) {
+        if (isCellEmpty(row[mapping.conta])) {
+          celulasVazias.push('Conta');
+        } else {
+          parsed.conta = String(row[mapping.conta]).trim();
+        }
       }
-      if (mapping.subConta && row[mapping.subConta] !== undefined && row[mapping.subConta] !== null && row[mapping.subConta] !== '') {
-        parsed.subConta = String(row[mapping.subConta]).trim();
+
+      if (mapping.subConta) {
+        if (isCellEmpty(row[mapping.subConta])) {
+          // SubConta pode ser opcional, não adicionar aos alertas
+        } else {
+          parsed.subConta = String(row[mapping.subConta]).trim();
+        }
       }
-      if (mapping.nomeConta && row[mapping.nomeConta] !== undefined && row[mapping.nomeConta] !== null && row[mapping.nomeConta] !== '') {
-        parsed.nomeConta = String(row[mapping.nomeConta]).trim();
+
+      if (mapping.nomeConta) {
+        if (isCellEmpty(row[mapping.nomeConta])) {
+          celulasVazias.push('Nome da Conta');
+        } else {
+          parsed.nomeConta = String(row[mapping.nomeConta]).trim();
+        }
       }
-      if (mapping.tipoConta && row[mapping.tipoConta] !== undefined && row[mapping.tipoConta] !== null && row[mapping.tipoConta] !== '') {
-        parsed.tipoConta = String(row[mapping.tipoConta]).trim();
+
+      if (mapping.tipoConta) {
+        if (isCellEmpty(row[mapping.tipoConta])) {
+          celulasVazias.push('Tipo Conta');
+        } else {
+          parsed.tipoConta = String(row[mapping.tipoConta]).trim();
+        }
       }
-      if (mapping.nivel && row[mapping.nivel] !== undefined && row[mapping.nivel] !== null && row[mapping.nivel] !== '') {
-        // Nível pode ser "1" ou "1-Sim" ou "2-Não" - extrair apenas o número
-        const nivelValue = String(row[mapping.nivel]).trim();
-        const nivelMatch = nivelValue.match(/^(\d+)/);
-        parsed.nivel = nivelMatch ? parseInt(nivelMatch[1], 10) : this.parseNumber(nivelValue);
+
+      if (mapping.nivel) {
+        if (isCellEmpty(row[mapping.nivel])) {
+          celulasVazias.push('Nível');
+        } else {
+          // Nível pode ser "1" ou "1-Sim" ou "2-Não" - extrair apenas o número
+
+          const nivelValue = String(row[mapping.nivel]).trim();
+          const nivelMatch = nivelValue.match(/^(\d+)/);
+          parsed.nivel = nivelMatch
+            ? parseInt(nivelMatch[1], 10)
+            : this.parseNumber(nivelValue);
+        }
       }
-      if (mapping.titulo && row[mapping.titulo] !== undefined && row[mapping.titulo] !== null && row[mapping.titulo] !== '') {
-        parsed.titulo = this.parseBoolean(row[mapping.titulo]);
+
+      if (mapping.titulo) {
+        if (isCellEmpty(row[mapping.titulo])) {
+          // Título pode ser opcional (boolean), não adicionar aos alertas
+        } else {
+          parsed.titulo = this.parseBoolean(row[mapping.titulo]);
+        }
       }
-      if (mapping.estabelecimento && row[mapping.estabelecimento] !== undefined && row[mapping.estabelecimento] !== null && row[mapping.estabelecimento] !== '') {
-        parsed.estabelecimento = this.parseBoolean(row[mapping.estabelecimento]);
+
+      if (mapping.estabelecimento) {
+        if (isCellEmpty(row[mapping.estabelecimento])) {
+          // Estabelecimento pode ser opcional (boolean), não adicionar aos alertas
+        } else {
+          parsed.estabelecimento = this.parseBoolean(
+            row[mapping.estabelecimento],
+          );
+        }
       }
-      if (mapping.saldoAnterior && row[mapping.saldoAnterior] !== undefined && row[mapping.saldoAnterior] !== null && row[mapping.saldoAnterior] !== '') {
-        parsed.saldoAnterior = this.parseDecimal(row[mapping.saldoAnterior]);
+
+      if (mapping.saldoAnterior) {
+        if (isCellEmpty(row[mapping.saldoAnterior])) {
+          celulasVazias.push('Saldo Anterior');
+        } else {
+          parsed.saldoAnterior = this.parseDecimal(row[mapping.saldoAnterior]);
+        }
       }
-      if (mapping.debito && row[mapping.debito] !== undefined && row[mapping.debito] !== null && row[mapping.debito] !== '') {
-        parsed.debito = this.parseDecimal(row[mapping.debito]);
+
+      if (mapping.debito) {
+        if (isCellEmpty(row[mapping.debito])) {
+          celulasVazias.push('Débito');
+        } else {
+          parsed.debito = this.parseDecimal(row[mapping.debito]);
+        }
       }
-      if (mapping.credito && row[mapping.credito] !== undefined && row[mapping.credito] !== null && row[mapping.credito] !== '') {
-        parsed.credito = this.parseDecimal(row[mapping.credito]);
+
+      if (mapping.credito) {
+        if (isCellEmpty(row[mapping.credito])) {
+          celulasVazias.push('Crédito');
+        } else {
+          parsed.credito = this.parseDecimal(row[mapping.credito]);
+        }
       }
-      if (mapping.saldoAtual && row[mapping.saldoAtual] !== undefined && row[mapping.saldoAtual] !== null && row[mapping.saldoAtual] !== '') {
-        parsed.saldoAtual = this.parseDecimal(row[mapping.saldoAtual]);
+
+      if (mapping.saldoAtual) {
+        if (isCellEmpty(row[mapping.saldoAtual])) {
+          celulasVazias.push('Saldo Atual');
+        } else {
+          parsed.saldoAtual = this.parseDecimal(row[mapping.saldoAtual]);
+        }
+      }
+
+      // Armazenar células vazias para detecção de alertas
+      if (celulasVazias.length > 0) {
+        parsed._celulasVazias = celulasVazias;
       }
 
       // Log da primeira linha para debug
       if (index === 0) {
         this.logger.log(`Primeira linha parseada: ${JSON.stringify(parsed)}`);
+        if (celulasVazias.length > 0) {
+          this.logger.warn(
+            `Células vazias detectadas na primeira linha: ${celulasVazias.join(', ')}`,
+          );
+        }
       }
 
       return parsed;
@@ -408,9 +593,17 @@ export class ExcelProcessorService {
   /**
    * Atualiza o catálogo de contas
    */
-  private async updateContaCatalogo(empresaId: string, linhas: ExcelRow[]): Promise<void> {
+  private async updateContaCatalogo(
+    empresaId: string,
+    linhas: ExcelRow[],
+  ): Promise<void> {
     for (const linha of linhas) {
-      if (!linha.classificacao || !linha.nomeConta || !linha.tipoConta || linha.nivel === undefined) {
+      if (
+        !linha.classificacao ||
+        !linha.nomeConta ||
+        !linha.tipoConta ||
+        linha.nivel === undefined
+      ) {
         continue;
       }
 
@@ -451,7 +644,11 @@ export class ExcelProcessorService {
   /**
    * Detecta alertas (saldos divergentes, contas novas)
    */
-  private async detectAlerts(uploadId: string, linhas: ExcelRow[], empresaId: string): Promise<void> {
+  private async detectAlerts(
+    uploadId: string,
+    linhas: ExcelRow[],
+    empresaId: string,
+  ): Promise<void> {
     const alertas: Array<{
       uploadId: string;
       linhaId?: string;
@@ -487,7 +684,8 @@ export class ExcelProcessorService {
         linha.credito !== undefined &&
         linha.saldoAtual !== undefined
       ) {
-        const saldoCalculado = linha.saldoAnterior + linha.debito - linha.credito;
+        const saldoCalculado =
+          linha.saldoAnterior + linha.debito - linha.credito;
         const diferenca = Math.abs(saldoCalculado - linha.saldoAtual);
 
         // Tolerância de 0.01 para diferenças de arredondamento
@@ -496,7 +694,8 @@ export class ExcelProcessorService {
             uploadId,
             linhaId: linhaCriada?.id,
             tipo: 'SALDO_DIVERGENTE',
-            severidade: diferenca > 1000 ? 'ALTA' : diferenca > 100 ? 'MEDIA' : 'BAIXA',
+            severidade:
+              diferenca > 1000 ? 'ALTA' : diferenca > 100 ? 'MEDIA' : 'BAIXA',
             mensagem: `Saldo divergente na conta ${linha.classificacao}: esperado ${saldoCalculado.toFixed(2)}, encontrado ${linha.saldoAtual.toFixed(2)}`,
           });
         }
@@ -513,7 +712,7 @@ export class ExcelProcessorService {
         });
       }
 
-      // Verificar dados inconsistentes
+      // Verificar dados inconsistentes (campos obrigatórios ausentes)
       if (
         !linha.classificacao ||
         !linha.nomeConta ||
@@ -524,8 +723,47 @@ export class ExcelProcessorService {
           uploadId,
           linhaId: linhaCriada?.id,
           tipo: 'DADO_INCONSISTENTE',
-          severidade: 'BAIXA',
-          mensagem: `Dados inconsistentes na linha: campos obrigatórios ausentes`,
+          severidade: 'ALTA',
+          mensagem: `Dados inconsistentes na linha: campos obrigatórios ausentes (Classificação, Nome da Conta, Tipo Conta ou Nível)`,
+        });
+      }
+
+      // Verificar células vazias - em um balancete, todas as células são importantes
+      if (linha._celulasVazias && linha._celulasVazias.length > 0) {
+        // Campos numéricos vazios são mais críticos
+        const camposCriticos = [
+          'Saldo Anterior',
+          'Débito',
+          'Crédito',
+          'Saldo Atual',
+        ];
+        const camposObrigatorios = [
+          'Classificação',
+          'Conta',
+          'Nome da Conta',
+          'Tipo Conta',
+          'Nível',
+        ];
+
+        const temCampoCriticoVazio = linha._celulasVazias.some((campo) =>
+          camposCriticos.includes(campo),
+        );
+        const temCampoObrigatorioVazio = linha._celulasVazias.some((campo) =>
+          camposObrigatorios.includes(campo),
+        );
+
+        let severidade: 'BAIXA' | 'MEDIA' | 'ALTA' = 'MEDIA';
+        if (temCampoCriticoVazio || temCampoObrigatorioVazio) {
+          severidade = 'ALTA';
+        }
+
+        const camposVaziosStr = linha._celulasVazias.join(', ');
+        alertas.push({
+          uploadId,
+          linhaId: linhaCriada?.id,
+          tipo: 'DADO_INCONSISTENTE',
+          severidade,
+          mensagem: `Células vazias detectadas na linha ${linha.classificacao || 'sem classificação'}: ${camposVaziosStr}. Em um balancete, todas as células devem conter dados.`,
         });
       }
     }
@@ -565,7 +803,7 @@ export class ExcelProcessorService {
     if (value === null || value === undefined || value === '') {
       return undefined;
     }
-    
+
     if (typeof value === 'number') {
       return value;
     }
@@ -577,11 +815,10 @@ export class ExcelProcessorService {
 
     // Formato brasileiro: ponto para milhar, vírgula para decimal
     // Exemplo: "1.797.148,78" ou "-3.197.869,88"
-    const isNegative = str.startsWith('-');
     let cleaned = str.replace(/\./g, ''); // Remove pontos (separadores de milhar)
     cleaned = cleaned.replace(',', '.'); // Substitui vírgula por ponto (separador decimal)
     cleaned = cleaned.replace(/[^\d.-]/g, ''); // Remove outros caracteres não numéricos
-    
+
     const num = parseFloat(cleaned);
     return isNaN(num) ? undefined : num;
   }
@@ -593,7 +830,7 @@ export class ExcelProcessorService {
     if (value === null || value === undefined || value === '') {
       return 0;
     }
-    
+
     if (typeof value === 'number') {
       return value;
     }
@@ -605,11 +842,10 @@ export class ExcelProcessorService {
 
     // Formato brasileiro: ponto para milhar, vírgula para decimal
     // Exemplo: "1.797.148,78" ou "-3.197.869,88"
-    const isNegative = str.startsWith('-');
     let cleaned = str.replace(/\./g, ''); // Remove pontos (separadores de milhar)
     cleaned = cleaned.replace(',', '.'); // Substitui vírgula por ponto (separador decimal)
     cleaned = cleaned.replace(/[^\d.-]/g, ''); // Remove outros caracteres não numéricos
-    
+
     const num = parseFloat(cleaned);
     return isNaN(num) ? 0 : num;
   }
@@ -622,7 +858,12 @@ export class ExcelProcessorService {
       return value;
     }
     const str = String(value).toLowerCase().trim();
-    return str === 'true' || str === '1' || str === 'sim' || str === 's' || str === 'x';
+    return (
+      str === 'true' ||
+      str === '1' ||
+      str === 'sim' ||
+      str === 's' ||
+      str === 'x'
+    );
   }
 }
-

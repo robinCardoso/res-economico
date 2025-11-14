@@ -43,7 +43,7 @@ const NovoUploadPage = () => {
   const { data: templates, isLoading: isLoadingTemplates } = useTemplates();
   
   const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<any[]>([]);
+  const [preview, setPreview] = useState<unknown[][]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,8 +93,8 @@ const NovoUploadPage = () => {
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-        setPreview(jsonData.slice(0, 10) as any[]); // Primeiras 10 linhas
-      } catch (err) {
+        setPreview(jsonData.slice(0, 10) as unknown[][]); // Primeiras 10 linhas
+      } catch {
         setError('Erro ao ler o arquivo Excel. Verifique se o arquivo está válido.');
         setFile(null);
       }
@@ -147,8 +147,9 @@ const NovoUploadPage = () => {
       });
       
       router.push('/uploads');
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Erro ao fazer upload. Tente novamente.');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(error.response?.data?.message || error.message || 'Erro ao fazer upload. Tente novamente.');
     } finally {
       setIsUploading(false);
     }
@@ -253,10 +254,10 @@ const NovoUploadPage = () => {
             >
               <option value="">Nenhum template (usar padrão)</option>
               {templatesList
-                .filter((t) => t.empresaId === empresaId)
+                .filter((t) => !t.empresaId || t.empresaId === empresaId) // Templates globais (null) ou da empresa específica
                 .map((template) => (
                   <option key={template.id} value={template.id}>
-                    {template.nome}
+                    {template.nome} {!template.empresaId ? '(Global)' : ''}
                   </option>
                 ))}
             </select>
@@ -353,7 +354,7 @@ const NovoUploadPage = () => {
                         <thead>
                           {preview.length > 0 && Array.isArray(preview[0]) && (
                             <tr className="border-b-2 border-slate-300 bg-slate-100 dark:border-slate-600 dark:bg-slate-800">
-                              {preview[0].map((cell: any, cellIndex: number) => (
+                              {preview[0].map((cell: unknown, cellIndex: number) => (
                                 <th
                                   key={cellIndex}
                                   className="px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800"
@@ -368,7 +369,7 @@ const NovoUploadPage = () => {
                           {preview.slice(1).map((row, rowIndex) => (
                             <tr key={rowIndex} className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50">
                               {Array.isArray(row) &&
-                                row.map((cell: any, cellIndex: number) => (
+                                row.map((cell: unknown, cellIndex: number) => (
                                   <td
                                     key={cellIndex}
                                     className="px-3 py-2 text-slate-700 dark:text-slate-300"

@@ -44,10 +44,10 @@ export class UploadsController {
   async reprocessar(@Param('id') id: string) {
     // Limpar linhas e alertas existentes
     await this.uploadsService.limparProcessamento(id);
-    
+
     // Reprocessar
     await this.excelProcessor.processUpload(id);
-    
+
     return this.uploadsService.findOne(id);
   }
 
@@ -78,7 +78,7 @@ export class UploadsController {
     )
     file: Express.Multer.File,
     @Body() dto: CreateUploadDto,
-    @Request() req: any,
+    @Request() req: { user?: { id?: string } },
   ) {
     const userId = req.user?.id || 'system';
     return this.uploadsService.create(file, dto, userId);

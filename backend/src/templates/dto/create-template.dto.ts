@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, IsOptional, IsObject, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsObject,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ColumnMappingDto {
@@ -53,8 +59,8 @@ export class ColumnMappingDto {
 
 export class CreateTemplateDto {
   @IsString()
-  @IsNotEmpty({ message: 'Empresa é obrigatória' })
-  empresaId: string;
+  @IsOptional()
+  empresaId?: string | null; // Opcional: null/undefined = template global (todas as empresas)
 
   @IsString()
   @IsNotEmpty({ message: 'Nome é obrigatório' })
@@ -69,4 +75,3 @@ export class CreateTemplateDto {
   @Type(() => ColumnMappingDto)
   columnMapping: ColumnMappingDto;
 }
-

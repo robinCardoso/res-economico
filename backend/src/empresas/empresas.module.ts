@@ -10,4 +10,3 @@ import { CoreModule } from '../core/core.module';
   exports: [EmpresasService],
 })
 export class EmpresasModule {}
-

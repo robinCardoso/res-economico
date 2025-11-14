@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, MinLength, IsOptional, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  MinLength,
+  IsOptional,
+  IsEnum,
+} from 'class-validator';
 import { TipoEmpresa } from '@prisma/client';
 
 export class CreateEmpresaDto {
@@ -20,4 +26,3 @@ export class CreateEmpresaDto {
   @IsOptional()
   tipo?: TipoEmpresa;
 }
-

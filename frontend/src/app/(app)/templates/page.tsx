@@ -13,11 +13,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Plus, Pencil, Trash2, X, Check } from 'lucide-react';
 import { formatDate } from '@/lib/format';
+import { maskCNPJ } from '@/lib/masks';
 import type { TemplateImportacaoWithRelations } from '@/types/api';
 import type { ColumnMapping } from '@/services/templates.service';
 
 const templateSchema = z.object({
-  empresaId: z.string().min(1, 'Empresa é obrigatória'),
+  empresaId: z.string().optional(), // Opcional: vazio = template global (todas as empresas)
   nome: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   descricao: z.string().optional(),
   columnMapping: z.object({
@@ -68,7 +69,6 @@ const TemplatesPage = () => {
     register,
     handleSubmit,
     reset,
-    watch,
     formState: { errors },
   } = useForm<TemplateFormData>({
     resolver: zodResolver(templateSchema),
@@ -83,7 +83,7 @@ const TemplatesPage = () => {
   const openCreateModal = () => {
     setEditingTemplate(null);
     reset({
-      empresaId: '',
+      empresaId: '', // Vazio = template global
       nome: '',
       descricao: '',
       columnMapping: {},
@@ -98,7 +98,7 @@ const TemplatesPage = () => {
     const columnMapping = config?.columnMapping || {};
     
     reset({
-      empresaId: template.empresaId,
+      empresaId: template.empresaId || '', // null = template global, converter para string vazia
       nome: template.nome,
       descricao: template.descricao || '',
       columnMapping,
@@ -126,9 +126,10 @@ const TemplatesPage = () => {
         await createTemplate.mutateAsync(data);
       }
       closeModal();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
       setErrorMessage(
-        error?.response?.data?.message || 'Erro ao salvar template. Tente novamente.',
+        err?.response?.data?.message || 'Erro ao salvar template. Tente novamente.',
       );
     }
   };
@@ -140,8 +141,9 @@ const TemplatesPage = () => {
 
     try {
       await deleteTemplate.mutateAsync(id);
-    } catch (error: any) {
-      alert(error?.response?.data?.message || 'Erro ao excluir template.');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      alert(err?.response?.data?.message || 'Erro ao excluir template.');
     }
   };
 
@@ -209,7 +211,14 @@ const TemplatesPage = () => {
                   <div>
                     <dt>Empresa</dt>
                     <dd className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                      {template.empresa?.razaoSocial || 'N/A'}
+                      {template.empresa ? (
+                        <>
+                          {template.empresa.razaoSocial}
+                          {template.empresa.nomeFantasia && ` (${template.empresa.nomeFantasia})`}
+                        </>
+                      ) : (
+                        <span className="text-sky-600 dark:text-sky-400">🌐 Template Global (Todas as empresas)</span>
+                      )}
                     </dd>
                   </div>
                   <div>
@@ -272,19 +281,22 @@ const TemplatesPage = () => {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Empresa <span className="text-rose-500">*</span>
+                  Empresa
                 </label>
                 <select
                   {...register('empresaId')}
                   className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 >
-                  <option value="">Selecione uma empresa</option>
+                  <option value="">🌐 Template Global (Todas as empresas)</option>
                   {empresasList.map((empresa) => (
                     <option key={empresa.id} value={empresa.id}>
-                      {empresa.razaoSocial}
+                      {empresa.razaoSocial} {empresa.nomeFantasia ? `(${empresa.nomeFantasia})` : ''} - {maskCNPJ(empresa.cnpj)}
                     </option>
                   ))}
                 </select>
+                <p className="mt-1 text-xs text-slate-500">
+                  Deixe vazio para criar um template global disponível para todas as empresas
+                </p>
                 {errors.empresaId && (
                   <p className="mt-1 text-xs text-rose-500">{errors.empresaId.message}</p>
                 )}

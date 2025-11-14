@@ -4,7 +4,6 @@ import { CreateUploadDto } from './dto/create-upload.dto';
 import { ExcelProcessorService } from './excel-processor.service';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
-import * as path from 'path';
 
 @Injectable()
 export class UploadsService {
@@ -34,7 +33,11 @@ export class UploadsService {
     });
   }
 
-  async create(file: Express.Multer.File, dto: CreateUploadDto, userId: string) {
+  async create(
+    file: Express.Multer.File,
+    dto: CreateUploadDto,
+    userId: string,
+  ) {
     // Verificar se a empresa existe
     const empresa = await this.prisma.empresa.findUnique({
       where: { id: dto.empresaId },
@@ -46,7 +49,10 @@ export class UploadsService {
 
     // Calcular hash do arquivo
     const fileBuffer = fs.readFileSync(file.path);
-    const hashArquivo = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+    const hashArquivo = crypto
+      .createHash('sha256')
+      .update(fileBuffer)
+      .digest('hex');
 
     // Verificar se já existe upload com mesmo hash, empresa, mês e ano
     const uploadExistente = await this.prisma.upload.findFirst({

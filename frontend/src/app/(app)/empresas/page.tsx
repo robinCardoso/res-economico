@@ -34,7 +34,6 @@ const EmpresasPage = () => {
     handleSubmit,
     reset,
     setValue,
-    watch,
     formState: { errors },
   } = useForm<EmpresaFormData>({
     resolver: zodResolver(empresaSchema),
@@ -110,9 +109,10 @@ const EmpresasPage = () => {
         });
       }
       closeModal();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
       setErrorMessage(
-        err.response?.data?.message || err.message || 'Erro ao salvar empresa',
+        error.response?.data?.message || error.message || 'Erro ao salvar empresa',
       );
     }
   };
@@ -124,9 +124,10 @@ const EmpresasPage = () => {
 
     try {
       await deleteEmpresa.mutateAsync(id);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
       alert(
-        err.response?.data?.message || err.message || 'Erro ao excluir empresa',
+        error.response?.data?.message || error.message || 'Erro ao excluir empresa',
       );
     }
   };
@@ -172,7 +173,7 @@ const EmpresasPage = () => {
       {empresasList.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
           <p className="text-sm text-slate-500">
-            Nenhuma empresa cadastrada. Clique em "Nova empresa" para começar.
+            Nenhuma empresa cadastrada. Clique em &quot;Nova empresa&quot; para começar.
           </p>
         </div>
       ) : (

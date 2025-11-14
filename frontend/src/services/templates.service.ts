@@ -23,7 +23,7 @@ export interface CreateTemplateDto {
   columnMapping: ColumnMapping;
 }
 
-export interface UpdateTemplateDto extends Partial<CreateTemplateDto> {}
+export type UpdateTemplateDto = Partial<CreateTemplateDto>;
 
 export const templatesService = {
   async list(): Promise<TemplateImportacaoWithRelations[]> {

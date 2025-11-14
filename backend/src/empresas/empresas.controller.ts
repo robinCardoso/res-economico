@@ -43,4 +43,3 @@ export class EmpresasController {
     return this.empresasService.remove(id);
   }
 }
-
