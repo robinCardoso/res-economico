@@ -260,7 +260,7 @@
         <li>[✓] Valores formatados em moeda brasileira (R$) com separadores de milhar e 2 decimais.</li>
         <li>[✓] Tabela responsiva com colunas fixas (CLASSI, DESCRI, Total) e scroll horizontal para meses.</li>
         <li>[✓] Exibição de UF junto ao nome da empresa no cabeçalho do relatório.</li>
-        <li>[&nbsp;] Exportação para Excel e PDF (pendente - botões desabilitados).</li>
+        <li>[✓] <strong>Exportação para Excel e PDF:</strong> Implementada exportação completa mantendo estrutura hierárquica, cada valor em sua própria célula (sem mesclar linhas ou colunas), formatação numérica brasileira, e nomes de arquivo descritivos baseados no tipo de relatório, empresa e ano.</li>
       </ul>
 
       <h3>5.1. Sistema de Alertas - Melhorias (✓ Concluído)</h3>
@@ -297,12 +297,66 @@
       <h3>6. Funcionalidades Avançadas</h3>
       <ul>
         <li><strong>Histórico de Auditoria:</strong> Registrar todas as ações no sistema - <strong>CONCLUÍDO</strong> - log de alterações em uploads, alertas e empresas para rastreabilidade e segurança. Serviço <code>AuditoriaService</code> integrado em todos os módulos principais.</li>
-        <li><strong>Offline Storage:</strong> Implementar IndexedDB com Dexie para armazenar dados localmente (pendente).</li>
-        <li><strong>Push Notifications:</strong> Configurar Web Push via VAPID próprio (pendente).</li>
-        <li><strong>Integração Groq AI:</strong> Criar serviço para análises e insights dos dados (pendente).</li>
         <li><strong>Dashboard:</strong> Implementar KPIs, gráficos e métricas (pendente).</li>
-        <li><strong>Edição de Linhas:</strong> Permitir editar/remover linhas de upload (pendente).</li>
-        <li><strong>Relatórios Comparativos:</strong> Gerar relatórios comparativos e análises (pendente).</li>
+        <li><strong>Push Notifications:</strong> Configurar Web Push via VAPID próprio (pendente).</li>
+      </ul>
+
+      <h3>6.1. Relatórios Comparativos (Pendente)</h3>
+      <ul>
+        <li>[&nbsp;] <strong>Comparação mês a mês:</strong> Permitir comparar dados de meses consecutivos (ex: Janeiro vs Fevereiro).</li>
+        <li>[&nbsp;] <strong>Comparação ano a ano:</strong> Comparar dados do mesmo período em anos diferentes (ex: Janeiro/2024 vs Janeiro/2025).</li>
+        <li>[&nbsp;] <strong>Análise de tendências:</strong> Implementar gráficos de evolução mostrando tendências ao longo do tempo.</li>
+        <li>[&nbsp;] <strong>Identificação de variações significativas:</strong> Sistema deve destacar automaticamente variações acima de um percentual configurável (ex: >10%, >20%).</li>
+        <li>[&nbsp;] Visualização lado a lado de períodos comparados.</li>
+        <li>[&nbsp;] Cálculo de diferenças absolutas e percentuais.</li>
+        <li>[&nbsp;] Exportação de relatórios comparativos para Excel/PDF.</li>
+      </ul>
+
+      <h3>6.2. Offline Storage (IndexedDB) (Pendente)</h3>
+      <ul>
+        <li>[&nbsp;] <strong>Funcionar offline com dados em cache:</strong> Implementar IndexedDB com Dexie para armazenar dados localmente.</li>
+        <li>[&nbsp;] <strong>Sincronização automática quando voltar online:</strong> Sistema deve detectar quando a conexão é restabelecida e sincronizar automaticamente dados pendentes.</li>
+        <li>[&nbsp;] <strong>Indicador de status offline/online:</strong> Banner ou indicador visual mostrando o status da conexão.</li>
+        <li>[&nbsp;] Cache de uploads recentes para visualização offline.</li>
+        <li>[&nbsp;] Cache de alertas e contas para consulta offline.</li>
+        <li>[&nbsp;] Fila de ações pendentes quando offline (criar upload, marcar alerta como resolvido, etc.).</li>
+        <li>[&nbsp;] Estratégia de sincronização: merge inteligente de dados locais com servidor.</li>
+      </ul>
+
+      <h3>6.3. Integração Groq AI (Pendente)</h3>
+      <ul>
+        <li>[&nbsp;] <strong>Análises automáticas dos dados:</strong> Criar serviço para análises automáticas usando Groq AI.</li>
+        <li>[&nbsp;] <strong>Insights e recomendações:</strong> Sistema deve gerar insights sobre os dados financeiros e recomendar ações.</li>
+        <li>[&nbsp;] <strong>Detecção de padrões anômalos:</strong> Identificar padrões incomuns ou suspeitos nos dados.</li>
+        <li>[&nbsp;] <strong>Sugestões de correções:</strong> Sugerir correções para alertas detectados baseado em padrões históricos.</li>
+        <li>[&nbsp;] Integração com endpoint Groq API.</li>
+        <li>[&nbsp;] Interface para visualizar análises e insights gerados.</li>
+        <li>[&nbsp;] Histórico de análises realizadas.</li>
+        <li>[&nbsp;] Configuração de frequência de análises (manual, diária, semanal).</li>
+      </ul>
+
+      <h3>6.4. Refresh Token (Pendente)</h3>
+      <ul>
+        <li>[&nbsp;] <strong>Renovação automática de tokens JWT:</strong> Implementar refresh token para renovar tokens automaticamente antes de expirar.</li>
+        <li>[&nbsp;] <strong>Sessões mais seguras:</strong> Tokens de acesso com expiração curta (15-30min) e refresh tokens com expiração longa (7-30 dias).</li>
+        <li>[&nbsp;] <strong>Logout automático após inatividade:</strong> Sistema deve detectar inatividade do usuário e fazer logout automático após período configurável.</li>
+        <li>[&nbsp;] Endpoint no backend para renovar tokens.</li>
+        <li>[&nbsp;] Interceptor no frontend para renovar tokens automaticamente.</li>
+        <li>[&nbsp;] Armazenamento seguro de refresh token.</li>
+        <li>[&nbsp;] Tratamento de refresh token expirado (redirecionar para login).</li>
+      </ul>
+
+      <h3>6.5. Edição de Linhas (Pendente)</h3>
+      <ul>
+        <li>[&nbsp;] <strong>Reduz retrabalho:</strong> Permitir editar valores diretamente na página de detalhes do upload sem precisar reprocessar o arquivo completo.</li>
+        <li>[&nbsp;] <strong>Melhora a experiência de correção:</strong> Interface intuitiva para editar linhas de upload.</li>
+        <li>[&nbsp;] Editar valores de linhas individuais (saldo anterior, débito, crédito, saldo atual).</li>
+        <li>[&nbsp;] Validação em tempo real ao editar (verificar fórmulas, consistência).</li>
+        <li>[&nbsp;] Histórico de alterações por linha (quem editou, quando, valor anterior vs novo).</li>
+        <li>[&nbsp;] Remover linhas de upload quando necessário.</li>
+        <li>[&nbsp;] Adicionar linhas manualmente quando faltar dados.</li>
+        <li>[&nbsp;] Recalcular totais automaticamente após edições.</li>
+        <li>[&nbsp;] Atualizar alertas após edições (revalidar saldos divergentes, etc.).</li>
       </ul>
     </section>
 
@@ -628,9 +682,12 @@
         <strong>histórico de auditoria completo</strong> registrando todas as ações do sistema (uploads, alertas, empresas),
         <strong>validação de continuidade temporal</strong> que detecta alterações retroativas comparando saldos entre meses consecutivos usando chave composta (classificação + conta + subConta) para garantir precisão na comparação,
         <strong>relatório DRE completo</strong> com filtros por descrição (autocomplete), expandir/colapsar níveis, e exibição hierárquica de contas,
+        <strong>exportação Excel e PDF</strong> do relatório DRE mantendo estrutura hierárquica e cada valor em sua própria célula,
         <strong>melhorias no sistema de alertas</strong> com filtro e contagem por tipoConta, correção de mensagens com terminologia adequada, e armazenamento do nome original do arquivo,
-        <strong>correção de autenticação</strong> para não redirecionar ao recarregar página (F5), e
-        <strong>configuração para rede local</strong> permitindo acesso de outros computadores na mesma rede.
+        <strong>correção de autenticação</strong> para não redirecionar ao recarregar página (F5),
+        <strong>configuração para rede local</strong> permitindo acesso de outros computadores na mesma rede, e
+        <strong>melhorias no tratamento de erros</strong> silenciando logs desnecessários de erros de rede esperados.
+        <strong>Próximas funcionalidades planejadas:</strong> Relatórios comparativos (mês a mês, ano a ano), Offline Storage (IndexedDB), Integração Groq AI, Refresh Token, e Edição de linhas de upload.
       </p>
     </footer>
   </body>
