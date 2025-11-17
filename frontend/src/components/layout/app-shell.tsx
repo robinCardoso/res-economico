@@ -107,10 +107,6 @@ export const AppShell = ({ children }: AppShellProps) => {
                 <span>Resultado Econômico</span>
               </Link>
             </div>
-            <div className="flex items-center gap-3 text-sm text-slate-500">
-              <div className="hidden sm:block">Usuário Demo</div>
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-sky-500 to-slate-900" />
-            </div>
           </div>
         </header>
 

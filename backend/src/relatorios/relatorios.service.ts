@@ -7,6 +7,23 @@ import { TipoRelatorio } from './dto/gerar-relatorio.dto';
 export class RelatoriosService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getAnosDisponiveis(): Promise<number[]> {
+    const uploads = await this.prisma.upload.findMany({
+      where: {
+        status: { in: ['CONCLUIDO', 'COM_ALERTAS'] },
+      },
+      select: {
+        ano: true,
+      },
+      distinct: ['ano'],
+      orderBy: {
+        ano: 'desc',
+      },
+    });
+
+    return uploads.map((upload) => upload.ano);
+  }
+
   private readonly meses = [
     { mes: 1, nome: 'Janeiro' },
     { mes: 2, nome: 'Fevereiro' },
@@ -31,7 +48,7 @@ export class RelatoriosService {
     // 1. Buscar empresas conforme tipo
     let empresas;
     let empresaNome = 'CONSOLIDADO';
-    let uf: string | undefined;
+    let ufRelatorio: string | undefined;
 
     if (tipo === TipoRelatorio.FILIAL) {
       if (!empresaId) {
@@ -45,7 +62,7 @@ export class RelatoriosService {
       }
       empresas = [empresa];
       empresaNome = empresa.razaoSocial;
-      uf = empresa.uf || undefined;
+      ufRelatorio = empresa.uf || undefined;
     } else {
       // CONSOLIDADO
       if (empresaIds && empresaIds.length > 0) {
@@ -57,13 +74,13 @@ export class RelatoriosService {
         }
         // Usar nome da primeira empresa ou criar nome consolidado
         empresaNome = empresas.length === 1 ? empresas[0].razaoSocial : 'CONSOLIDADO';
-        uf = empresas[0]?.uf || undefined;
+        ufRelatorio = empresas[0]?.uf || undefined;
       } else {
         // Todas as empresas
         empresas = await this.prisma.empresa.findMany();
         empresaNome = 'CONSOLIDADO';
         // Pegar UF mais comum ou da primeira empresa
-        uf = empresas[0]?.uf || undefined;
+        ufRelatorio = empresas[0]?.uf || undefined;
       }
     }
 
@@ -86,7 +103,7 @@ export class RelatoriosService {
       return {
         empresaId: tipo === TipoRelatorio.FILIAL ? empresaId : undefined,
         empresaNome,
-        uf,
+        uf: ufRelatorio,
         ano,
         tipo: tipo as 'FILIAL' | 'CONSOLIDADO',
         periodo: this.meses,
@@ -117,16 +134,27 @@ export class RelatoriosService {
       }
     }
 
-    // 4. Buscar todas as contas do catálogo para construir hierarquia
+    // 4. Buscar todas as contas DRE do catálogo para construir hierarquia
+    // IMPORTANTE: DRE usa apenas contas com tipoConta = "3-DRE"
     const contasCatalogo = await this.prisma.contaCatalogo.findMany({
+      where: {
+        tipoConta: '3-DRE', // Filtrar apenas contas DRE
+      },
       orderBy: [{ classificacao: 'asc' }],
     });
 
     // 5. Construir hierarquia de contas
     const contasMap = new Map<string, ContaRelatorio>();
 
+    // Função para normalizar classificação (remove ponto final se existir)
+    const normalizarClassificacao = (classificacao: string): string => {
+      return classificacao.trim().replace(/\.$/, '');
+    };
+
     // Primeiro, criar todas as contas com valores
+    // Usar classificação normalizada como chave para facilitar busca de pais
     for (const conta of contasCatalogo) {
+      const classificacaoNormalizada = normalizarClassificacao(conta.classificacao);
       const valoresPorMes = dadosPorMesEClassificacao.get(conta.classificacao) || new Map();
       
       const valores: { [mes: number]: number; total: number } = {
@@ -139,8 +167,9 @@ export class RelatoriosService {
         valores.total += valores[mes];
       }
 
-      contasMap.set(conta.classificacao, {
-        classificacao: conta.classificacao,
+      // Armazenar com classificação original, mas também criar entrada normalizada
+      contasMap.set(classificacaoNormalizada, {
+        classificacao: conta.classificacao, // Manter original para exibição
         nomeConta: conta.nomeConta,
         nivel: conta.nivel,
         valores,
@@ -153,41 +182,73 @@ export class RelatoriosService {
     const contasProcessadas = new Set<string>();
 
     // Ordenar contas por nível (do menor para o maior) para garantir que pais sejam processados antes dos filhos
+    // Também ordenar por classificação para garantir ordem consistente
     const contasOrdenadas = [...contasCatalogo].sort((a, b) => {
-      const nivelA = (a.classificacao.match(/\./g) || []).length;
-      const nivelB = (b.classificacao.match(/\./g) || []).length;
-      return nivelA - nivelB;
+      const nivelA = (normalizarClassificacao(a.classificacao).match(/\./g) || []).length;
+      const nivelB = (normalizarClassificacao(b.classificacao).match(/\./g) || []).length;
+      if (nivelA !== nivelB) {
+        return nivelA - nivelB;
+      }
+      // Se mesmo nível, ordenar por classificação
+      return normalizarClassificacao(a.classificacao).localeCompare(normalizarClassificacao(b.classificacao));
     });
 
+    // Função auxiliar para encontrar o pai de uma classificação
+    // Exemplo: "3.01.03" -> pai é "3.01"
+    const encontrarPai = (classificacao: string): string | null => {
+      const normalizada = normalizarClassificacao(classificacao);
+      const partes = normalizada.split('.').filter((p) => p.length > 0);
+      
+      if (partes.length <= 1) {
+        return null; // É raiz (ex: "3")
+      }
+      
+      // Remove última parte para encontrar pai
+      partes.pop();
+      const classificacaoPai = partes.join('.');
+      
+      return classificacaoPai;
+    };
+
     for (const conta of contasOrdenadas) {
-      const contaRelatorio = contasMap.get(conta.classificacao);
-      if (!contaRelatorio || contasProcessadas.has(conta.classificacao)) {
+      const classificacaoNormalizada = normalizarClassificacao(conta.classificacao);
+      const contaRelatorio = contasMap.get(classificacaoNormalizada);
+      
+      if (!contaRelatorio || contasProcessadas.has(classificacaoNormalizada)) {
         continue;
       }
 
-      // Encontrar pai (classificação com menos pontos)
-      const partes = conta.classificacao.split('.').filter((p) => p.length > 0);
+      const classificacaoPai = encontrarPai(conta.classificacao);
       
-      if (partes.length > 1) {
-        // Remover última parte para encontrar pai
-        partes.pop();
-        const classificacaoPai = partes.join('.') + '.';
+      if (classificacaoPai) {
+        // Buscar pai no mapa (já está normalizado)
         const pai = contasMap.get(classificacaoPai);
         
         if (pai) {
           pai.filhos = pai.filhos || [];
           pai.filhos.push(contaRelatorio);
         } else {
-          // Não tem pai, é raiz
+          // Não tem pai encontrado, é raiz
           raiz.push(contaRelatorio);
         }
       } else {
-        // É raiz (ex: "3.")
+        // É raiz (ex: "3" ou "3.")
         raiz.push(contaRelatorio);
       }
       
-      contasProcessadas.add(conta.classificacao);
+      contasProcessadas.add(classificacaoNormalizada);
     }
+
+    // Ordenar filhos de cada conta por classificação
+    const ordenarFilhos = (contas: ContaRelatorio[]) => {
+      for (const conta of contas) {
+        if (conta.filhos && conta.filhos.length > 0) {
+          conta.filhos.sort((a, b) => a.classificacao.localeCompare(b.classificacao));
+          ordenarFilhos(conta.filhos);
+        }
+      }
+    };
+    ordenarFilhos(raiz);
 
     // 7. Calcular totais hierárquicos (contas pai = soma dos filhos)
     this.calcularTotaisHierarquicos(raiz);
@@ -195,7 +256,7 @@ export class RelatoriosService {
     return {
       empresaId: tipo === TipoRelatorio.FILIAL ? empresaId : undefined,
       empresaNome,
-      uf,
+      uf: ufRelatorio,
       ano,
       tipo: tipo as 'FILIAL' | 'CONSOLIDADO',
       periodo: this.meses,

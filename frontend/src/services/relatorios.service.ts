@@ -9,6 +9,11 @@ export interface GerarRelatorioParams {
 }
 
 export const relatoriosService = {
+  async getAnosDisponiveis(): Promise<number[]> {
+    const { data } = await api.get<number[]>('/relatorios/anos-disponiveis');
+    return data;
+  },
+
   async gerarResultado(params: GerarRelatorioParams): Promise<RelatorioResultado> {
     const queryParams = new URLSearchParams();
     queryParams.append('ano', params.ano.toString());

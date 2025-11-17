@@ -8,6 +8,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class RelatoriosController {
   constructor(private readonly relatoriosService: RelatoriosService) {}
 
+  @Get('anos-disponiveis')
+  async getAnosDisponiveis() {
+    return this.relatoriosService.getAnosDisponiveis();
+  }
+
   @Get('resultado')
   async gerarResultado(
     @Query('ano', ParseIntPipe) ano: number,

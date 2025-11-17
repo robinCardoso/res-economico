@@ -1,6 +1,15 @@
-# Planejamento: Sistema de Relatórios de Resultado Econômico
+# Planejamento: Sistema de Relatórios de Resultado Econômico (DRE)
 
 ## 📊 Análise do Relatório Excel
+
+### ⚠️ IMPORTANTE: Identificação de Contas DRE
+
+O sistema identifica contas DRE através do campo `tipoConta = "3-DRE"` presente no arquivo Excel enviado pela contabilidade. Apenas contas com este tipo devem ser incluídas no relatório DRE.
+
+**Campos utilizados:**
+- `tipoConta`: Deve ser "3-DRE" para contas do DRE
+- `nivel`: Indica a hierarquia (1, 2, 3, 4, 5, etc.)
+- `classificacao`: Código hierárquico (ex: "3.", "3.01", "3.01.01")
 
 ### Estrutura Identificada
 
@@ -164,12 +173,13 @@ export class RelatoriosService {
   ): Promise<RelatorioResultado> {
     // 1. Buscar todos os uploads do ano
     // 2. Filtrar por empresa(s) conforme tipo
-    // 3. Agrupar por mês (1-12)
-    // 4. Agrupar por classificação de conta
-    // 5. Construir hierarquia de contas (árvore)
-    // 6. Calcular totais hierárquicos (contas pai = soma dos filhos)
-    // 7. Calcular coluna Total (soma de todos os meses)
-    // 8. Retornar estrutura formatada
+    // 3. Filtrar apenas linhas com tipoConta = "3-DRE" (IMPORTANTE!)
+    // 4. Agrupar por mês (1-12)
+    // 5. Agrupar por classificação de conta
+    // 6. Construir hierarquia de contas (árvore) respeitando níveis
+    // 7. Calcular totais hierárquicos (contas pai = soma dos filhos)
+    // 8. Calcular coluna Total (soma de todos os meses)
+    // 9. Retornar estrutura formatada no padrão DRE
   }
   
   async exportarParaExcel(relatorio: RelatorioResultado): Promise<Buffer> {
@@ -390,12 +400,13 @@ export class RelatoriosController {
 - [ ] Controller com endpoints
 
 ### Fase 2: Lógica de Agregação
-- [ ] Buscar uploads por ano e empresa(s)
-- [ ] Agrupar dados por mês (1-12)
-- [ ] Agrupar por classificação de conta
-- [ ] Construir hierarquia de contas (árvore)
-- [ ] Calcular totais hierárquicos (recursivo)
-- [ ] Calcular coluna Total (soma anual)
+- [x] Buscar uploads por ano e empresa(s)
+- [x] **Filtrar apenas contas com tipoConta = "3-DRE"** ✅
+- [x] Agrupar dados por mês (1-12)
+- [x] Agrupar por classificação de conta
+- [x] Construir hierarquia de contas (árvore) respeitando níveis
+- [x] Calcular totais hierárquicos (recursivo)
+- [x] Calcular coluna Total (soma anual)
 
 ### Fase 3: Frontend
 - [ ] Página frontend `/relatorios/resultado`
