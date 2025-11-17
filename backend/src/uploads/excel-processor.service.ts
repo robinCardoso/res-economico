@@ -840,16 +840,121 @@ export class ExcelProcessorService {
     const alertas: Array<{
       uploadId: string;
       linhaId?: string;
-      tipo: 'SALDO_DIVERGENTE' | 'CONTA_NOVA' | 'DADO_INCONSISTENTE';
+      tipo: 'SALDO_DIVERGENTE' | 'CONTA_NOVA' | 'DADO_INCONSISTENTE' | 'CONTINUIDADE_TEMPORAL_DIVERGENTE';
       severidade: 'BAIXA' | 'MEDIA' | 'ALTA';
       mensagem: string;
     }> = [];
+
+    // Buscar informações do upload atual
+    const uploadAtual = await this.prisma.upload.findUnique({
+      where: { id: uploadId },
+      select: { mes: true, ano: true },
+    });
+
+    if (!uploadAtual) {
+      this.logger.error(`Upload ${uploadId} não encontrado`);
+      return;
+    }
 
     // Buscar linhas criadas para obter IDs
     const linhasCriadas = await this.prisma.linhaUpload.findMany({
       where: { uploadId },
       orderBy: { createdAt: 'asc' },
     });
+
+    // Buscar upload do mês anterior para validação de continuidade temporal
+    let uploadAnterior: { id: string; mes: number; ano: number; totalLinhas: number } | null = null;
+    // Usar chave composta: classificacao + conta + subConta (pode haver múltiplas linhas com mesma classificação e conta)
+    let linhasAnteriores: Map<string, { saldoAtual: number }> = new Map();
+
+    if (uploadAtual.mes > 1) {
+      // Mês anterior no mesmo ano
+      // Buscar todos os uploads do mês anterior para verificar se há múltiplos
+      const uploadsAnteriores = await this.prisma.upload.findMany({
+        where: {
+          empresaId,
+          mes: uploadAtual.mes - 1,
+          ano: uploadAtual.ano,
+          status: { in: ['CONCLUIDO', 'COM_ALERTAS'] },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, mes: true, ano: true, totalLinhas: true },
+      });
+
+      if (uploadsAnteriores.length > 0) {
+        // Se há múltiplos uploads, preferir o que tem mais linhas (mais completo)
+        uploadAnterior = uploadsAnteriores.reduce((prev, current) => 
+          (current.totalLinhas > prev.totalLinhas) ? current : prev
+        );
+        
+        if (uploadsAnteriores.length > 1) {
+          this.logger.warn(
+            `Múltiplos uploads encontrados para ${uploadAtual.mes - 1}/${uploadAtual.ano}: ${uploadsAnteriores.length}. Usando o upload com mais linhas (ID: ${uploadAnterior.id}, ${uploadAnterior.totalLinhas} linhas).`,
+          );
+        }
+      }
+    } else if (uploadAtual.mes === 1) {
+      // Janeiro: mês anterior é dezembro do ano anterior
+      const uploadsAnteriores = await this.prisma.upload.findMany({
+        where: {
+          empresaId,
+          mes: 12,
+          ano: uploadAtual.ano - 1,
+          status: { in: ['CONCLUIDO', 'COM_ALERTAS'] },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, mes: true, ano: true, totalLinhas: true },
+      });
+
+      if (uploadsAnteriores.length > 0) {
+        // Se há múltiplos uploads, preferir o que tem mais linhas (mais completo)
+        uploadAnterior = uploadsAnteriores.reduce((prev, current) => 
+          (current.totalLinhas > prev.totalLinhas) ? current : prev
+        );
+        
+        if (uploadsAnteriores.length > 1) {
+          this.logger.warn(
+            `Múltiplos uploads encontrados para 12/${uploadAtual.ano - 1}: ${uploadsAnteriores.length}. Usando o upload com mais linhas (ID: ${uploadAnterior.id}, ${uploadAnterior.totalLinhas} linhas).`,
+          );
+        }
+      }
+    }
+
+    // Se encontrou upload anterior, buscar suas linhas
+    if (uploadAnterior) {
+      const linhasAnterioresData = await this.prisma.linhaUpload.findMany({
+        where: { uploadId: uploadAnterior.id },
+        select: { classificacao: true, conta: true, subConta: true, saldoAtual: true, nomeConta: true },
+      });
+
+      // Criar mapa usando chave composta: classificacao + conta + subConta
+      // Isso garante que estamos comparando a linha correta (pode haver múltiplas linhas com mesma classificação e conta)
+      for (const linha of linhasAnterioresData) {
+        const saldoAtualNum = Number(linha.saldoAtual);
+        // subConta pode ser null, então usar string vazia nesse caso
+        const subContaStr = linha.subConta || '';
+        const chave = `${linha.classificacao}|${linha.conta}|${subContaStr}`;
+        linhasAnteriores.set(chave, {
+          saldoAtual: saldoAtualNum,
+        });
+      }
+
+      this.logger.log(
+        `Upload anterior encontrado: ${uploadAnterior.mes}/${uploadAnterior.ano} (ID: ${uploadAnterior.id}) com ${linhasAnteriores.size} linhas`,
+      );
+      
+      // Log de debug: verificar se a linha específica foi encontrada
+      if (linhasAnteriores.size > 0) {
+        const primeiraLinha = linhasAnterioresData[0];
+        this.logger.log(
+          `Exemplo de linha do upload anterior: ${primeiraLinha.classificacao} - ${primeiraLinha.nomeConta} - Saldo Atual: ${Number(primeiraLinha.saldoAtual).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        );
+      }
+    } else {
+      this.logger.log(
+        `Nenhum upload anterior encontrado para ${uploadAtual.mes}/${uploadAtual.ano}. Validação de continuidade temporal será ignorada.`,
+      );
+    }
 
     // Buscar contas novas do catálogo (agora unificado, sem empresaId)
     const contasNovas = await this.prisma.contaCatalogo.findMany({
@@ -879,14 +984,104 @@ export class ExcelProcessorService {
 
         // Tolerância de 0.01 para diferenças de arredondamento
         if (diferenca > 0.01) {
+          // Montar identificação completa da conta
+          // Importante: dentro de uma Classificação podem existir várias contas
+          const partesIdentificacao: string[] = [];
+          
+          if (linha.classificacao) {
+            partesIdentificacao.push(`Classificação: ${linha.classificacao}`);
+          }
+          
+          if (linha.conta) {
+            partesIdentificacao.push(`Conta: ${linha.conta}`);
+          } else {
+            partesIdentificacao.push(`Conta: não informada`);
+          }
+          
+          if (linha.subConta) {
+            partesIdentificacao.push(`SubConta: ${linha.subConta}`);
+          }
+          
+          const identificacaoCompleta = partesIdentificacao.join(' | ');
+          const nomeContaCompleto = linha.nomeConta || 'Sem nome';
+          
           alertas.push({
             uploadId,
             linhaId: linhaCriada?.id,
             tipo: 'SALDO_DIVERGENTE',
             severidade:
               diferenca > 1000 ? 'ALTA' : diferenca > 100 ? 'MEDIA' : 'BAIXA',
-            mensagem: `Saldo divergente na conta ${linha.classificacao}: esperado ${saldoCalculado.toFixed(2)}, encontrado ${linha.saldoAtual.toFixed(2)} (Saldo Anterior: ${linha.saldoAnterior.toFixed(2)}, Débito: ${linha.debito.toFixed(2)}, Crédito: ${linha.credito.toFixed(2)})`,
+            mensagem: `Saldo divergente na conta "${nomeContaCompleto}" identificada por ${identificacaoCompleta}: esperado ${saldoCalculado.toFixed(2)}, encontrado ${linha.saldoAtual.toFixed(2)} (Saldo Anterior: ${linha.saldoAnterior.toFixed(2)}, Débito: ${linha.debito.toFixed(2)}, Crédito: ${linha.credito.toFixed(2)})`,
           });
+        }
+      }
+
+      // Verificar continuidade temporal: saldo atual do mês anterior deve ser igual ao saldo anterior do mês atual
+      if (
+        uploadAnterior &&
+        linha.classificacao &&
+        linha.conta &&
+        linha.saldoAnterior !== undefined
+      ) {
+        // Usar chave composta: classificacao + conta + subConta
+        // subConta pode ser undefined/null, então usar string vazia nesse caso
+        const subContaStr = linha.subConta || '';
+        const chave = `${linha.classificacao}|${linha.conta}|${subContaStr}`;
+        const linhaAnterior = linhasAnteriores.get(chave);
+        
+        if (linhaAnterior) {
+          const saldoAtualMesAnterior = linhaAnterior.saldoAtual;
+          const saldoAnteriorMesAtual = linha.saldoAnterior;
+          const diferenca = Math.abs(saldoAtualMesAnterior - saldoAnteriorMesAtual);
+
+          // Log de debug para investigação
+          const subContaInfo = linha.subConta ? ` (SubConta: ${linha.subConta})` : '';
+          this.logger.log(
+            `Validação continuidade temporal - Conta: ${linha.classificacao} (${linha.conta})${subContaInfo} - ${linha.nomeConta} | Saldo Atual ${uploadAnterior.mes}/${uploadAnterior.ano}: ${saldoAtualMesAnterior.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Saldo Anterior ${uploadAtual.mes}/${uploadAtual.ano}: ${saldoAnteriorMesAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Diferença: ${diferenca.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          );
+
+          // Tolerância de 0.01 para diferenças de arredondamento
+          if (diferenca > 0.01) {
+            const mesAnteriorNome = this.getMesNome(uploadAnterior.mes);
+            const mesAtualNome = this.getMesNome(uploadAtual.mes);
+            
+            // Montar identificação completa da conta
+            // Importante: dentro de uma Classificação podem existir várias contas
+            // Por isso precisamos identificar claramente: Classificação + Conta + SubConta
+            const partesIdentificacao: string[] = [];
+            
+            if (linha.classificacao) {
+              partesIdentificacao.push(`Classificação: ${linha.classificacao}`);
+            }
+            
+            if (linha.conta) {
+              partesIdentificacao.push(`Conta: ${linha.conta}`);
+            } else {
+              partesIdentificacao.push(`Conta: não informada`);
+            }
+            
+            if (linha.subConta) {
+              partesIdentificacao.push(`SubConta: ${linha.subConta}`);
+            }
+            
+            const identificacaoCompleta = partesIdentificacao.join(' | ');
+            const nomeContaCompleto = linha.nomeConta || 'Sem nome';
+            
+            alertas.push({
+              uploadId,
+              linhaId: linhaCriada?.id,
+              tipo: 'CONTINUIDADE_TEMPORAL_DIVERGENTE',
+              severidade:
+                diferenca > 10000 ? 'ALTA' : diferenca > 1000 ? 'MEDIA' : 'BAIXA',
+              mensagem: `⚠️ ALTERAÇÃO RETROATIVA DETECTADA: A conta "${nomeContaCompleto}" identificada por ${identificacaoCompleta} teve seu saldo alterado retroativamente. Saldo Atual de ${mesAnteriorNome}/${uploadAnterior.ano}: ${saldoAtualMesAnterior.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, mas Saldo Anterior de ${mesAtualNome}/${uploadAtual.ano}: ${saldoAnteriorMesAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. A contabilidade pode ter feito um acerto no mês anterior sem avisar. Diferença: ${diferenca.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+            });
+          }
+        } else {
+          // Log quando a linha não é encontrada no upload anterior
+          const subContaInfo = linha.subConta ? ` (SubConta: ${linha.subConta})` : '';
+          this.logger.warn(
+            `Linha ${linha.classificacao} (${linha.conta})${subContaInfo} - ${linha.nomeConta} não encontrada no upload anterior ${uploadAnterior.mes}/${uploadAnterior.ano}. Pode ser uma conta nova ou a conta/subConta mudou.`,
+          );
         }
       }
 
@@ -1054,5 +1249,26 @@ export class ExcelProcessorService {
       str === 's' ||
       str === 'x'
     );
+  }
+
+  /**
+   * Retorna o nome do mês em português
+   */
+  private getMesNome(mes: number): string {
+    const meses = [
+      'Janeiro',
+      'Fevereiro',
+      'Março',
+      'Abril',
+      'Maio',
+      'Junho',
+      'Julho',
+      'Agosto',
+      'Setembro',
+      'Outubro',
+      'Novembro',
+      'Dezembro',
+    ];
+    return meses[mes - 1] || `Mês ${mes}`;
   }
 }

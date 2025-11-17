@@ -54,36 +54,36 @@ const LoginPage = () => {
   };
 
   return (
-    <main className="flex min-h-screen flex-col justify-center bg-white px-6 py-12">
-      <div className="mx-auto w-full max-w-sm space-y-8">
-        <div className="space-y-4 text-center">
+    <main className="flex min-h-screen flex-col justify-center bg-white px-6 py-6">
+      <div className="mx-auto w-full max-w-sm space-y-4">
+        <div className="space-y-2 text-center">
           <div className="flex justify-center">
             <Image
               src="/minha-logo.png"
               alt="Logo da empresa"
-              width={120}
-              height={120}
-              className="h-[120px] w-[120px] rounded-lg object-contain"
+              width={80}
+              height={80}
+              className="h-16 w-16 rounded-lg object-contain"
               priority
             />
           </div>
-          <div className="text-sm uppercase tracking-[0.4em] text-sky-600">ResEco</div>
-          <h1 className="mt-4 text-2xl font-semibold text-slate-900">Acesse sua conta</h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <div className="text-xs uppercase tracking-[0.3em] text-sky-600">ResEco</div>
+          <h1 className="text-xl font-semibold text-slate-900">Acesse sua conta</h1>
+          <p className="text-xs text-slate-600">
             Sistema de resultado econômico integrado à contabilidade.
           </p>
         </div>
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-6 shadow-lg"
+          className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-lg"
         >
           {error && (
-            <div className="rounded-md bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-700">
+            <div className="rounded-md bg-rose-50 border border-rose-200 px-2 py-1.5 text-xs text-rose-700">
               {error}
             </div>
           )}
-          <div className="space-y-1">
-            <label htmlFor="email" className="text-sm font-medium text-slate-700">
+          <div className="space-y-0.5">
+            <label htmlFor="email" className="text-xs font-medium text-slate-700">
               E-mail profissional
             </label>
             <input
@@ -96,15 +96,15 @@ const LoginPage = () => {
                   message: 'E-mail inválido',
                 },
               })}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
               placeholder="contabilidade@empresa.com.br"
             />
             {errors.email && (
-              <p className="text-xs text-rose-600">{errors.email.message}</p>
+              <p className="text-[10px] text-rose-600">{errors.email.message}</p>
             )}
           </div>
-          <div className="space-y-1">
-            <label htmlFor="password" className="text-sm font-medium text-slate-700">
+          <div className="space-y-0.5">
+            <label htmlFor="password" className="text-xs font-medium text-slate-700">
               Senha
             </label>
             <input
@@ -117,11 +117,11 @@ const LoginPage = () => {
                   message: 'Senha deve ter no mínimo 6 caracteres',
                 },
               })}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
+              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
               placeholder="••••••••"
             />
             {errors.password && (
-              <p className="text-xs text-rose-600">{errors.password.message}</p>
+              <p className="text-[10px] text-rose-600">{errors.password.message}</p>
             )}
           </div>
           <button
@@ -132,9 +132,9 @@ const LoginPage = () => {
             {isLoading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
-        <div className="text-center text-xs text-slate-500">
+        <div className="text-center text-[10px] text-slate-500">
           Precisa de acesso?{' '}
-          <Link href="mailto:ti@empresa.com.br" className="text-sky-600 hover:text-sky-500">
+          <Link href="mailto:contato@redeuniaonacional.com.br" className="text-sky-600 hover:text-sky-500">
             Fale com o TI
           </Link>
         </div>

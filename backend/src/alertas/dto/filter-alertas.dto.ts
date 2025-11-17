@@ -29,5 +29,9 @@ export class FilterAlertasDto {
   @IsString()
   @IsOptional()
   busca?: string; // Busca por mensagem, classificação, nome da conta
+
+  @IsString()
+  @IsOptional()
+  tipoConta?: string; // Filtro por tipo de conta (ex: "1-Ativo", "2-Passivo", etc.)
 }
 

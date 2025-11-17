@@ -23,6 +23,11 @@ export class AlertasController {
     return this.alertasService.findAll(filters);
   }
 
+  @Get('contagem-por-tipo-conta')
+  getContagemPorTipoConta(@Query() filters: FilterAlertasDto) {
+    return this.alertasService.getContagemPorTipoConta(filters);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.alertasService.findOne(id);

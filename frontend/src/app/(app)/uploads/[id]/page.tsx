@@ -5,6 +5,7 @@ import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUpload } from '@/hooks/use-uploads';
 import { useUploadProgress } from '@/hooks/use-upload-progress';
+import { useContagemPorTipoConta } from '@/hooks/use-alertas';
 import { formatPeriodo, getStatusLabel, formatDateTime } from '@/lib/format';
 import { uploadsService } from '@/services/uploads.service';
 import { Trash2, AlertTriangle, X, Loader2 } from 'lucide-react';
@@ -19,6 +20,9 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
   const { data: upload, isLoading, error } = useUpload(id);
   const isProcessing = upload?.status === 'PROCESSANDO';
   const { data: progress } = useUploadProgress(id, isProcessing || false);
+  const { data: contagemPorTipoConta } = useContagemPorTipoConta(
+    upload ? { uploadId: upload.id } : undefined
+  );
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -125,6 +129,12 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
               </dd>
             </div>
             <div className="flex justify-between text-slate-500">
+              <dt>Arquivo</dt>
+              <dd className="text-slate-900 dark:text-slate-100 truncate max-w-[200px]" title={upload.nomeArquivo}>
+                {upload.nomeArquivo || 'N/A'}
+              </dd>
+            </div>
+            <div className="flex justify-between text-slate-500">
               <dt>Linhas</dt>
               <dd className="text-slate-900 dark:text-slate-100">{upload.totalLinhas}</dd>
             </div>
@@ -135,6 +145,28 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
               </dd>
             </div>
           </dl>
+
+          {/* Contagem por Tipo de Conta */}
+          {contagemPorTipoConta && contagemPorTipoConta.length > 0 && (
+            <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-800">
+              <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                Alertas por Tipo de Conta
+              </h3>
+              <div className="space-y-2">
+                {contagemPorTipoConta.map((item) => (
+                  <div
+                    key={item.tipoConta}
+                    className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 dark:bg-slate-800/50"
+                  >
+                    <span className="text-xs text-slate-600 dark:text-slate-400">{item.tipoConta}</span>
+                    <span className="inline-flex items-center justify-center rounded-full bg-sky-500 px-2 py-0.5 text-[10px] font-semibold text-white dark:bg-sky-600">
+                      {item.quantidade}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 lg:col-span-2">

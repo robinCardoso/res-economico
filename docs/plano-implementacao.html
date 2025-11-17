@@ -58,7 +58,7 @@
         Documento de referência para o desenvolvimento do sistema de resultado
         econômico com base no arquivo
         <code>Balancete Consolidado 2025.xls</code>. Status atual:
-        <span class="status">Processamento completo de Excel implementado - Sistema de alertas funcional - Templates globais disponíveis - Melhorias na pré-visualização e tratamento de colunas extras</span>.
+        <span class="status">Processamento completo de Excel implementado - Sistema de alertas funcional incluindo validação de continuidade temporal - Templates globais disponíveis - Melhorias na pré-visualização e tratamento de colunas extras</span>.
       </p>
     </header>
 
@@ -196,7 +196,20 @@
         <li>[✓] Barra de progresso detalhada do upload - <strong>CONCLUÍDO</strong> - endpoint <code>GET /uploads/:id/progresso</code> retorna porcentagem e status por etapa (lendo arquivo, processando linhas, criando registros, atualizando catálogo, detectando alertas, finalizando).</li>
       </ul>
 
-      <h3>3.1. Templates de Importação (✓ Concluído)</h3>
+      <h3>3.1. Validação de Continuidade Temporal (✓ Concluído)</h3>
+      <ul>
+        <li>[✓] Implementar validação que compara saldo atual do mês anterior com saldo anterior do mês atual.</li>
+        <li>[✓] Usar chave composta (classificação + conta + subConta) para garantir comparação precisa de linhas.</li>
+        <li>[✓] Tratar casos especiais (Janeiro → Dezembro do ano anterior).</li>
+        <li>[✓] Selecionar automaticamente o upload mais completo quando há múltiplos uploads do mesmo mês.</li>
+        <li>[✓] Gerar alerta do tipo <code>CONTINUIDADE_TEMPORAL_DIVERGENTE</code> quando detectar diferenças.</li>
+        <li>[✓] Definir severidade baseada na diferença: BAIXA (>0.01), MÉDIA (>1000), ALTA (>10000).</li>
+        <li>[✓] Incluir logs detalhados para debug e investigação de problemas.</li>
+        <li>[✓] Adicionar novo tipo de alerta no enum <code>AlertaTipo</code> do Prisma.</li>
+        <li>[✓] Criar migration para adicionar novo valor ao enum no banco de dados.</li>
+      </ul>
+
+      <h3>3.2. Templates de Importação (✓ Concluído)</h3>
       <ul>
         <li>[✓] Criar modelo <code>TemplateImportacao</code> no Prisma com campo <code>empresaId</code> opcional.</li>
         <li>[✓] Implementar CRUD completo de templates no backend.</li>
@@ -207,7 +220,7 @@
         <li>[✓] Interface visual para identificar templates globais vs. específicos.</li>
       </ul>
 
-      <h3>4. Sistema de Alertas (✓ Parcialmente Concluído)</h3>
+      <h3>4. Sistema de Alertas (✓ Concluído)</h3>
       <ul>
         <li>[✓] Detectar divergências de saldo (saldo anterior + débito + crédito ≠ saldo atual) com tolerância de 0.01 (fórmula corrigida - crédito já vem com sinal do Excel).</li>
         <li>[✓] Identificar contas novas comparando com catálogo existente.</li>
@@ -216,7 +229,7 @@
         <li>[✓] Detectar alterações no cabeçalho do Excel (colunas ausentes, colunas novas, mudanças no número de colunas).</li>
         <li>[✓] Diferenciação entre colunas ausentes (severidade ALTA) e colunas extras conhecidas (Mês, UF - severidade BAIXA, informativo).</li>
         <li>[✓] Mensagens claras informando que colunas extras serão ignoradas no processamento.</li>
-        <li>[✓] Criar registros de alerta no banco com tipos: SALDO_DIVERGENTE, CONTA_NOVA, DADO_INCONSISTENTE, CABECALHO_ALTERADO.</li>
+        <li>[✓] Criar registros de alerta no banco com tipos: SALDO_DIVERGENTE, CONTA_NOVA, DADO_INCONSISTENTE, CABECALHO_ALTERADO, CONTINUIDADE_TEMPORAL_DIVERGENTE.</li>
         <li>[✓] Classificar alertas por severidade (BAIXA, MEDIA, ALTA) baseado no impacto.</li>
         <li>[✓] Mensagens descritivas para cada tipo de alerta.</li>
         <li>[✓] Implementar workflow de resolução de alertas (concluído).</li>
@@ -422,6 +435,7 @@
             <li>Detecta dados inconsistentes (campos obrigatórios ausentes, células vazias em campos importantes).</li>
             <li>Detecta alterações no cabeçalho (colunas ausentes, colunas novas, mudanças no número de colunas).</li>
             <li>Diferencia colunas ausentes (crítico) de colunas extras conhecidas (Mês, UF - informativo).</li>
+            <li><strong>[Implementado] Validação de Continuidade Temporal:</strong> Compara o saldo atual do mês anterior com o saldo anterior do mês atual para detectar alterações retroativas feitas pela contabilidade sem avisar. Usa chave composta (classificação + conta + subConta) para garantir comparação precisa. Gera alerta do tipo <code>CONTINUIDADE_TEMPORAL_DIVERGENTE</code> com severidade baseada na diferença (BAIXA: >0.01, MÉDIA: >1000, ALTA: >10000). Trata casos especiais (Janeiro → Dezembro do ano anterior). Seleciona automaticamente o upload mais completo quando há múltiplos uploads do mesmo mês.</li>
             <li>Cria alertas com severidade apropriada (BAIXA, MEDIA, ALTA).</li>
           </ul>
         </li>
@@ -532,7 +546,7 @@
     <footer>
       <p>
         Última atualização:
-        <time datetime="2025-11-14">14 de novembro de 2025</time>. Documento
+        <time datetime="2025-11-17">17 de novembro de 2025</time>. Documento
         atualizado com progresso recente: processamento completo de Excel implementado,
         sistema de alertas funcional (incluindo detecção de alterações no cabeçalho com diferenciação
         entre colunas ausentes e extras), templates globais disponíveis, detecção de células vazias,
@@ -542,7 +556,8 @@
         de contas (sem duplicatas por empresa), atualização automática de status de uploads em processamento,
         <strong>processamento assíncrono com BullMQ e Redis</strong> (melhora performance e evita timeouts),
         <strong>barra de progresso detalhada do upload</strong> com endpoint para consulta em tempo real,
-        e <strong>histórico de auditoria completo</strong> registrando todas as ações do sistema (uploads, alertas, empresas).
+        <strong>histórico de auditoria completo</strong> registrando todas as ações do sistema (uploads, alertas, empresas),
+        e <strong>validação de continuidade temporal</strong> que detecta alterações retroativas comparando saldos entre meses consecutivos usando chave composta (classificação + conta + subConta) para garantir precisão na comparação.
       </p>
     </footer>
   </body>

@@ -89,6 +89,7 @@ export class UploadsService {
         mes: dto.mes,
         ano: dto.ano,
         arquivoUrl,
+        nomeArquivo: file.originalname || file.filename || 'arquivo.xls', // Salvar nome original do arquivo
         hashArquivo,
         status: 'PROCESSANDO',
         totalLinhas: 0, // Será atualizado durante o processamento

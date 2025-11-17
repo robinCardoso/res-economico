@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useAlertas, useUpdateAlertaStatus } from '@/hooks/use-alertas';
+import { useAlertas, useUpdateAlertaStatus, useContagemPorTipoConta } from '@/hooks/use-alertas';
 import { useEmpresas } from '@/hooks/use-empresas';
 import { formatDateTime, getStatusLabel } from '@/lib/format';
 import { maskCNPJ } from '@/lib/masks';
@@ -19,13 +19,14 @@ const AlertasPage = () => {
   const [statusFiltro, setStatusFiltro] = useState<AlertaStatus | ''>('');
   const [tipoFiltro, setTipoFiltro] = useState<AlertaTipo | ''>('');
   const [severidadeFiltro, setSeveridadeFiltro] = useState<AlertaSeveridade | ''>('');
+  const [tipoContaFiltro, setTipoContaFiltro] = useState<string>('');
   const [busca, setBusca] = useState<string>('');
 
   const { data: empresas } = useEmpresas();
   const updateStatusMutation = useUpdateAlertaStatus();
 
-  // Construir filtros
-  const filters = {
+  // Construir filtros (sem tipoConta para contagem)
+  const filtersBase = {
     ...(empresaFiltro && { empresaId: empresaFiltro }),
     ...(uploadIdFromUrl && { uploadId: uploadIdFromUrl }),
     ...(alertaIdFromUrl && { alertaId: alertaIdFromUrl }),
@@ -34,6 +35,15 @@ const AlertasPage = () => {
     ...(severidadeFiltro && { severidade: severidadeFiltro }),
     ...(busca && { busca }),
   };
+
+  // Filtros completos (incluindo tipoConta)
+  const filters = {
+    ...filtersBase,
+    ...(tipoContaFiltro && { tipoConta: tipoContaFiltro }),
+  };
+
+  // Buscar contagem por tipoConta (sem filtro de tipoConta)
+  const { data: contagemPorTipoConta } = useContagemPorTipoConta(filtersBase);
 
   const { data: alertas, isLoading, error } = useAlertas(
     Object.keys(filters).length > 0 ? filters : undefined
@@ -69,7 +79,16 @@ const AlertasPage = () => {
   const alertasList = Array.isArray(alertas) ? alertas : [];
   const empresasList = Array.isArray(empresas) ? empresas : [];
 
-  const hasActiveFilters = empresaFiltro || statusFiltro || tipoFiltro || severidadeFiltro || busca || uploadIdFromUrl || alertaIdFromUrl;
+  const hasActiveFilters = empresaFiltro || statusFiltro || tipoFiltro || severidadeFiltro || tipoContaFiltro || busca || uploadIdFromUrl || alertaIdFromUrl;
+
+  // Função para limpar filtro de tipoConta
+  const handleTipoContaClick = (tipoConta: string) => {
+    if (tipoContaFiltro === tipoConta) {
+      setTipoContaFiltro(''); // Se já está selecionado, remove o filtro
+    } else {
+      setTipoContaFiltro(tipoConta); // Caso contrário, aplica o filtro
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -123,6 +142,53 @@ const AlertasPage = () => {
               Remover filtro
             </Link>
           </div>
+        </section>
+      )}
+
+      {/* Contadores por Tipo de Conta */}
+      {contagemPorTipoConta && contagemPorTipoConta.length > 0 && (
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+          <h2 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
+            Alertas por Tipo de Conta
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {contagemPorTipoConta.map((item) => (
+              <button
+                key={item.tipoConta}
+                onClick={() => handleTipoContaClick(item.tipoConta)}
+                className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                  tipoContaFiltro === item.tipoConta
+                    ? 'bg-sky-500 text-white shadow-sm hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-700'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                }`}
+                title={`Clique para ${tipoContaFiltro === item.tipoConta ? 'remover' : 'aplicar'} filtro por ${item.tipoConta}`}
+              >
+                <span>{item.tipoConta}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                    tipoContaFiltro === item.tipoConta
+                      ? 'bg-white/20 text-white'
+                      : 'bg-sky-500 text-white dark:bg-sky-600'
+                  }`}
+                >
+                  {item.quantidade}
+                </span>
+              </button>
+            ))}
+          </div>
+          {tipoContaFiltro && (
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Filtrado por: <strong className="text-slate-700 dark:text-slate-300">{tipoContaFiltro}</strong>
+              </span>
+              <button
+                onClick={() => setTipoContaFiltro('')}
+                className="text-xs text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300 underline"
+              >
+                Remover filtro
+              </button>
+            </div>
+          )}
         </section>
       )}
 
@@ -251,6 +317,7 @@ const AlertasPage = () => {
                 <tr>
                   <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 w-20">ID</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 w-32">Tipo</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 w-28">Tipo Conta</th>
                   <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 min-w-[200px] max-w-[300px]">
                     Detalhe
                   </th>
@@ -282,6 +349,23 @@ const AlertasPage = () => {
                         <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
                           {getStatusLabel(alerta.tipo)}
                         </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        {alerta.linha?.tipoConta ? (
+                          <button
+                            onClick={() => handleTipoContaClick(alerta.linha!.tipoConta)}
+                            className={`text-xs font-medium transition-colors ${
+                              tipoContaFiltro === alerta.linha!.tipoConta
+                                ? 'text-sky-600 underline dark:text-sky-400'
+                                : 'text-slate-600 hover:text-sky-600 dark:text-slate-400 dark:hover:text-sky-400'
+                            }`}
+                            title={`Clique para filtrar por ${alerta.linha!.tipoConta}`}
+                          >
+                            {alerta.linha.tipoConta}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-400 dark:text-slate-500">N/A</span>
+                        )}
                       </td>
                       <td 
                         className="px-3 py-2 max-w-[300px]"

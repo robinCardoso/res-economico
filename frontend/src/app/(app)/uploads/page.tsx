@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useUploads } from '@/hooks/use-uploads';
 import { useEmpresas } from '@/hooks/use-empresas';
 import { formatPeriodo, formatDateTime, getStatusLabel } from '@/lib/format';
@@ -9,6 +10,7 @@ import { maskCNPJ } from '@/lib/masks';
 import { Building2, AlertCircle, FileText, Calendar, Clock, Loader2 } from 'lucide-react';
 
 const UploadsPage = () => {
+  const router = useRouter();
   const { data: uploads, isLoading, error } = useUploads();
   const { data: empresas } = useEmpresas();
   const [empresaFiltro, setEmpresaFiltro] = useState<string>('');
@@ -102,16 +104,20 @@ const UploadsPage = () => {
                     Empresa
                   </th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Período</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-slate-500 min-w-[200px]">Arquivo</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Status</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Alertas</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Linhas</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Atualizado</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {uploadsFiltrados.map((upload) => (
-                  <tr key={upload.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900 transition-colors">
+                  <tr
+                    key={upload.id}
+                    onClick={() => router.push(`/uploads/${upload.id}`)}
+                    className="hover:bg-slate-50/70 dark:hover:bg-slate-900 transition-colors cursor-pointer"
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-start gap-2">
                         <div className="flex-shrink-0 mt-0.5">
@@ -141,6 +147,14 @@ const UploadsPage = () => {
                       </div>
                     </td>
                     <td className="px-3 py-3">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+                        <FileText className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                        <span className="truncate max-w-[200px]" title={upload.nomeArquivo || undefined}>
+                          {upload.nomeArquivo || 'N/A'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -164,6 +178,7 @@ const UploadsPage = () => {
                       {(upload.alertas?.length || 0) > 0 ? (
                         <Link
                           href={`/alertas?uploadId=${upload.id}`}
+                          onClick={(e) => e.stopPropagation()}
                           className="flex items-center gap-1.5 group hover:opacity-80 transition-opacity"
                         >
                           <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
@@ -191,18 +206,6 @@ const UploadsPage = () => {
                         <Clock className="h-3.5 w-3.5 text-slate-400" />
                         <span className="text-xs">{formatDateTime(upload.updatedAt)}</span>
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/uploads/${upload.id}`}
-                        className={`inline-flex items-center text-xs font-medium transition-colors ${
-                          upload.status === 'PROCESSANDO'
-                            ? 'text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 font-semibold'
-                            : 'text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300'
-                        }`}
-                      >
-                        {upload.status === 'PROCESSANDO' ? 'Ver progresso' : 'Ver detalhes'}
-                      </Link>
                     </td>
                   </tr>
                 ))}

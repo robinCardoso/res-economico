@@ -68,6 +68,7 @@ model Upload {
   mes          Int
   ano          Int
   arquivoUrl   String
+  nomeArquivo  String         // Nome original do arquivo enviado pelo usuário
   hashArquivo  String
   status       UploadStatus  @default(PROCESSANDO)
   totalLinhas  Int
@@ -152,6 +153,7 @@ enum AlertaTipo {
   CONTA_NOVA
   DADO_INCONSISTENTE
   CABECALHO_ALTERADO
+  CONTINUIDADE_TEMPORAL_DIVERGENTE
 }
 
 enum AlertaSeveridade {

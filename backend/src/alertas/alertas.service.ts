@@ -46,13 +46,41 @@ export class AlertasService {
       where.id = filters.alertaId;
     }
 
+    // Filtro por tipo de conta
+    if (filters?.tipoConta) {
+      where.linha = {
+        ...(where.linha || {}),
+        tipoConta: filters.tipoConta,
+      };
+    }
+
     // Busca por texto (mensagem, classificação, nome da conta)
     if (filters?.busca) {
-      where.OR = [
-        { mensagem: { contains: filters.busca } },
-        { linha: { classificacao: { contains: filters.busca } } },
-        { linha: { nomeConta: { contains: filters.busca } } },
-      ];
+      // Se já existe um filtro de linha (tipoConta), combinar com busca
+      if (where.linha) {
+        const tipoContaValue = where.linha.tipoConta;
+        // Buscar na mensagem OU na linha (com tipoConta correto)
+        where.OR = [
+          { mensagem: { contains: filters.busca, mode: 'insensitive' } },
+          {
+            linha: {
+              tipoConta: tipoContaValue,
+              OR: [
+                { classificacao: { contains: filters.busca, mode: 'insensitive' } },
+                { nomeConta: { contains: filters.busca, mode: 'insensitive' } },
+              ],
+            },
+          },
+        ];
+        delete where.linha;
+      } else {
+        // Sem filtro de linha, buscar em linha também
+        where.OR = [
+          { mensagem: { contains: filters.busca, mode: 'insensitive' } },
+          { linha: { classificacao: { contains: filters.busca, mode: 'insensitive' } } },
+          { linha: { nomeConta: { contains: filters.busca, mode: 'insensitive' } } },
+        ];
+      }
     }
 
     return this.prisma.alerta.findMany({
@@ -111,6 +139,67 @@ export class AlertasService {
     }
 
     return alertaAtualizado;
+  }
+
+  async getContagemPorTipoConta(filters?: FilterAlertasDto) {
+    const where: any = {};
+
+    // Aplicar mesmos filtros base (exceto tipoConta, pois queremos agrupar por ele)
+    if (filters?.status) {
+      where.status = filters.status;
+    }
+    if (filters?.tipo) {
+      where.tipo = filters.tipo;
+    }
+    if (filters?.severidade) {
+      where.severidade = filters.severidade;
+    }
+    if (filters?.empresaId) {
+      where.upload = {
+        empresaId: filters.empresaId,
+      };
+    }
+    if (filters?.uploadId) {
+      where.uploadId = filters.uploadId;
+    }
+    if (filters?.busca) {
+      where.OR = [
+        { mensagem: { contains: filters.busca } },
+        { linha: { classificacao: { contains: filters.busca } } },
+        { linha: { nomeConta: { contains: filters.busca } } },
+      ];
+    }
+
+    // Buscar alertas com linha (que tem tipoConta)
+    const alertas = await this.prisma.alerta.findMany({
+      where: {
+        ...where,
+        linha: {
+          isNot: null,
+        },
+      },
+      include: {
+        linha: {
+          select: {
+            tipoConta: true,
+          },
+        },
+      },
+    });
+
+    // Agrupar por tipoConta
+    const contagem = alertas.reduce((acc, alerta) => {
+      const tipoConta = alerta.linha?.tipoConta || 'Sem tipo';
+      acc[tipoConta] = (acc[tipoConta] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(contagem)
+      .map(([tipoConta, quantidade]) => ({
+        tipoConta,
+        quantidade,
+      }))
+      .sort((a, b) => b.quantidade - a.quantidade);
   }
 
   findOne(id: string) {
