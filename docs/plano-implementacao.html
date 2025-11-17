@@ -58,7 +58,7 @@
         Documento de referência para o desenvolvimento do sistema de resultado
         econômico com base no arquivo
         <code>Balancete Consolidado 2025.xls</code>. Status atual:
-        <span class="status">Processamento completo de Excel implementado - Sistema de alertas funcional incluindo validação de continuidade temporal - Templates globais disponíveis - Melhorias na pré-visualização e tratamento de colunas extras</span>.
+        <span class="status">Processamento completo de Excel implementado - Sistema de alertas funcional incluindo validação de continuidade temporal - Relatório DRE completo com filtros avançados e autocomplete - Melhorias de UX/UI e configuração para rede local</span>.
       </p>
     </header>
 
@@ -109,8 +109,19 @@
           com diferenciação entre colunas ausentes (crítico) e colunas extras (informativo).
         </li>
         <li>
-          Próximos passos: implementar worker/queue para processamento assíncrono (BullMQ),
-          Web Push via VAPID, integração Groq e dashboard com KPIs.
+          <strong>Relatório DRE:</strong> Implementado relatório completo de Resultado Econômico com filtros por ano, tipo (Filial/Consolidado), empresas e descrição (autocomplete). Exibição hierárquica de contas com expandir/colapsar e checkbox para expandir todos os níveis.
+        </li>
+        <li>
+          <strong>Melhorias no Sistema de Alertas:</strong> Filtro e contagem por tipoConta, correção de mensagens com terminologia adequada (Classificação, Conta, SubConta), e armazenamento do nome original do arquivo.
+        </li>
+        <li>
+          <strong>Melhorias de UX/UI:</strong> Correção de sobreposição de elementos, ajuste de layout dos filtros, login mais compacto, linha inteira da tabela de uploads clicável, e correção de autenticação (não redireciona mais ao recarregar página).
+        </li>
+        <li>
+          <strong>Configuração para Rede Local:</strong> Sistema configurado para ser acessível de outros computadores na mesma rede (0.0.0.0, CORS ajustado).
+        </li>
+        <li>
+          Próximos passos: implementar exportação Excel/PDF do relatório, Web Push via VAPID, integração Groq e dashboard com KPIs.
         </li>
       </ul>
     </section>
@@ -237,7 +248,53 @@
         <li>[✓] Permitir marcar alertas como resolvidos/em análise (concluído).</li>
       </ul>
 
-      <h3>5. Funcionalidades Avançadas</h3>
+      <h3>5. Relatórios de Resultado Econômico (✓ Concluído)</h3>
+      <ul>
+        <li>[✓] Implementar geração de relatório DRE (Demonstrativo de Resultado Econômico) com hierarquia de contas.</li>
+        <li>[✓] Suporte a relatórios por Filial ou Consolidado.</li>
+        <li>[✓] Filtros por ano, tipo de relatório, empresas (múltipla seleção para consolidado).</li>
+        <li>[✓] Busca dinâmica de anos disponíveis no banco de dados.</li>
+        <li>[✓] Exibição hierárquica de contas com expandir/colapsar por nível.</li>
+        <li>[✓] <strong>Filtro por descrição com autocomplete:</strong> Campo de busca que sugere descrições disponíveis no banco de dados conforme o usuário digita (mínimo 2 caracteres, debounce de 300ms).</li>
+        <li>[✓] <strong>Checkbox "Expandir Níveis":</strong> Permite expandir ou colapsar toda a hierarquia de contas com um único clique.</li>
+        <li>[✓] Valores formatados em moeda brasileira (R$) com separadores de milhar e 2 decimais.</li>
+        <li>[✓] Tabela responsiva com colunas fixas (CLASSI, DESCRI, Total) e scroll horizontal para meses.</li>
+        <li>[✓] Exibição de UF junto ao nome da empresa no cabeçalho do relatório.</li>
+        <li>[&nbsp;] Exportação para Excel e PDF (pendente - botões desabilitados).</li>
+      </ul>
+
+      <h3>5.1. Sistema de Alertas - Melhorias (✓ Concluído)</h3>
+      <ul>
+        <li>[✓] <strong>Filtro e contagem por tipoConta:</strong> Permite filtrar alertas por tipo de conta (ex: "1-Ativo", "2-Passivo") com contadores clicáveis.</li>
+        <li>[✓] Exibição do tipoConta em cada alerta na tabela (clicável para filtrar).</li>
+        <li>[✓] Seção de contadores por tipoConta mostrando total de alertas de cada tipo.</li>
+        <li>[✓] Contagem de alertas por tipoConta na página de detalhes do upload.</li>
+        <li>[✓] <strong>Correção de mensagens de alerta:</strong> Mensagens agora usam terminologia correta (Classificação, Conta, SubConta) em vez de apenas "conta" seguido da classificação. Identificação completa: "A conta 'Nome da Conta' identificada por Classificação: X | Conta: Y | SubConta: Z".</li>
+        <li>[✓] Campo <code>nomeArquivo</code> adicionado ao modelo Upload para armazenar o nome original do arquivo enviado.</li>
+        <li>[✓] Exibição do nome do arquivo na listagem de uploads e na página de detalhes.</li>
+      </ul>
+
+      <h3>5.2. Melhorias de UX/UI (✓ Concluído)</h3>
+      <ul>
+        <li>[✓] Remoção do elemento "Usuário Demo" do header do sistema.</li>
+        <li>[✓] Correção de sobreposição de elementos na página de relatórios (header, tabela sticky).</li>
+        <li>[✓] Ajuste de layout dos filtros para alinhar todos os elementos ao topo.</li>
+        <li>[✓] Login page mais compacto para evitar scroll desnecessário.</li>
+        <li>[✓] Atualização do email de contato no login.</li>
+        <li>[✓] Linha inteira da tabela de uploads é clicável (removida coluna "Ações").</li>
+        <li>[✓] <strong>Correção de autenticação:</strong> Sistema não redireciona mais para login ao recarregar página (F5). Implementada hidratação correta do estado de autenticação no Zustand com flag <code>_hasHydrated</code>.</li>
+      </ul>
+
+      <h3>5.3. Configuração para Rede Local (✓ Concluído)</h3>
+      <ul>
+        <li>[✓] Frontend configurado para escutar em <code>0.0.0.0</code> permitindo acesso de outros computadores na rede.</li>
+        <li>[✓] Backend configurado para escutar em <code>0.0.0.0</code> permitindo conexões externas.</li>
+        <li>[✓] CORS ajustado para aceitar IPs da rede local (10.1.x.x).</li>
+        <li>[✓] Arquivo <code>.env.local</code> criado com configuração de API para rede local.</li>
+        <li>[✓] Documentação de como acessar o sistema de outros computadores na mesma rede.</li>
+      </ul>
+
+      <h3>6. Funcionalidades Avançadas</h3>
       <ul>
         <li><strong>Histórico de Auditoria:</strong> Registrar todas as ações no sistema - <strong>CONCLUÍDO</strong> - log de alterações em uploads, alertas e empresas para rastreabilidade e segurança. Serviço <code>AuditoriaService</code> integrado em todos os módulos principais.</li>
         <li><strong>Offline Storage:</strong> Implementar IndexedDB com Dexie para armazenar dados localmente (pendente).</li>
@@ -245,7 +302,7 @@
         <li><strong>Integração Groq AI:</strong> Criar serviço para análises e insights dos dados (pendente).</li>
         <li><strong>Dashboard:</strong> Implementar KPIs, gráficos e métricas (pendente).</li>
         <li><strong>Edição de Linhas:</strong> Permitir editar/remover linhas de upload (pendente).</li>
-        <li><strong>Relatórios:</strong> Gerar relatórios comparativos e análises (pendente).</li>
+        <li><strong>Relatórios Comparativos:</strong> Gerar relatórios comparativos e análises (pendente).</li>
       </ul>
     </section>
 
@@ -271,9 +328,18 @@
         <li>
           Atualização automática de status de uploads em processamento (polling inteligente).
         </li>
-        <li>Push notifications e e-mails (Resend) para alertas e atualizações.</li>
         <li>
-          Integração com Groq (modelos de baixo custo) para análises assistidas.
+          <strong>Relatório DRE completo:</strong> Geração de relatório de Resultado Econômico com filtros avançados (ano, tipo, empresas, descrição com autocomplete), exibição hierárquica de contas e checkbox para expandir todos os níveis.
+        </li>
+        <li>
+          <strong>Sistema de alertas aprimorado:</strong> Filtro e contagem por tipoConta, mensagens mais precisas com terminologia adequada, e armazenamento do nome original do arquivo.
+        </li>
+        <li>
+          <strong>Acesso em rede local:</strong> Sistema configurado para ser acessível de outros computadores na mesma rede.
+        </li>
+        <li>Push notifications e e-mails (Resend) para alertas e atualizações (pendente).</li>
+        <li>
+          Integração com Groq (modelos de baixo custo) para análises assistidas (pendente).
         </li>
       </ul>
     </section>
@@ -378,16 +444,16 @@
           <strong>template_importacao</strong>: id, empresaId (opcional - null = template global), nome, descricao, configuracao (JSON), createdAt, updatedAt.
         </li>
         <li>
-          <strong>upload</strong>: id, empresaId, templateId, mes, ano, arquivoUrl, hashArquivo, status, totalLinhas, createdBy, createdAt, updatedAt.
-        </li>
-        <li>
           <strong>linha_upload</strong>: id, uploadId, classificacao, conta, subConta, nomeConta, tipoConta, nivel, titulo, estabelecimento, saldoAnterior, debito, credito, saldoAtual, hashLinha, createdAt.
         </li>
         <li>
           <strong>conta_catalogo</strong>: id, classificacao (única), nomeConta, tipoConta, nivel, primeiraImportacao, ultimaImportacao, status. <strong>Catálogo unificado - sem empresaId.</strong>
         </li>
         <li>
-          <strong>alerta</strong>: id, uploadId, linhaId, tipo (SALDO_DIVERGENTE, CONTA_NOVA, DADO_INCONSISTENTE, CABECALHO_ALTERADO), severidade (BAIXA, MEDIA, ALTA), mensagem, status, createdAt, resolvedAt.
+          <strong>alerta</strong>: id, uploadId, linhaId, tipo (SALDO_DIVERGENTE, CONTA_NOVA, DADO_INCONSISTENTE, CABECALHO_ALTERADO, CONTINUIDADE_TEMPORAL_DIVERGENTE), severidade (BAIXA, MEDIA, ALTA), mensagem, status, createdAt, resolvedAt.
+        </li>
+        <li>
+          <strong>upload</strong>: id, empresaId, templateId, mes, ano, arquivoUrl, <strong>nomeArquivo</strong> (nome original do arquivo), hashArquivo, status, totalLinhas, createdBy, createdAt, updatedAt.
         </li>
         <li>
           <strong>log_auditoria</strong>: id, usuarioId, recurso, acao, dados (JSON), createdAt.
@@ -486,6 +552,9 @@
           <strong>/relatorios</strong>: análises Groq e histórico de consultas.
         </li>
         <li>
+          <strong>/relatorios/resultado</strong>: Relatório DRE (Demonstrativo de Resultado Econômico) com filtros por ano, tipo (Filial/Consolidado), empresas e descrição. Exibição hierárquica de contas com expandir/colapsar e checkbox para expandir todos os níveis.
+        </li>
+        <li>
           <strong>/empresas</strong>: CRUD completo de empresas (criar, editar, excluir, listar).
         </li>
         <li>
@@ -557,7 +626,11 @@
         <strong>processamento assíncrono com BullMQ e Redis</strong> (melhora performance e evita timeouts),
         <strong>barra de progresso detalhada do upload</strong> com endpoint para consulta em tempo real,
         <strong>histórico de auditoria completo</strong> registrando todas as ações do sistema (uploads, alertas, empresas),
-        e <strong>validação de continuidade temporal</strong> que detecta alterações retroativas comparando saldos entre meses consecutivos usando chave composta (classificação + conta + subConta) para garantir precisão na comparação.
+        <strong>validação de continuidade temporal</strong> que detecta alterações retroativas comparando saldos entre meses consecutivos usando chave composta (classificação + conta + subConta) para garantir precisão na comparação,
+        <strong>relatório DRE completo</strong> com filtros por descrição (autocomplete), expandir/colapsar níveis, e exibição hierárquica de contas,
+        <strong>melhorias no sistema de alertas</strong> com filtro e contagem por tipoConta, correção de mensagens com terminologia adequada, e armazenamento do nome original do arquivo,
+        <strong>correção de autenticação</strong> para não redirecionar ao recarregar página (F5), e
+        <strong>configuração para rede local</strong> permitindo acesso de outros computadores na mesma rede.
       </p>
     </footer>
   </body>
