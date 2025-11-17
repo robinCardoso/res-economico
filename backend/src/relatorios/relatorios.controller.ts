@@ -13,12 +13,18 @@ export class RelatoriosController {
     return this.relatoriosService.getAnosDisponiveis();
   }
 
+  @Get('descricoes-disponiveis')
+  async getDescricoesDisponiveis(@Query('busca') busca?: string) {
+    return this.relatoriosService.getDescricoesDisponiveis(busca);
+  }
+
   @Get('resultado')
   async gerarResultado(
     @Query('ano', ParseIntPipe) ano: number,
     @Query('empresaId') empresaId?: string,
     @Query('empresaIds') empresaIds?: string | string[],
     @Query('tipo') tipo: TipoRelatorio = TipoRelatorio.CONSOLIDADO,
+    @Query('descricao') descricao?: string,
   ) {
     // Converter empresaIds para array se for string
     const empresaIdsArray = Array.isArray(empresaIds)
@@ -32,6 +38,7 @@ export class RelatoriosController {
       empresaId,
       empresaIdsArray,
       tipo,
+      descricao,
     );
   }
 }

@@ -16,12 +16,19 @@ const RelatorioResultadoPage = () => {
   const [tipoLocal, setTipoLocal] = useState<TipoRelatorio>('CONSOLIDADO');
   const [empresaIdLocal, setEmpresaIdLocal] = useState<string>('');
   const [empresaIdsLocal, setEmpresaIdsLocal] = useState<string[]>([]);
+  const [descricaoLocal, setDescricaoLocal] = useState<string>('');
 
   // Estados dos filtros aplicados (usados na query)
   const [ano, setAno] = useState<number>(new Date().getFullYear());
   const [tipo, setTipo] = useState<TipoRelatorio>('CONSOLIDADO');
   const [empresaId, setEmpresaId] = useState<string>('');
   const [empresaIds, setEmpresaIds] = useState<string[]>([]);
+  const [descricao, setDescricao] = useState<string>('');
+
+  // Estados para autocomplete de descrição
+  const [descricoesSugeridas, setDescricoesSugeridas] = useState<string[]>([]);
+  const [mostrarSugestoes, setMostrarSugestoes] = useState<boolean>(false);
+  const [carregandoDescricoes, setCarregandoDescricoes] = useState<boolean>(false);
 
   const { data: empresas } = useEmpresas();
   const empresasList = empresas || [];
@@ -56,17 +63,47 @@ const RelatorioResultadoPage = () => {
       tipo,
       empresaId: tipo === 'FILIAL' ? empresaId : undefined,
       empresaIds: tipo === 'CONSOLIDADO' && empresaIds.length > 0 ? empresaIds : undefined,
+      descricao: descricao && descricao.trim().length > 0 ? descricao : undefined,
     }),
-    [ano, tipo, empresaId, empresaIds],
+    [ano, tipo, empresaId, empresaIds, descricao],
   );
+
+  // Buscar descrições para autocomplete
+  useEffect(() => {
+    const buscarDescricoes = async () => {
+      if (descricaoLocal.trim().length < 2) {
+        setDescricoesSugeridas([]);
+        setMostrarSugestoes(false);
+        return;
+      }
+
+      setCarregandoDescricoes(true);
+      try {
+        const descricoes = await relatoriosService.getDescricoesDisponiveis(descricaoLocal);
+        setDescricoesSugeridas(descricoes);
+        setMostrarSugestoes(descricoes.length > 0);
+      } catch (error) {
+        console.error('Erro ao buscar descrições:', error);
+        setDescricoesSugeridas([]);
+        setMostrarSugestoes(false);
+      } finally {
+        setCarregandoDescricoes(false);
+      }
+    };
+
+    const timeoutId = setTimeout(buscarDescricoes, 300); // Debounce de 300ms
+    return () => clearTimeout(timeoutId);
+  }, [descricaoLocal]);
 
   const aplicarFiltros = () => {
     setAno(anoLocal);
     setTipo(tipoLocal);
     setEmpresaId(empresaIdLocal);
     setEmpresaIds(empresaIdsLocal);
+    setDescricao(descricaoLocal);
     // Recolher os filtros após aplicar
     setFiltrosExpandidos(false);
+    setMostrarSugestoes(false);
   };
 
   const limparFiltros = () => {
@@ -75,10 +112,13 @@ const RelatorioResultadoPage = () => {
     setTipoLocal('CONSOLIDADO');
     setEmpresaIdLocal('');
     setEmpresaIdsLocal([]);
+    setDescricaoLocal('');
     setAno(anoAtual);
     setTipo('CONSOLIDADO');
     setEmpresaId('');
     setEmpresaIds([]);
+    setDescricao('');
+    setMostrarSugestoes(false);
   };
 
   const { data: relatorio, isLoading, error } = useRelatorioResultado(params);
@@ -98,8 +138,41 @@ const RelatorioResultadoPage = () => {
   };
 
   const [contasExpandidas, setContasExpandidas] = useState<Set<string>>(new Set());
+  const [expandirTodosNiveis, setExpandirTodosNiveis] = useState<boolean>(false);
+
+  // Função para coletar todas as classificações de contas que têm filhos
+  const coletarTodasClassificacoes = (contas: ContaRelatorio[] | undefined, resultado: Set<string> = new Set()): Set<string> => {
+    if (!contas || contas.length === 0) return resultado;
+    
+    for (const conta of contas) {
+      if (conta.filhos && conta.filhos.length > 0) {
+        resultado.add(conta.classificacao);
+        coletarTodasClassificacoes(conta.filhos, resultado);
+      }
+    }
+    return resultado;
+  };
+
+  // Efeito para expandir/colapsar todos os níveis quando o checkbox mudar
+  useEffect(() => {
+    if (relatorio?.contas) {
+      if (expandirTodosNiveis) {
+        // Expandir todas as contas que têm filhos
+        const todasClassificacoes = coletarTodasClassificacoes(relatorio.contas);
+        setContasExpandidas(todasClassificacoes);
+      } else {
+        // Colapsar todas (exceto raiz que já está expandida por padrão)
+        setContasExpandidas(new Set());
+      }
+    }
+  }, [expandirTodosNiveis, relatorio?.contas]);
 
   const toggleExpandir = (classificacao: string) => {
+    // Se "Expandir Todos" estiver marcado, desmarcar primeiro
+    if (expandirTodosNiveis) {
+      setExpandirTodosNiveis(false);
+    }
+    
     setContasExpandidas((prev) => {
       const novo = new Set(prev);
       if (novo.has(classificacao)) {
@@ -118,7 +191,11 @@ const RelatorioResultadoPage = () => {
       const indentacao = nivel * 16; // Reduzido de 24px para 16px
       const isRaiz = nivel === 0;
       const temFilhos = conta.filhos && conta.filhos.length > 0;
-      const estaExpandida = contasExpandidas.has(conta.classificacao) || nivel === 0; // Raiz sempre expandida
+      // Se "Expandir Todos" estiver marcado, todas as contas com filhos ficam expandidas
+      // Caso contrário, verifica se está no Set de expandidas ou se é raiz
+      const estaExpandida = expandirTodosNiveis 
+        ? (temFilhos || nivel === 0) // Se expandir todos, todas com filhos ficam expandidas
+        : (contasExpandidas.has(conta.classificacao) || nivel === 0); // Raiz sempre expandida
 
       return (
         <React.Fragment key={conta.classificacao}>
@@ -280,6 +357,68 @@ const RelatorioResultadoPage = () => {
                 </div>
               )}
 
+              {/* Filtro por Descrição */}
+              <div className="min-w-[250px] relative z-[10000]">
+                <label
+                  htmlFor="descricao"
+                  className="mb-0.5 block text-[10px] font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Descrição (opcional)
+                </label>
+                <div className="relative z-[10000]">
+                  <input
+                    id="descricao"
+                    type="text"
+                    value={descricaoLocal}
+                    onChange={(e) => {
+                      setDescricaoLocal(e.target.value);
+                      setMostrarSugestoes(true);
+                    }}
+                    onFocus={() => {
+                      if (descricoesSugeridas.length > 0) {
+                        setMostrarSugestoes(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      // Delay para permitir clique nas sugestões
+                      setTimeout(() => setMostrarSugestoes(false), 200);
+                    }}
+                    placeholder="Ex: Venda de Mercadorias"
+                    className="h-7 w-full rounded border border-slate-300 bg-white px-2 text-[10px] text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  />
+                  {carregandoDescricoes && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                    </div>
+                  )}
+                  {/* Dropdown de sugestões */}
+                  {mostrarSugestoes && descricoesSugeridas.length > 0 && (
+                    <div className="absolute z-[9999] mt-1 max-h-48 w-full overflow-auto rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                      {descricoesSugeridas.map((desc, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => {
+                            setDescricaoLocal(desc);
+                            setMostrarSugestoes(false);
+                          }}
+                          className="w-full px-3 py-1.5 text-left text-[10px] text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                        >
+                          {desc}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {descricaoLocal && (
+                  <p className="mt-0.5 text-[9px] text-slate-500">
+                    {descricoesSugeridas.length > 0
+                      ? `${descricoesSugeridas.length} sugestão(ões) encontrada(s)`
+                      : 'Digite pelo menos 2 caracteres'}
+                  </p>
+                )}
+              </div>
+
               {/* Botões de Ação */}
               <div className="flex items-start gap-2 pt-[18px]">
                 <button
@@ -385,10 +524,23 @@ const RelatorioResultadoPage = () => {
           <div className="h-full">
             {/* Cabeçalho do Relatório - fixo no topo do container de scroll */}
             <div className="sticky top-0 z-[105] border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900">
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                RESULTADO ECONÔMICO {relatorio.empresaNome.toUpperCase()}
-                {relatorio.uf ? ` - ${relatorio.uf}` : ''} {relatorio.ano}
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  RESULTADO ECONÔMICO {relatorio.empresaNome.toUpperCase()}
+                  {relatorio.uf ? ` - ${relatorio.uf}` : ''} {relatorio.ano}
+                </h2>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={expandirTodosNiveis}
+                    onChange={(e) => setExpandirTodosNiveis(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 focus:ring-offset-0 dark:border-slate-600 dark:bg-slate-800"
+                  />
+                  <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                    Expandir Níveis
+                  </span>
+                </label>
+              </div>
             </div>
 
             {/* Tabela com scroll horizontal e vertical */}

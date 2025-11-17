@@ -24,6 +24,33 @@ export class RelatoriosService {
     return uploads.map((upload) => upload.ano);
   }
 
+  async getDescricoesDisponiveis(busca?: string): Promise<string[]> {
+    const where: any = {
+      tipoConta: '3-DRE', // Apenas contas DRE
+    };
+
+    if (busca && busca.trim().length > 0) {
+      where.nomeConta = {
+        contains: busca.trim(),
+        mode: 'insensitive',
+      };
+    }
+
+    const contas = await this.prisma.contaCatalogo.findMany({
+      where,
+      select: {
+        nomeConta: true,
+      },
+      distinct: ['nomeConta'],
+      orderBy: {
+        nomeConta: 'asc',
+      },
+      take: 20, // Limitar a 20 resultados para performance
+    });
+
+    return contas.map((conta) => conta.nomeConta);
+  }
+
   private readonly meses = [
     { mes: 1, nome: 'Janeiro' },
     { mes: 2, nome: 'Fevereiro' },
@@ -44,6 +71,7 @@ export class RelatoriosService {
     empresaId?: string,
     empresaIds?: string[],
     tipo: TipoRelatorio = TipoRelatorio.CONSOLIDADO,
+    descricao?: string,
   ): Promise<RelatorioResultado> {
     // 1. Buscar empresas conforme tipo
     let empresas;
@@ -136,10 +164,20 @@ export class RelatoriosService {
 
     // 4. Buscar todas as contas DRE do catálogo para construir hierarquia
     // IMPORTANTE: DRE usa apenas contas com tipoConta = "3-DRE"
+    const whereCatalogo: any = {
+      tipoConta: '3-DRE', // Filtrar apenas contas DRE
+    };
+
+    // Aplicar filtro por descrição se fornecido
+    if (descricao && descricao.trim().length > 0) {
+      whereCatalogo.nomeConta = {
+        contains: descricao.trim(),
+        mode: 'insensitive',
+      };
+    }
+
     const contasCatalogo = await this.prisma.contaCatalogo.findMany({
-      where: {
-        tipoConta: '3-DRE', // Filtrar apenas contas DRE
-      },
+      where: whereCatalogo,
       orderBy: [{ classificacao: 'asc' }],
     });
 
