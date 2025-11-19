@@ -6,4 +6,3 @@ export class UpdateAlertaDto {
   @IsOptional()
   status?: AlertaStatus;
 }
-

@@ -1,4 +1,10 @@
-import { IsString, IsOptional, MinLength, MaxLength, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  MinLength,
+  MaxLength,
+  IsEnum,
+} from 'class-validator';
 import { TipoEmpresa } from '@prisma/client';
 
 export class UpdateEmpresaDto {

@@ -38,4 +38,3 @@ export class AuditoriaService {
     return this.registrar(usuarioId, 'Empresa', acao, { empresaId });
   }
 }
-

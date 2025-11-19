@@ -10,4 +10,3 @@ import { CoreModule } from '../core/core.module';
   exports: [RelatoriosService],
 })
 export class RelatoriosModule {}
-

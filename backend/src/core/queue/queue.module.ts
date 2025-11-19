@@ -7,13 +7,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
   imports: [
     BullModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => {
+      useFactory: (configService: ConfigService) => {
         const logger = new Logger('QueueModule');
-        const host = configService.get('REDIS_HOST', 'localhost');
-        const port = configService.get('REDIS_PORT', 6379);
-        
+        const host = configService.get<string>('REDIS_HOST', 'localhost');
+        const port = configService.get<number>('REDIS_PORT', 6379);
+
         logger.log(`Configurando Bull com Redis: ${host}:${port}`);
-        
+
         // Configuração para Bull (compatível com BullMQ via Redis)
         const config = {
           redis: {
@@ -21,13 +21,15 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
             port: Number(port),
             retryStrategy: (times: number) => {
               const delay = Math.min(times * 50, 2000);
-              logger.warn(`Tentativa de reconexão ao Redis (${times}): aguardando ${delay}ms`);
+              logger.warn(
+                `Tentativa de reconexão ao Redis (${times}): aguardando ${delay}ms`,
+              );
               return delay;
             },
             maxRetriesPerRequest: 3,
           },
         };
-        
+
         logger.log(`Configuração do Bull: ${JSON.stringify(config)}`);
         return config;
       },
@@ -37,4 +39,3 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
   exports: [BullModule],
 })
 export class QueueModule {}
-

@@ -1,5 +1,5 @@
 import { api } from '@/lib/http';
-import type { RelatorioResultado, RelatorioComparativo, TipoRelatorio, TipoComparacao } from '@/types/api';
+import type { RelatorioResultado, RelatorioComparativo, TipoRelatorio, TipoComparacao, TipoValor } from '@/types/api';
 
 export interface GerarRelatorioParams {
   ano: number;
@@ -19,6 +19,7 @@ export interface GerarRelatorioComparativoParams {
   empresaId?: string;
   empresaIds?: string[];
   descricao?: string;
+  tipoValor?: TipoValor;
 }
 
 export const relatoriosService = {
@@ -84,6 +85,10 @@ export const relatoriosService = {
 
     if (params.descricao && params.descricao.trim().length > 0) {
       queryParams.append('descricao', params.descricao.trim());
+    }
+
+    if (params.tipoValor) {
+      queryParams.append('tipoValor', params.tipoValor);
     }
 
     const { data } = await api.get<RelatorioComparativo>(

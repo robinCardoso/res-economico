@@ -8,4 +8,3 @@ import { CoreModule } from '../core.module';
   exports: [AuditoriaService],
 })
 export class AuditoriaModule {}
-

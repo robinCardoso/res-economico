@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Inject, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import { PrismaService } from '../core/prisma/prisma.service';
@@ -128,21 +128,30 @@ export class UploadsService {
     try {
       // Tentar corrigir encoding: se contém padrões de encoding incorreto (UTF-8 sendo interpretado como Latin-1)
       // Exemplo: "UniÃ£o" → "União"
-      if (nomeArquivo.includes('Ã') || nomeArquivo.includes('Â') || nomeArquivo.includes('Õ')) {
+      if (
+        nomeArquivo.includes('Ã') ||
+        nomeArquivo.includes('Â') ||
+        nomeArquivo.includes('Õ')
+      ) {
         const corrected = Buffer.from(nomeArquivo, 'latin1').toString('utf8');
         // Se a correção produz resultado diferente e válido, usar
         if (corrected !== nomeArquivo && !corrected.includes('\uFFFD')) {
-          this.logger.log(`Nome do arquivo corrigido de encoding: ${file.originalname} → ${corrected}`);
+          this.logger.log(
+            `Nome do arquivo corrigido de encoding: ${file.originalname} → ${corrected}`,
+          );
           nomeArquivo = corrected;
         }
       }
     } catch (error) {
-      this.logger.warn(`Erro ao corrigir encoding do nome do arquivo: ${error}`);
+      this.logger.warn(
+        `Erro ao corrigir encoding do nome do arquivo: ${error}`,
+      );
       // Manter o nome original se houver erro
     }
 
     // Verificar se já existe upload com o mesmo nome de arquivo
-    const uploadComMesmoNome = await this.verificarDuplicataNomeArquivo(nomeArquivo);
+    const uploadComMesmoNome =
+      await this.verificarDuplicataNomeArquivo(nomeArquivo);
     if (uploadComMesmoNome) {
       // Remover arquivo duplicado
       fs.unlinkSync(file.path);
@@ -192,8 +201,10 @@ export class UploadsService {
   }
 
   async limparProcessamento(uploadId: string) {
-    this.logger.log(`[${uploadId}] Iniciando limpeza de processamento anterior...`);
-    
+    this.logger.log(
+      `[${uploadId}] Iniciando limpeza de processamento anterior...`,
+    );
+
     // Deletar linhas e alertas existentes
     const linhasDeletadas = await this.prisma.linhaUpload.deleteMany({
       where: { uploadId },
@@ -203,7 +214,9 @@ export class UploadsService {
     const alertasDeletados = await this.prisma.alerta.deleteMany({
       where: { uploadId },
     });
-    this.logger.log(`[${uploadId}] ${alertasDeletados.count} alertas deletados`);
+    this.logger.log(
+      `[${uploadId}] ${alertasDeletados.count} alertas deletados`,
+    );
 
     // Resetar status
     await this.prisma.upload.update({
@@ -219,7 +232,7 @@ export class UploadsService {
   async reprocessar(uploadId: string, userId?: string) {
     this.logger.log(`[${uploadId}] ===== INICIANDO REPROCESSAMENTO =====`);
     this.logger.log(`[${uploadId}] Usuário: ${userId || 'system'}`);
-    
+
     // Verificar se o upload existe
     const upload = await this.prisma.upload.findUnique({
       where: { id: uploadId },
@@ -231,15 +244,21 @@ export class UploadsService {
       throw new BadRequestException('Upload não encontrado');
     }
 
-    this.logger.log(`[${uploadId}] Upload encontrado: ${upload.nomeArquivo} - ${upload.empresa?.razaoSocial}`);
+    this.logger.log(
+      `[${uploadId}] Upload encontrado: ${upload.nomeArquivo} - ${upload.empresa?.razaoSocial}`,
+    );
     this.logger.log(`[${uploadId}] Status atual: ${upload.status}`);
     this.logger.log(`[${uploadId}] Arquivo: ${upload.arquivoUrl}`);
 
     // Verificar se o arquivo existe
     const filePath = upload.arquivoUrl.replace('/uploads/', './uploads/');
     if (!fs.existsSync(filePath)) {
-      this.logger.error(`[${uploadId}] Arquivo não encontrado no caminho: ${filePath}`);
-      throw new BadRequestException(`Arquivo não encontrado: ${upload.nomeArquivo}`);
+      this.logger.error(
+        `[${uploadId}] Arquivo não encontrado no caminho: ${filePath}`,
+      );
+      throw new BadRequestException(
+        `Arquivo não encontrado: ${upload.nomeArquivo}`,
+      );
     }
     this.logger.log(`[${uploadId}] Arquivo encontrado: ${filePath}`);
 
@@ -252,25 +271,33 @@ export class UploadsService {
       const existingJob = await this.uploadQueue.getJob(uploadId);
       if (existingJob) {
         const state = await existingJob.getState();
-        this.logger.warn(`[${uploadId}] Job existente encontrado com estado: ${state}`);
-        
+        this.logger.warn(
+          `[${uploadId}] Job existente encontrado com estado: ${state}`,
+        );
+
         // Remover job independente do estado (completed, failed, etc.)
-        this.logger.warn(`[${uploadId}] Removendo job existente (estado: ${state})...`);
+        this.logger.warn(
+          `[${uploadId}] Removendo job existente (estado: ${state})...`,
+        );
         await existingJob.remove();
         this.logger.log(`[${uploadId}] Job existente removido com sucesso`);
-        
+
         // Aguardar um pouco para garantir que o Redis processou a remoção
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
     } catch (error) {
-      this.logger.warn(`[${uploadId}] Erro ao verificar/remover job existente: ${error}`);
+      this.logger.warn(
+        `[${uploadId}] Erro ao verificar/remover job existente: ${error}`,
+      );
       // Continuar mesmo se houver erro
     }
 
     // Adicionar job na fila para reprocessamento
     // Usar um ID único para cada reprocessamento para evitar conflitos
     const jobId = `${uploadId}-${Date.now()}`;
-    this.logger.log(`[${uploadId}] Adicionando job na fila de processamento com ID: ${jobId}...`);
+    this.logger.log(
+      `[${uploadId}] Adicionando job na fila de processamento com ID: ${jobId}...`,
+    );
     const job = await this.uploadQueue.add(
       'process-upload',
       { uploadId },
@@ -286,30 +313,40 @@ export class UploadsService {
       },
     );
     this.logger.log(`[${uploadId}] Job adicionado com ID: ${job.id}`);
-    
+
     // Verificar estado do job imediatamente após adicionar
     try {
       const jobState = await job.getState();
-      this.logger.log(`[${uploadId}] Estado do job após adicionar: ${jobState}`);
-      
+      this.logger.log(
+        `[${uploadId}] Estado do job após adicionar: ${jobState}`,
+      );
+
       // Listar jobs na fila para debug
       const waitingJobs = await this.uploadQueue.getWaiting();
       const activeJobs = await this.uploadQueue.getActive();
       const completedJobs = await this.uploadQueue.getCompleted();
       const failedJobs = await this.uploadQueue.getFailed();
-      
+
       this.logger.log(`[${uploadId}] Status da fila:`);
-      this.logger.log(`[${uploadId}]   - Jobs aguardando: ${waitingJobs.length}`);
+      this.logger.log(
+        `[${uploadId}]   - Jobs aguardando: ${waitingJobs.length}`,
+      );
       this.logger.log(`[${uploadId}]   - Jobs ativos: ${activeJobs.length}`);
-      this.logger.log(`[${uploadId}]   - Jobs completados: ${completedJobs.length}`);
+      this.logger.log(
+        `[${uploadId}]   - Jobs completados: ${completedJobs.length}`,
+      );
       this.logger.log(`[${uploadId}]   - Jobs falhados: ${failedJobs.length}`);
-      
+
       // Se o job está aguardando, verificar se há processador ativo
       if (jobState === 'waiting' || jobState === 'delayed') {
-        this.logger.warn(`[${uploadId}] ⚠️ Job está aguardando processamento. Verifique se o UploadProcessor está registrado e ativo.`);
+        this.logger.warn(
+          `[${uploadId}] ⚠️ Job está aguardando processamento. Verifique se o UploadProcessor está registrado e ativo.`,
+        );
       }
     } catch (error) {
-      this.logger.warn(`[${uploadId}] Erro ao verificar estado do job: ${error}`);
+      this.logger.warn(
+        `[${uploadId}] Erro ao verificar estado do job: ${error}`,
+      );
     }
 
     // Registrar auditoria
@@ -317,7 +354,9 @@ export class UploadsService {
       await this.auditoria.registrarUpload(userId, uploadId, 'REPROCESSAR');
     }
 
-    this.logger.log(`[${uploadId}] ===== REPROCESSAMENTO INICIADO COM SUCESSO =====`);
+    this.logger.log(
+      `[${uploadId}] ===== REPROCESSAMENTO INICIADO COM SUCESSO =====`,
+    );
   }
 
   async remove(id: string, userId?: string) {
@@ -364,18 +403,26 @@ export class UploadsService {
 
       // No Bull, progress() retorna o valor quando chamada sem argumentos
       const progressValue = (job.progress() as number) || 0;
-      
+
       const state = await job.getState();
-      
+
       return {
         progress: progressValue,
         estado: state,
-        etapa: progressValue < 20 ? 'Lendo arquivo...' :
-               progressValue < 50 ? 'Processando linhas...' :
-               progressValue < 70 ? 'Criando registros...' :
-               progressValue < 80 ? 'Atualizando catálogo...' :
-               progressValue < 95 ? 'Detectando alertas...' :
-               progressValue < 100 ? 'Finalizando...' : 'Concluído',
+        etapa:
+          progressValue < 20
+            ? 'Lendo arquivo...'
+            : progressValue < 50
+              ? 'Processando linhas...'
+              : progressValue < 70
+                ? 'Criando registros...'
+                : progressValue < 80
+                  ? 'Atualizando catálogo...'
+                  : progressValue < 95
+                    ? 'Detectando alertas...'
+                    : progressValue < 100
+                      ? 'Finalizando...'
+                      : 'Concluído',
       };
     } catch (error) {
       console.error(`Erro ao buscar progresso do upload ${uploadId}:`, error);

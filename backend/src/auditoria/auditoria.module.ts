@@ -10,4 +10,3 @@ import { CoreModule } from '../core/core.module';
   exports: [AuditoriaLogService],
 })
 export class AuditoriaModule {}
-

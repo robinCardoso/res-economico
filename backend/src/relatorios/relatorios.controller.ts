@@ -1,7 +1,16 @@
-import { Controller, Get, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { RelatoriosService } from './relatorios.service';
-import { GerarRelatorioDto, TipoRelatorio } from './dto/gerar-relatorio.dto';
-import { TipoComparacao } from './dto/gerar-relatorio-comparativo.dto';
+import { TipoRelatorio } from './dto/gerar-relatorio.dto';
+import {
+  TipoComparacao,
+  TipoValor,
+} from './dto/gerar-relatorio-comparativo.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('relatorios')
@@ -54,6 +63,7 @@ export class RelatoriosController {
     @Query('empresaId') empresaId?: string,
     @Query('empresaIds') empresaIds?: string | string[],
     @Query('descricao') descricao?: string,
+    @Query('tipoValor') tipoValor?: TipoValor,
   ) {
     // Converter empresaIds para array se for string
     const empresaIdsArray = Array.isArray(empresaIds)
@@ -72,7 +82,7 @@ export class RelatoriosController {
       empresaId,
       empresaIdsArray,
       descricao,
+      tipoValor || TipoValor.ACUMULADO, // Padrão: ACUMULADO
     );
   }
 }
-

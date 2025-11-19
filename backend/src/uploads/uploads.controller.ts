@@ -52,7 +52,11 @@ export class UploadsController {
     if (isNaN(mesNum) || isNaN(anoNum)) {
       throw new BadRequestException('mes e ano devem ser números válidos');
     }
-    const upload = await this.uploadsService.verificarDuplicataPeriodo(empresaId, mesNum, anoNum);
+    const upload = await this.uploadsService.verificarDuplicataPeriodo(
+      empresaId,
+      mesNum,
+      anoNum,
+    );
     return { existe: !!upload, upload };
   }
 
@@ -61,7 +65,8 @@ export class UploadsController {
     if (!nomeArquivo) {
       throw new BadRequestException('nomeArquivo é obrigatório');
     }
-    const upload = await this.uploadsService.verificarDuplicataNomeArquivo(nomeArquivo);
+    const upload =
+      await this.uploadsService.verificarDuplicataNomeArquivo(nomeArquivo);
     return { existe: !!upload, upload };
   }
 
@@ -72,7 +77,10 @@ export class UploadsController {
   }
 
   @Patch(':id/reprocessar')
-  async reprocessar(@Param('id') id: string, @Request() req: { user?: { id?: string } }) {
+  async reprocessar(
+    @Param('id') id: string,
+    @Request() req: { user?: { id?: string } },
+  ) {
     const userId = req.user?.id || 'system';
     await this.uploadsService.reprocessar(id, userId);
     return this.uploadsService.findOne(id);
@@ -84,7 +92,10 @@ export class UploadsController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string, @Request() req: { user?: { id?: string } }) {
+  async remove(
+    @Param('id') id: string,
+    @Request() req: { user?: { id?: string } },
+  ) {
     const userId = req.user?.id || 'system';
     return this.uploadsService.remove(id, userId);
   }
@@ -133,8 +144,8 @@ export class UploadsController {
     const templateId = body.templateId as string | undefined;
 
     // Converter mes e ano para números
-    const mes = typeof mesStr === 'string' ? parseInt(mesStr, 10) : (mesStr as number | undefined);
-    const ano = typeof anoStr === 'string' ? parseInt(anoStr, 10) : (anoStr as number | undefined);
+    const mes = typeof mesStr === 'string' ? parseInt(mesStr, 10) : mesStr;
+    const ano = typeof anoStr === 'string' ? parseInt(anoStr, 10) : anoStr;
 
     // Validar se o arquivo foi recebido
     if (!file) {
@@ -151,7 +162,9 @@ export class UploadsController {
     }
 
     if (!ano || isNaN(ano) || ano < 2020 || ano > 2100) {
-      throw new BadRequestException('Ano inválido (deve ser entre 2020 e 2100)');
+      throw new BadRequestException(
+        'Ano inválido (deve ser entre 2020 e 2100)',
+      );
     }
 
     // Criar DTO manualmente
@@ -159,7 +172,8 @@ export class UploadsController {
       empresaId,
       mes,
       ano,
-      templateId: templateId && templateId.trim() !== '' ? templateId : undefined,
+      templateId:
+        templateId && templateId.trim() !== '' ? templateId : undefined,
     };
 
     console.log('DTO criado:', dto);

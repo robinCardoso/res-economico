@@ -56,7 +56,6 @@ const NovoUploadPage = () => {
   const [showValidation, setShowValidation] = useState(false);
   const [duplicataPeriodo, setDuplicataPeriodo] = useState<{ existe: boolean; upload?: UploadWithRelations } | null>(null);
   const [duplicataNome, setDuplicataNome] = useState<{ existe: boolean; upload?: UploadWithRelations } | null>(null);
-  const [isVerificando, setIsVerificando] = useState(false);
 
   const {
     register,
@@ -78,7 +77,6 @@ const NovoUploadPage = () => {
   // Verificar duplicata de período quando empresa, mês ou ano mudarem
   useEffect(() => {
     if (empresaId && mes && ano) {
-      setIsVerificando(true);
       uploadsService
         .verificarDuplicataPeriodo(empresaId, mes, ano)
         .then((result) => {
@@ -87,9 +85,6 @@ const NovoUploadPage = () => {
         .catch((err) => {
           console.error('Erro ao verificar duplicata de período:', err);
           setDuplicataPeriodo({ existe: false });
-        })
-        .finally(() => {
-          setIsVerificando(false);
         });
     } else {
       setDuplicataPeriodo(null);
@@ -99,7 +94,6 @@ const NovoUploadPage = () => {
   // Verificar duplicata de nome quando arquivo mudar
   useEffect(() => {
     if (file) {
-      setIsVerificando(true);
       uploadsService
         .verificarDuplicataNome(file.name)
         .then((result) => {
@@ -108,9 +102,6 @@ const NovoUploadPage = () => {
         .catch((err) => {
           console.error('Erro ao verificar duplicata de nome:', err);
           setDuplicataNome({ existe: false });
-        })
-        .finally(() => {
-          setIsVerificando(false);
         });
     } else {
       setDuplicataNome(null);
@@ -571,7 +562,7 @@ const NovoUploadPage = () => {
                     Arquivo duplicado não permitido
                   </h3>
                   <p className="text-sm text-rose-700 dark:text-rose-300">
-                    Já existe um upload com o arquivo <strong>"{file.name}"</strong>.
+                    Já existe um upload com o arquivo <strong>&quot;{file?.name || 'arquivo'}&quot;</strong>.
                     {duplicataNome.upload && (
                       <span className="block mt-1">
                         Empresa: <strong>{duplicataNome.upload.empresa?.razaoSocial}</strong> | 

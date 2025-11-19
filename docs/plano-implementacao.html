@@ -112,6 +112,9 @@
           <strong>Relatório DRE:</strong> Implementado relatório completo de Resultado Econômico com filtros por ano, tipo (Filial/Consolidado), empresas e descrição (autocomplete). Exibição hierárquica de contas com expandir/colapsar e checkbox para expandir todos os níveis.
         </li>
         <li>
+          <strong>Relatórios Comparativos:</strong> Implementado sistema completo de comparação entre períodos com três tipos de comparação (Mês a Mês, Ano a Ano, Customizado), tabela comparativa com destaque de variações significativas, hierarquia expandível/colapsável, filtros organizados em ordem lógica, e ajuste automático de períodos baseado no tipo de comparação.
+        </li>
+        <li>
           <strong>Melhorias no Sistema de Alertas:</strong> Filtro e contagem por tipoConta, correção de mensagens com terminologia adequada (Classificação, Conta, SubConta), e armazenamento do nome original do arquivo.
         </li>
         <li>
@@ -121,7 +124,7 @@
           <strong>Configuração para Rede Local:</strong> Sistema configurado para ser acessível de outros computadores na mesma rede (0.0.0.0, CORS ajustado).
         </li>
         <li>
-          Próximos passos: implementar Dashboard com KPIs e gráficos, Relatórios Comparativos, Offline Storage, Integração Groq AI, Refresh Token, e Edição de linhas.
+          Próximos passos: implementar Dashboard com KPIs e gráficos, Gráficos de Tendências para Relatórios Comparativos, Exportação Excel/PDF para Relatórios Comparativos, Offline Storage, Integração Groq AI, Refresh Token, e Edição de linhas.
         </li>
       </ul>
     </section>
@@ -301,15 +304,28 @@
         <li><strong>Push Notifications:</strong> Configurar Web Push via VAPID próprio (pendente).</li>
       </ul>
 
-      <h3>6.1. Relatórios Comparativos (Pendente)</h3>
+      <h3>6.1. Relatórios Comparativos (✓ Parcialmente Concluído)</h3>
       <ul>
-        <li>[&nbsp;] <strong>Comparação mês a mês:</strong> Permitir comparar dados de meses consecutivos (ex: Janeiro vs Fevereiro).</li>
-        <li>[&nbsp;] <strong>Comparação ano a ano:</strong> Comparar dados do mesmo período em anos diferentes (ex: Janeiro/2024 vs Janeiro/2025).</li>
-        <li>[&nbsp;] <strong>Análise de tendências:</strong> Implementar gráficos de evolução mostrando tendências ao longo do tempo.</li>
-        <li>[&nbsp;] <strong>Identificação de variações significativas:</strong> Sistema deve destacar automaticamente variações acima de um percentual configurável (ex: >10%, >20%).</li>
-        <li>[&nbsp;] Visualização lado a lado de períodos comparados.</li>
-        <li>[&nbsp;] Cálculo de diferenças absolutas e percentuais.</li>
-        <li>[&nbsp;] Exportação de relatórios comparativos para Excel/PDF.</li>
+        <li>[✓] <strong>Comparação mês a mês:</strong> Permitir comparar dados de meses consecutivos (ex: Janeiro vs Fevereiro) - ajuste automático do período 2.</li>
+        <li>[✓] <strong>Comparação ano a ano:</strong> Comparar dados do mesmo período em anos diferentes (ex: Janeiro/2024 vs Janeiro/2025) - ajuste automático do período 2.</li>
+        <li>[✓] <strong>Comparação customizada:</strong> Comparar dois períodos específicos escolhidos pelo usuário.</li>
+        <li>[✓] <strong>Identificação de variações significativas:</strong> Sistema destaca automaticamente variações acima de percentuais configuráveis:
+          <ul>
+            <li>Verde: Variação positiva ≥10% (destaque forte para ≥20%)</li>
+            <li>Vermelho: Variação negativa ≥10% (destaque forte para ≥20%)</li>
+            <li>Amarelo: Variação entre 5-10%</li>
+          </ul>
+        </li>
+        <li>[✓] Visualização lado a lado de períodos comparados em tabela com colunas: Classificação | Descrição | Período 1 | Período 2 | Diferença | Variação %.</li>
+        <li>[✓] Cálculo de diferenças absolutas e percentuais para cada conta e totais gerais.</li>
+        <li>[✓] Hierarquia de contas expandível/colapsável com checkbox "Expandir Níveis".</li>
+        <li>[✓] Filtros organizados em ordem lógica: Tipo de Comparação → Períodos → Escopo → Descrição.</li>
+        <li>[✓] Agrupamento visual dos períodos em cards lado a lado para melhor compreensão.</li>
+        <li>[✓] Textos explicativos para cada tipo de comparação e instruções claras.</li>
+        <li>[✓] Autocomplete para filtro de descrição de conta.</li>
+        <li>[✓] Totais gerais do relatório exibidos em cards destacados.</li>
+        <li>[&nbsp;] <strong>Análise de tendências:</strong> Implementar gráficos de evolução mostrando tendências ao longo do tempo (Recharts) - <strong>Pendente</strong>.</li>
+        <li>[&nbsp;] Exportação de relatórios comparativos para Excel/PDF - <strong>Pendente</strong>.</li>
       </ul>
 
       <h3>6.2. Offline Storage (IndexedDB) (Pendente)</h3>
@@ -386,12 +402,18 @@
           <strong>Relatório DRE completo:</strong> Geração de relatório de Resultado Econômico com filtros avançados (ano, tipo, empresas, descrição com autocomplete), exibição hierárquica de contas e checkbox para expandir todos os níveis.
         </li>
         <li>
+          <strong>Relatórios Comparativos:</strong> Sistema de comparação entre períodos com três tipos (Mês a Mês, Ano a Ano, Customizado), tabela comparativa com destaque de variações significativas, cálculo automático de diferenças e percentuais, e hierarquia expandível/colapsável.
+        </li>
+        <li>
           <strong>Sistema de alertas aprimorado:</strong> Filtro e contagem por tipoConta, mensagens mais precisas com terminologia adequada, e armazenamento do nome original do arquivo.
         </li>
         <li>
           <strong>Acesso em rede local:</strong> Sistema configurado para ser acessível de outros computadores na mesma rede.
         </li>
         <li>Push notifications e e-mails (Resend) para alertas e atualizações (pendente).</li>
+        <li>
+          Gráficos de tendências e exportação Excel/PDF para Relatórios Comparativos (pendente).
+        </li>
         <li>
           Integração com Groq (modelos de baixo custo) para análises assistidas (pendente).
         </li>

@@ -26,4 +26,3 @@ export class FilterContasDto {
   @IsOptional()
   classificacaoPrefix?: string; // Prefixo da classificação (ex: "1." para ativos)
 }
-

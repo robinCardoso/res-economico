@@ -25,7 +25,7 @@ export const OfflineBanner = () => {
           validateStatus: () => true, // Aceitar qualquer resposta HTTP como "online"
         });
         setBackendOnline(true);
-      } catch (error) {
+      } catch {
         // Silenciar erros de rede - apenas marcar como offline
         // Não logar erros aqui pois é esperado quando o backend não está rodando
         setBackendOnline(false);

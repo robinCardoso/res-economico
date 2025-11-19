@@ -1,8 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
-import type { RelatorioResultado, ContaRelatorio } from './dto/relatorio-resultado.dto';
-import type { RelatorioComparativo, ContaComparativa } from './dto/relatorio-comparativo.dto';
+import type {
+  RelatorioResultado,
+  ContaRelatorio,
+} from './dto/relatorio-resultado.dto';
+import type {
+  RelatorioComparativo,
+  ContaComparativa,
+} from './dto/relatorio-comparativo.dto';
 import { TipoRelatorio } from './dto/gerar-relatorio.dto';
+import type { Empresa } from '@prisma/client';
 
 @Injectable()
 export class RelatoriosService {
@@ -29,7 +36,7 @@ export class RelatoriosService {
     const descricoesSet = new Set<string>();
 
     // 1. Buscar do catálogo
-    const whereCatalogo: any = {
+    const whereCatalogo: Record<string, unknown> = {
       tipoConta: '3-DRE', // Apenas contas DRE
     };
 
@@ -58,7 +65,7 @@ export class RelatoriosService {
     }
 
     // 2. Buscar também das linhas de upload (para incluir contas que não estão no catálogo)
-    const whereLinhas: any = {
+    const whereLinhas: Record<string, unknown> = {
       tipoConta: '3-DRE',
     };
 
@@ -89,7 +96,7 @@ export class RelatoriosService {
 
     // Converter para array e ordenar
     const descricoes = Array.from(descricoesSet).sort();
-    
+
     // Limitar a 20 resultados finais
     return descricoes.slice(0, 20);
   }
@@ -117,19 +124,23 @@ export class RelatoriosService {
     descricao?: string,
   ): Promise<RelatorioResultado> {
     // 1. Buscar empresas conforme tipo
-    let empresas;
+    let empresas: Empresa[];
     let empresaNome = 'CONSOLIDADO';
     let ufRelatorio: string | undefined;
 
     if (tipo === TipoRelatorio.FILIAL) {
       if (!empresaId) {
-        throw new NotFoundException('empresaId é obrigatório para relatório FILIAL');
+        throw new NotFoundException(
+          'empresaId é obrigatório para relatório FILIAL',
+        );
       }
       const empresa = await this.prisma.empresa.findUnique({
         where: { id: empresaId },
       });
       if (!empresa) {
-        throw new NotFoundException(`Empresa com ID ${empresaId} não encontrada`);
+        throw new NotFoundException(
+          `Empresa com ID ${empresaId} não encontrada`,
+        );
       }
       empresas = [empresa];
       empresaNome = empresa.razaoSocial;
@@ -141,10 +152,13 @@ export class RelatoriosService {
           where: { id: { in: empresaIds } },
         });
         if (empresas.length === 0) {
-          throw new NotFoundException('Nenhuma empresa encontrada com os IDs fornecidos');
+          throw new NotFoundException(
+            'Nenhuma empresa encontrada com os IDs fornecidos',
+          );
         }
         // Usar nome da primeira empresa ou criar nome consolidado
-        empresaNome = empresas.length === 1 ? empresas[0].razaoSocial : 'CONSOLIDADO';
+        empresaNome =
+          empresas.length === 1 ? empresas[0].razaoSocial : 'CONSOLIDADO';
         ufRelatorio = empresas[0]?.uf || undefined;
       } else {
         // Todas as empresas
@@ -189,14 +203,22 @@ export class RelatoriosService {
 
     // Função auxiliar para normalizar classificação (remove espaços e ponto final)
     // Usada tanto no agrupamento quanto na busca de valores
-    const normalizarClassificacaoParaChave = (classificacao: string): string => {
+    const normalizarClassificacaoParaChave = (
+      classificacao: string,
+    ): string => {
       if (!classificacao) return '';
       return classificacao.trim().replace(/\.$/, '');
     };
 
     // Função para criar chave composta
-    const criarChaveComposta = (classificacao: string, conta: string | null, subConta: string | null): string => {
-      const classificacaoNorm = normalizarClassificacaoParaChave(classificacao || '');
+    const criarChaveComposta = (
+      classificacao: string,
+      conta: string | null,
+      subConta: string | null,
+    ): string => {
+      const classificacaoNorm = normalizarClassificacaoParaChave(
+        classificacao || '',
+      );
       const contaStr = conta || '';
       const subContaStr = subConta || '';
       return `${classificacaoNorm}|${contaStr}|${subContaStr}`;
@@ -210,21 +232,30 @@ export class RelatoriosService {
         }
 
         // Normalizar classificação
-        const classificacao = normalizarClassificacaoParaChave(linha.classificacao || '');
-        
+        const classificacao = normalizarClassificacaoParaChave(
+          linha.classificacao || '',
+        );
+
         // Ignorar se classificação estiver vazia
         if (!classificacao) {
           continue;
         }
 
         // Criar chave composta: classificacao + conta + subConta
-        const chaveComposta = criarChaveComposta(linha.classificacao || '', linha.conta, linha.subConta);
+        const chaveComposta = criarChaveComposta(
+          linha.classificacao || '',
+          linha.conta,
+          linha.subConta,
+        );
         const mes = upload.mes;
 
         // Para consolidado, somar valores de todas as empresas
         // Para filial, já está filtrado por empresaId
         if (!dadosPorMesEChaveComposta.has(chaveComposta)) {
-          dadosPorMesEChaveComposta.set(chaveComposta, new Map<number, number>());
+          dadosPorMesEChaveComposta.set(
+            chaveComposta,
+            new Map<number, number>(),
+          );
         }
 
         const valoresPorMes = dadosPorMesEChaveComposta.get(chaveComposta)!;
@@ -238,7 +269,7 @@ export class RelatoriosService {
     // 4. Buscar todas as contas DRE do catálogo para construir hierarquia
     // IMPORTANTE: DRE usa apenas contas com tipoConta = "3-DRE"
     // Mas também incluímos contas que têm dados nos uploads, mesmo que não estejam no catálogo
-    const whereCatalogo: any = {
+    const whereCatalogo: Record<string, unknown> = {
       tipoConta: '3-DRE', // Filtrar apenas contas DRE
     };
 
@@ -257,14 +288,14 @@ export class RelatoriosService {
 
     // 4.1. Buscar TODAS as chaves compostas DRE que têm dados nos uploads (mesmo que zerados)
     // Isso garante que todas as contas com dados apareçam no relatório
-    const chavesCompostasComDados = Array.from(dadosPorMesEChaveComposta.keys());
-    
+    // Nota: chavesCompostasComDados não é mais necessário, mas mantido para referência
+
     // Buscar TODAS as classificações DRE dos uploads (não apenas as que têm dados)
     // Isso inclui contas que podem ter valores zerados mas existem nos uploads
     // IMPORTANTE: Incluir conta e subConta para garantir que todas as contas sejam consideradas
     const todasClassificacoesUploads = await this.prisma.linhaUpload.findMany({
       where: {
-        uploadId: { in: uploads.map(u => u.id) },
+        uploadId: { in: uploads.map((u) => u.id) },
         tipoConta: '3-DRE',
       },
       select: {
@@ -280,24 +311,29 @@ export class RelatoriosService {
     // Criar um mapa de classificações com suas informações
     // IMPORTANTE: Usar chave composta (classificacao + conta + subConta) para garantir que todas as contas sejam consideradas
     // Mas para o relatório DRE, agrupamos por classificação (soma de todas as contas com mesma classificação)
-    const classificacoesUnicas = new Map<string, { conta: string; tipoConta: string; nivel: number }>();
+    const classificacoesUnicas = new Map<
+      string,
+      { conta: string; tipoConta: string; nivel: number }
+    >();
     const chavesProcessadas = new Set<string>(); // Para evitar duplicatas
-    
+
     for (const linha of todasClassificacoesUploads) {
       // Normalizar classificação para garantir consistência
-      const classificacaoNormalizada = normalizarClassificacaoParaChave(linha.classificacao || '');
-      
+      const classificacaoNormalizada = normalizarClassificacaoParaChave(
+        linha.classificacao || '',
+      );
+
       // Criar chave composta para identificar unicamente cada conta
       const subContaStr = linha.subConta || '';
       const chaveComposta = `${classificacaoNormalizada}|${linha.conta || ''}|${subContaStr}`;
-      
+
       // Usar classificação normalizada como chave do mapa (para agrupamento no relatório)
       const key = classificacaoNormalizada;
-      
+
       // Se ainda não processamos esta combinação específica
       if (!chavesProcessadas.has(chaveComposta)) {
         chavesProcessadas.add(chaveComposta);
-        
+
         // Se a classificação ainda não está no mapa, adicionar
         if (!classificacoesUnicas.has(key)) {
           classificacoesUnicas.set(key, {
@@ -308,7 +344,11 @@ export class RelatoriosService {
         } else {
           // Se já existe, priorizar o nome da conta mais completo
           const existente = classificacoesUnicas.get(key)!;
-          if (linha.nomeConta && (!existente.conta || linha.nomeConta.length > existente.conta.length)) {
+          if (
+            linha.nomeConta &&
+            (!existente.conta ||
+              linha.nomeConta.length > existente.conta.length)
+          ) {
             classificacoesUnicas.set(key, {
               conta: linha.nomeConta,
               tipoConta: linha.tipoConta || '3-DRE',
@@ -320,7 +360,10 @@ export class RelatoriosService {
     }
 
     // Criar um mapa de classificações com suas informações (apenas DRE)
-    const classificacoesMap = new Map<string, { conta: string; tipoConta: string; nivel: number }>();
+    const classificacoesMap = new Map<
+      string,
+      { conta: string; tipoConta: string; nivel: number }
+    >();
     for (const [classificacao, info] of classificacoesUnicas.entries()) {
       // Aplicar filtro de descrição também aqui
       if (descricao && descricao.trim().length > 0) {
@@ -336,13 +379,18 @@ export class RelatoriosService {
     // Adicionar contas que estão nos uploads mas não estão no catálogo
     // Usar normalização para garantir que encontre mesmo com pequenas diferenças
     const contasCatalogoMap = new Map(
-      contasCatalogo.map(c => [normalizarClassificacaoParaChave(c.classificacao), c])
+      contasCatalogo.map((c) => [
+        normalizarClassificacaoParaChave(c.classificacao),
+        c,
+      ]),
     );
     for (const [classificacao, info] of classificacoesMap.entries()) {
-      const classificacaoNormalizadaParaBusca = normalizarClassificacaoParaChave(classificacao);
+      const classificacaoNormalizadaParaBusca =
+        normalizarClassificacaoParaChave(classificacao);
       if (!contasCatalogoMap.has(classificacaoNormalizadaParaBusca)) {
         // Adicionar conta que está nos uploads mas não está no catálogo
-        contasCatalogo.push({
+        // Usar type assertion pois é um objeto temporário para processamento interno
+        (contasCatalogo as Array<Record<string, unknown>>).push({
           id: `temp-${classificacao}`, // ID temporário
           classificacao,
           conta: '', // Será preenchido depois
@@ -355,11 +403,16 @@ export class RelatoriosService {
           ultimaImportacao: new Date(),
           createdAt: new Date(),
           updatedAt: new Date(),
-        } as any);
+        });
       } else {
         // Se está no catálogo mas o nome da conta está vazio ou diferente, atualizar com o dos uploads
-        const contaCatalogo = contasCatalogoMap.get(classificacaoNormalizadaParaBusca)!;
-        if (info.conta && (!contaCatalogo.nomeConta || contaCatalogo.nomeConta !== info.conta)) {
+        const contaCatalogo = contasCatalogoMap.get(
+          classificacaoNormalizadaParaBusca,
+        )!;
+        if (
+          info.conta &&
+          (!contaCatalogo.nomeConta || contaCatalogo.nomeConta !== info.conta)
+        ) {
           // Atualizar o nome da conta do catálogo com o dos uploads (mais recente)
           contaCatalogo.nomeConta = info.conta;
         }
@@ -376,18 +429,21 @@ export class RelatoriosService {
 
     // Primeiro, processar todas as chaves compostas que têm dados
     // Cada chave composta (classificacao|conta|subConta) será uma linha separada no relatório
-    for (const [chaveComposta, valoresPorMes] of dadosPorMesEChaveComposta.entries()) {
+    for (const [
+      chaveComposta,
+      valoresPorMes,
+    ] of dadosPorMesEChaveComposta.entries()) {
       // Separar chave composta: classificacao|conta|subConta
       const partes = chaveComposta.split('|');
       const classificacao = partes[0] || '';
       const conta = partes[1] || '';
       const subConta = partes[2] || '';
-      
+
       const classificacaoNormalizada = normalizarClassificacao(classificacao);
-      
+
       // Criar chave única para o mapa (incluir conta e subConta para diferenciar)
       const chaveMapa = `${classificacaoNormalizada}|${conta}|${subConta}`;
-      
+
       // Se já está no mapa, pular (não deve acontecer, mas por segurança)
       if (contasMap.has(chaveMapa)) {
         continue;
@@ -396,33 +452,37 @@ export class RelatoriosService {
       // Buscar informações da linha nos uploads
       let nomeConta = classificacao;
       let nivel = (classificacao.match(/\./g) || []).length + 1;
-      
+
       // Buscar linha correspondente nos uploads
-      const linhaEncontrada = todasClassificacoesUploads.find(
-        (linha) => {
-          const linhaChave = criarChaveComposta(linha.classificacao || '', linha.conta, linha.subConta);
-          return linhaChave === chaveComposta;
-        }
-      );
-      
+      const linhaEncontrada = todasClassificacoesUploads.find((linha) => {
+        const linhaChave = criarChaveComposta(
+          linha.classificacao || '',
+          linha.conta,
+          linha.subConta,
+        );
+        return linhaChave === chaveComposta;
+      });
+
       if (linhaEncontrada) {
         nomeConta = linhaEncontrada.nomeConta || classificacao;
         nivel = linhaEncontrada.nivel || nivel;
       } else {
         // Tentar encontrar no catálogo
-        const contaCatalogo = contasCatalogo.find(
-          (c) => {
-            const catChave = criarChaveComposta(c.classificacao, c.conta, c.subConta);
-            return catChave === chaveComposta;
-          }
-        );
-        
+        const contaCatalogo = contasCatalogo.find((c) => {
+          const catChave = criarChaveComposta(
+            c.classificacao,
+            c.conta,
+            c.subConta,
+          );
+          return catChave === chaveComposta;
+        });
+
         if (contaCatalogo) {
           nomeConta = contaCatalogo.nomeConta || classificacao;
           nivel = contaCatalogo.nivel || nivel;
         }
       }
-      
+
       // Calcular valores
       const valores: { [mes: number]: number; total: number } = {
         total: 0,
@@ -434,23 +494,25 @@ export class RelatoriosService {
       }
 
       // Adicionar ao mapa com chave única (classificacao|conta|subConta)
+      // Usar type assertion pois ContaRelatorio não inclui conta/subConta no tipo base
+      // mas precisamos armazená-los para referência interna
       contasMap.set(chaveMapa, {
         classificacao, // Manter original para exibição
         nomeConta,
         nivel,
         valores,
         filhos: [],
-        // Armazenar conta e subConta para referência
+        // Armazenar conta e subConta para referência (campos extras não no tipo base)
         conta: conta || undefined,
         subConta: subConta || undefined,
-      } as any);
+      } as ContaRelatorio & { conta?: string; subConta?: string });
     }
 
     // 6. Criar contas pai automaticamente (mesmo sem dados diretos)
     // Isso garante que a hierarquia seja construída corretamente
     const criarContasPai = () => {
       const contasParaCriar = new Set<string>();
-      
+
       // Coletar todas as classificações que precisam de pais
       // As chaves do mapa são no formato: classificacao|conta|subConta
       for (const chaveMapa of contasMap.keys()) {
@@ -458,66 +520,74 @@ export class RelatoriosService {
         const partes = chaveMapa.split('|');
         const classificacao = partes[0] || '';
         const normalizada = normalizarClassificacao(classificacao);
-        const partesClassificacao = normalizada.split('.').filter((p) => p.length > 0);
-        
+        const partesClassificacao = normalizada
+          .split('.')
+          .filter((p) => p.length > 0);
+
         // Criar todos os pais necessários (apenas pela classificação, sem conta/subConta)
         for (let i = partesClassificacao.length - 1; i > 0; i--) {
           const partesPai = partesClassificacao.slice(0, i);
           const classificacaoPai = partesPai.join('.');
-          const classificacaoPaiNormalizada = normalizarClassificacao(classificacaoPai);
-          
+          const classificacaoPaiNormalizada =
+            normalizarClassificacao(classificacaoPai);
+
           // Verificar se já existe algum pai com essa classificação (pode ter conta/subConta diferentes)
-          const existePai = Array.from(contasMap.keys()).some(
-            (chave) => chave.startsWith(classificacaoPaiNormalizada + '|')
+          const existePai = Array.from(contasMap.keys()).some((chave) =>
+            chave.startsWith(classificacaoPaiNormalizada + '|'),
           );
-          
+
           // Se o pai não existe, adicionar à lista para criar
           if (!existePai) {
             contasParaCriar.add(classificacaoPai);
           }
         }
       }
-      
+
       // Criar contas pai que não existem
       for (const classificacaoPai of contasParaCriar) {
-        const classificacaoPaiNormalizada = normalizarClassificacao(classificacaoPai);
-        
+        const classificacaoPaiNormalizada =
+          normalizarClassificacao(classificacaoPai);
+
         // Buscar informações do catálogo ou dos uploads
         let nomeConta = classificacaoPai;
         let nivel = (classificacaoPai.match(/\./g) || []).length + 1;
-        
+
         // Tentar encontrar no catálogo (usar normalização para comparação)
-        const contaCatalogo = contasCatalogo.find(
-          (c) => {
-            const classificacaoCatalogoNormalizada = normalizarClassificacaoParaChave(c.classificacao);
-            return classificacaoCatalogoNormalizada === classificacaoPaiNormalizada;
-          }
-        );
-        
+        const contaCatalogo = contasCatalogo.find((c) => {
+          const classificacaoCatalogoNormalizada =
+            normalizarClassificacaoParaChave(c.classificacao);
+          return (
+            classificacaoCatalogoNormalizada === classificacaoPaiNormalizada
+          );
+        });
+
         if (contaCatalogo) {
           nomeConta = contaCatalogo.nomeConta || classificacaoPai;
           nivel = contaCatalogo.nivel || nivel;
         } else {
           // Tentar encontrar nos uploads (usar normalização para comparação)
-          const linhaEncontrada = todasClassificacoesUploads.find(
-            (linha) => {
-              const classificacaoLinhaNormalizada = normalizarClassificacaoParaChave(linha.classificacao || '');
-              return classificacaoLinhaNormalizada === classificacaoPaiNormalizada;
-            }
-          );
-          
+          const linhaEncontrada = todasClassificacoesUploads.find((linha) => {
+            const classificacaoLinhaNormalizada =
+              normalizarClassificacaoParaChave(linha.classificacao || '');
+            return (
+              classificacaoLinhaNormalizada === classificacaoPaiNormalizada
+            );
+          });
+
           if (linhaEncontrada) {
             nomeConta = linhaEncontrada.nomeConta || classificacaoPai;
             nivel = linhaEncontrada.nivel || nivel;
           }
         }
-        
+
         // Criar conta pai com valores zerados (será preenchida pelos filhos)
-        const valoresPai: { [mes: number]: number; total: number } = { total: 0 };
+        const valoresPai: { [mes: number]: number; total: number } = {
+          total: 0,
+        };
         for (let mes = 1; mes <= 12; mes++) {
           valoresPai[mes] = 0;
         }
-        
+
         // Criar chave para o pai (sem conta/subConta específicos, usar vazio)
         const chavePai = `${classificacaoPaiNormalizada}||`;
         contasMap.set(chavePai, {
@@ -529,7 +599,7 @@ export class RelatoriosService {
         });
       }
     };
-    
+
     // Criar todas as contas pai necessárias
     criarContasPai();
 
@@ -542,20 +612,30 @@ export class RelatoriosService {
     // IMPORTANTE: Contas sem subConta devem ser processadas antes das contas com subConta (mesma classificação e conta)
     const todasContas = Array.from(contasMap.values());
     const contasOrdenadas = todasContas.sort((a, b) => {
-      const nivelA = (normalizarClassificacao(a.classificacao).match(/\./g) || []).length;
-      const nivelB = (normalizarClassificacao(b.classificacao).match(/\./g) || []).length;
+      const nivelA = (
+        normalizarClassificacao(a.classificacao).match(/\./g) || []
+      ).length;
+      const nivelB = (
+        normalizarClassificacao(b.classificacao).match(/\./g) || []
+      ).length;
       if (nivelA !== nivelB) {
         return nivelA - nivelB;
       }
-      
+
       // Se mesmo nível, verificar se têm a mesma classificação e conta
       const classificacaoA = normalizarClassificacao(a.classificacao);
       const classificacaoB = normalizarClassificacao(b.classificacao);
-      const contaA = (a as any).conta || '';
-      const contaB = (b as any).conta || '';
-      const subContaA = (a as any).subConta || '';
-      const subContaB = (b as any).subConta || '';
-      
+      const contaA =
+        ('conta' in a ? (a as { conta?: string }).conta : undefined) || '';
+      const contaB =
+        ('conta' in b ? (b as { conta?: string }).conta : undefined) || '';
+      const subContaA =
+        ('subConta' in a ? (a as { subConta?: string }).subConta : undefined) ||
+        '';
+      const subContaB =
+        ('subConta' in b ? (b as { subConta?: string }).subConta : undefined) ||
+        '';
+
       // Se têm a mesma classificação e conta, ordenar: sem subConta primeiro, depois com subConta
       if (classificacaoA === classificacaoB && contaA === contaB) {
         if (subContaA === '' && subContaB !== '') {
@@ -567,7 +647,7 @@ export class RelatoriosService {
         // Se ambas têm ou não têm subConta, ordenar por subConta
         return subContaA.localeCompare(subContaB);
       }
-      
+
       // Se mesmo nível mas classificação/conta diferentes, ordenar por classificação
       return classificacaoA.localeCompare(classificacaoB);
     });
@@ -577,26 +657,34 @@ export class RelatoriosService {
     const encontrarPai = (classificacao: string): string | null => {
       const normalizada = normalizarClassificacao(classificacao);
       const partes = normalizada.split('.').filter((p) => p.length > 0);
-      
+
       if (partes.length <= 1) {
         return null; // É raiz (ex: "3")
       }
-      
+
       // Remove última parte para encontrar pai
       partes.pop();
       const classificacaoPai = partes.join('.');
-      
+
       return classificacaoPai;
     };
 
     for (const contaRelatorio of contasOrdenadas) {
-      const classificacaoNormalizada = normalizarClassificacao(contaRelatorio.classificacao);
-      
+      const classificacaoNormalizada = normalizarClassificacao(
+        contaRelatorio.classificacao,
+      );
+
       // Criar chave única para verificar se já foi processada
-      const conta = (contaRelatorio as any).conta || '';
-      const subConta = (contaRelatorio as any).subConta || '';
+      const conta =
+        ('conta' in contaRelatorio
+          ? (contaRelatorio as { conta?: string }).conta
+          : undefined) || '';
+      const subConta =
+        ('subConta' in contaRelatorio
+          ? (contaRelatorio as { subConta?: string }).subConta
+          : undefined) || '';
       const chaveUnica = `${classificacaoNormalizada}|${conta}|${subConta}`;
-      
+
       if (contasProcessadas.has(chaveUnica)) {
         continue;
       }
@@ -613,18 +701,19 @@ export class RelatoriosService {
       // Se não encontrou pai por subConta, buscar pelo pai da classificação (hierarquia normal)
       if (!pai) {
         const classificacaoPai = encontrarPai(contaRelatorio.classificacao);
-        
+
         if (classificacaoPai) {
           // Buscar pai no mapa (pode ter conta/subConta diferentes, buscar qualquer um com essa classificação)
-          const classificacaoPaiNormalizada = normalizarClassificacao(classificacaoPai);
+          const classificacaoPaiNormalizada =
+            normalizarClassificacao(classificacaoPai);
           // Buscar pai com chave que começa com a classificação do pai
           const chavePai = `${classificacaoPaiNormalizada}||`;
           pai = contasMap.get(chavePai);
-          
+
           // Se não encontrou com chave vazia, buscar qualquer um que comece com a classificação
           if (!pai) {
-            const chavesPai = Array.from(contasMap.keys()).filter(
-              (chave) => chave.startsWith(classificacaoPaiNormalizada + '|')
+            const chavesPai = Array.from(contasMap.keys()).filter((chave) =>
+              chave.startsWith(classificacaoPaiNormalizada + '|'),
             );
             if (chavesPai.length > 0) {
               pai = contasMap.get(chavesPai[0]);
@@ -632,7 +721,7 @@ export class RelatoriosService {
           }
         }
       }
-      
+
       if (pai) {
         pai.filhos = pai.filhos || [];
         pai.filhos.push(contaRelatorio);
@@ -640,7 +729,7 @@ export class RelatoriosService {
         // Não tem pai encontrado, é raiz
         raiz.push(contaRelatorio);
       }
-      
+
       contasProcessadas.add(chaveUnica);
     }
 
@@ -648,7 +737,9 @@ export class RelatoriosService {
     const ordenarFilhos = (contas: ContaRelatorio[]) => {
       for (const conta of contas) {
         if (conta.filhos && conta.filhos.length > 0) {
-          conta.filhos.sort((a, b) => a.classificacao.localeCompare(b.classificacao));
+          conta.filhos.sort((a, b) =>
+            a.classificacao.localeCompare(b.classificacao),
+          );
           ordenarFilhos(conta.filhos);
         }
       }
@@ -707,6 +798,7 @@ export class RelatoriosService {
     ano: number,
     empresaIds: string[],
     descricao?: string,
+    tipoValor: 'ACUMULADO' | 'PERIODO' = 'ACUMULADO',
   ): Promise<Map<string, number>> {
     // Buscar uploads do período específico
     const uploads = await this.prisma.upload.findMany({
@@ -724,14 +816,22 @@ export class RelatoriosService {
     const dadosPorChaveComposta = new Map<string, number>();
 
     // Função auxiliar para normalizar classificação
-    const normalizarClassificacaoParaChave = (classificacao: string): string => {
+    const normalizarClassificacaoParaChave = (
+      classificacao: string,
+    ): string => {
       if (!classificacao) return '';
       return classificacao.trim().replace(/\.$/, '');
     };
 
     // Função para criar chave composta
-    const criarChaveComposta = (classificacao: string, conta: string | null, subConta: string | null): string => {
-      const classificacaoNorm = normalizarClassificacaoParaChave(classificacao || '');
+    const criarChaveComposta = (
+      classificacao: string,
+      conta: string | null,
+      subConta: string | null,
+    ): string => {
+      const classificacaoNorm = normalizarClassificacaoParaChave(
+        classificacao || '',
+      );
       const contaStr = conta || '';
       const subContaStr = subConta || '';
       return `${classificacaoNorm}|${contaStr}|${subContaStr}`;
@@ -754,13 +854,31 @@ export class RelatoriosService {
           }
         }
 
-        const classificacao = normalizarClassificacaoParaChave(linha.classificacao || '');
+        const classificacao = normalizarClassificacaoParaChave(
+          linha.classificacao || '',
+        );
         if (!classificacao) {
           continue;
         }
 
-        const chaveComposta = criarChaveComposta(linha.classificacao || '', linha.conta, linha.subConta);
-        const valorLinha = Number(linha.saldoAtual) || 0;
+        const chaveComposta = criarChaveComposta(
+          linha.classificacao || '',
+          linha.conta,
+          linha.subConta,
+        );
+
+        let valorLinha: number;
+        if (tipoValor === 'PERIODO') {
+          // Valor do período: movimentação do mês
+          // Para DRE: crédito - débito
+          // (crédito já vem com sinal do Excel, débito também)
+          const debito = Number(linha.debito) || 0;
+          const credito = Number(linha.credito) || 0;
+          valorLinha = credito - debito;
+        } else {
+          // Valor acumulado (padrão)
+          valorLinha = Number(linha.saldoAtual) || 0;
+        }
 
         // Somar valores se já existe a chave
         const valorAtual = dadosPorChaveComposta.get(chaveComposta) || 0;
@@ -784,22 +902,26 @@ export class RelatoriosService {
     empresaId?: string,
     empresaIds?: string[],
     descricao?: string,
+    tipoValor: 'ACUMULADO' | 'PERIODO' = 'ACUMULADO',
   ): Promise<RelatorioComparativo> {
-
     // 1. Buscar empresas conforme tipo (mesma lógica do gerarRelatorioResultado)
-    let empresas;
+    let empresas: Empresa[];
     let empresaNome = 'CONSOLIDADO';
     let ufRelatorio: string | undefined;
 
     if (tipo === TipoRelatorio.FILIAL) {
       if (!empresaId) {
-        throw new NotFoundException('empresaId é obrigatório para relatório FILIAL');
+        throw new NotFoundException(
+          'empresaId é obrigatório para relatório FILIAL',
+        );
       }
       const empresa = await this.prisma.empresa.findUnique({
         where: { id: empresaId },
       });
       if (!empresa) {
-        throw new NotFoundException(`Empresa com ID ${empresaId} não encontrada`);
+        throw new NotFoundException(
+          `Empresa com ID ${empresaId} não encontrada`,
+        );
       }
       empresas = [empresa];
       empresaNome = empresa.razaoSocial;
@@ -811,9 +933,12 @@ export class RelatoriosService {
           where: { id: { in: empresaIds } },
         });
         if (empresas.length === 0) {
-          throw new NotFoundException('Nenhuma empresa encontrada com os IDs fornecidos');
+          throw new NotFoundException(
+            'Nenhuma empresa encontrada com os IDs fornecidos',
+          );
         }
-        empresaNome = empresas.length === 1 ? empresas[0].razaoSocial : 'CONSOLIDADO';
+        empresaNome =
+          empresas.length === 1 ? empresas[0].razaoSocial : 'CONSOLIDADO';
         ufRelatorio = empresas[0]?.uf || undefined;
       } else {
         empresas = await this.prisma.empresa.findMany();
@@ -825,13 +950,29 @@ export class RelatoriosService {
     const empresaIdsList = empresas.map((e) => e.id);
 
     // 2. Buscar dados dos dois períodos
-    const dadosPeriodo1 = await this.buscarDadosPeriodo(mes1, ano1, empresaIdsList, descricao);
-    const dadosPeriodo2 = await this.buscarDadosPeriodo(mes2, ano2, empresaIdsList, descricao);
+    const dadosPeriodo1 = await this.buscarDadosPeriodo(
+      mes1,
+      ano1,
+      empresaIdsList,
+      descricao,
+      tipoValor,
+    );
+    const dadosPeriodo2 = await this.buscarDadosPeriodo(
+      mes2,
+      ano2,
+      empresaIdsList,
+      descricao,
+      tipoValor,
+    );
 
     // 3. Criar conjunto de todas as chaves (período 1 + período 2)
     const todasChaves = new Set<string>();
-    dadosPeriodo1.forEach((_, chave) => todasChaves.add(chave));
-    dadosPeriodo2.forEach((_, chave) => todasChaves.add(chave));
+    dadosPeriodo1.forEach((valor, chave) => {
+      todasChaves.add(chave);
+    });
+    dadosPeriodo2.forEach((valor, chave) => {
+      todasChaves.add(chave);
+    });
 
     // 4. Buscar informações das contas no catálogo
     const contasCatalogo = await this.prisma.contaCatalogo.findMany({
@@ -853,7 +994,9 @@ export class RelatoriosService {
     const contasMap = new Map<string, ContaComparativa>();
 
     // Função auxiliar para normalizar classificação
-    const normalizarClassificacaoParaChave = (classificacao: string): string => {
+    const normalizarClassificacaoParaChave = (
+      classificacao: string,
+    ): string => {
       if (!classificacao) return '';
       return classificacao.trim().replace(/\.$/, '');
     };
@@ -866,7 +1009,12 @@ export class RelatoriosService {
       const valorPeriodo1 = dadosPeriodo1.get(chaveComposta) || 0;
       const valorPeriodo2 = dadosPeriodo2.get(chaveComposta) || 0;
       const diferenca = valorPeriodo2 - valorPeriodo1;
-      const percentual = valorPeriodo1 !== 0 ? (diferenca / Math.abs(valorPeriodo1)) * 100 : (valorPeriodo2 !== 0 ? 100 : 0);
+      const percentual =
+        valorPeriodo1 !== 0
+          ? (diferenca / Math.abs(valorPeriodo1)) * 100
+          : valorPeriodo2 !== 0
+            ? 100
+            : 0;
 
       // Buscar informações da conta no catálogo ou nos uploads
       let nomeConta = classificacao;
@@ -874,7 +1022,11 @@ export class RelatoriosService {
 
       // Tentar encontrar no catálogo
       const contaCatalogo = contasCatalogo.find(
-        (c) => normalizarClassificacaoParaChave(c.classificacao) === classificacaoNorm && c.conta === conta && c.subConta === subConta,
+        (c) =>
+          normalizarClassificacaoParaChave(c.classificacao) ===
+            classificacaoNorm &&
+          c.conta === conta &&
+          c.subConta === subConta,
       );
 
       if (contaCatalogo) {
@@ -884,21 +1036,21 @@ export class RelatoriosService {
         // Buscar nos uploads
         // Nota: conta é obrigatória no schema, então sempre deve ter valor
         // Se conta estiver vazia, buscar apenas por classificação
-        const whereLinhaUpload: any = {
+        const whereLinhaUpload: Record<string, unknown> = {
           tipoConta: '3-DRE',
           classificacao: { contains: classificacao },
         };
-        
+
         if (conta && conta.trim() !== '') {
           whereLinhaUpload.conta = conta;
         }
-        
+
         if (subConta && subConta.trim() !== '') {
           whereLinhaUpload.subConta = subConta;
         } else {
           whereLinhaUpload.subConta = null;
         }
-        
+
         const linhaUpload = await this.prisma.linhaUpload.findFirst({
           where: whereLinhaUpload,
           orderBy: { createdAt: 'desc' },
@@ -944,7 +1096,7 @@ export class RelatoriosService {
 
     // Criar um mapa auxiliar para buscar contas por classificação (sem conta/subConta)
     const contasPorClassificacao = new Map<string, ContaComparativa[]>();
-    for (const [chaveComposta, conta] of contasMap.entries()) {
+    for (const [, conta] of contasMap.entries()) {
       const classificacao = conta.classificacao;
       if (!contasPorClassificacao.has(classificacao)) {
         contasPorClassificacao.set(classificacao, []);
@@ -954,7 +1106,9 @@ export class RelatoriosService {
 
     for (const contaComparativa of contasOrdenadas) {
       const classificacao = contaComparativa.classificacao;
-      const chaveUnica = Array.from(contasMap.entries()).find(([_, conta]) => conta === contaComparativa)?.[0];
+      const chaveUnica = Array.from(contasMap.entries()).find(
+        ([, conta]) => conta === contaComparativa,
+      )?.[0];
 
       if (!chaveUnica || contasProcessadas.has(chaveUnica)) {
         continue;
@@ -1006,11 +1160,18 @@ export class RelatoriosService {
     calcularTotais(raiz);
 
     const diferencaTotal = totalPeriodo2 - totalPeriodo1;
-    const percentualTotal = totalPeriodo1 !== 0 ? (diferencaTotal / Math.abs(totalPeriodo1)) * 100 : (totalPeriodo2 !== 0 ? 100 : 0);
+    const percentualTotal =
+      totalPeriodo1 !== 0
+        ? (diferencaTotal / Math.abs(totalPeriodo1)) * 100
+        : totalPeriodo2 !== 0
+          ? 100
+          : 0;
 
     // 9. Criar labels dos períodos
-    const mes1Nome = this.meses.find((m) => m.mes === mes1)?.nome || `Mês ${mes1}`;
-    const mes2Nome = this.meses.find((m) => m.mes === mes2)?.nome || `Mês ${mes2}`;
+    const mes1Nome =
+      this.meses.find((m) => m.mes === mes1)?.nome || `Mês ${mes1}`;
+    const mes2Nome =
+      this.meses.find((m) => m.mes === mes2)?.nome || `Mês ${mes2}`;
 
     return {
       periodo1: {
@@ -1060,9 +1221,13 @@ export class RelatoriosService {
         conta.valorPeriodo1 = valorPeriodo1Pai;
         conta.valorPeriodo2 = valorPeriodo2Pai;
         conta.diferenca = valorPeriodo2Pai - valorPeriodo1Pai;
-        conta.percentual = valorPeriodo1Pai !== 0 ? (conta.diferenca / Math.abs(valorPeriodo1Pai)) * 100 : (valorPeriodo2Pai !== 0 ? 100 : 0);
+        conta.percentual =
+          valorPeriodo1Pai !== 0
+            ? (conta.diferenca / Math.abs(valorPeriodo1Pai)) * 100
+            : valorPeriodo2Pai !== 0
+              ? 100
+              : 0;
       }
     }
   }
 }
-

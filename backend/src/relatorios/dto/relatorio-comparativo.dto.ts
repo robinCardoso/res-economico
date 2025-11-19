@@ -32,4 +32,3 @@ export interface RelatorioComparativo {
     percentual: number;
   };
 }
-

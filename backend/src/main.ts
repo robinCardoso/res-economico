@@ -36,9 +36,7 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0'); // Escutar em todas as interfaces de rede
-  console.log(
-    `🚀 Backend rodando em http://localhost:${port}`,
-  );
+  console.log(`🚀 Backend rodando em http://localhost:${port}`);
   // Obter IP da rede local para exibir na mensagem
   const networkInterfaces = os.networkInterfaces();
   let localIp = 'seu-IP-local';
@@ -46,16 +44,18 @@ async function bootstrap() {
     const addresses = networkInterfaces[interfaceName];
     if (!addresses) continue;
     for (const addr of addresses) {
-      if (addr.family === 'IPv4' && !addr.internal && addr.address.startsWith('10.1.')) {
+      if (
+        addr.family === 'IPv4' &&
+        !addr.internal &&
+        addr.address.startsWith('10.1.')
+      ) {
         localIp = addr.address;
         break;
       }
     }
     if (localIp !== 'seu-IP-local') break;
   }
-  console.log(
-    `🌐 Acessível na rede local: http://${localIp}:${port}`,
-  );
+  console.log(`🌐 Acessível na rede local: http://${localIp}:${port}`);
   console.log(
     `📱 Outros computadores na rede podem acessar em: http://${localIp}:3001`,
   );

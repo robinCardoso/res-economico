@@ -30,7 +30,10 @@ export class EmpresasController {
   }
 
   @Post()
-  create(@Body() dto: CreateEmpresaDto, @Request() req: { user?: { id?: string } }) {
+  create(
+    @Body() dto: CreateEmpresaDto,
+    @Request() req: { user?: { id?: string } },
+  ) {
     const userId = req.user?.id || 'system';
     return this.empresasService.create(dto, userId);
   }

@@ -28,4 +28,3 @@ export class AuditoriaController {
     return this.auditoriaService.findOne(id);
   }
 }
-

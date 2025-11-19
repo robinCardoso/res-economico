@@ -18,11 +18,10 @@ export class FileExtensionValidator extends FileValidator<
     const ext = extname(file.originalname).toLowerCase();
     // Normalizar extensões (garantir que comecem com ponto)
     const normalizedExt = ext.startsWith('.') ? ext : `.${ext}`;
-    const normalizedAllowed = this.validationOptions.allowedExtensions.map((e) =>
-      e.startsWith('.') ? e : `.${e}`,
+    const normalizedAllowed = this.validationOptions.allowedExtensions.map(
+      (e) => (e.startsWith('.') ? e : `.${e}`),
     );
 
     return normalizedAllowed.includes(normalizedExt);
   }
 }
-

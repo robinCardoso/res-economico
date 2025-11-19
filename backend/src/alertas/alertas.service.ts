@@ -12,7 +12,7 @@ export class AlertasService {
   ) {}
 
   findAll(filters?: FilterAlertasDto) {
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
     // Filtro por status
     if (filters?.status) {
@@ -58,7 +58,8 @@ export class AlertasService {
     if (filters?.busca) {
       // Se já existe um filtro de linha (tipoConta), combinar com busca
       if (where.linha) {
-        const tipoContaValue = where.linha.tipoConta;
+        const linhaFilter = where.linha as Record<string, unknown>;
+        const tipoContaValue = linhaFilter.tipoConta;
         // Buscar na mensagem OU na linha (com tipoConta correto)
         where.OR = [
           { mensagem: { contains: filters.busca, mode: 'insensitive' } },
@@ -66,7 +67,12 @@ export class AlertasService {
             linha: {
               tipoConta: tipoContaValue,
               OR: [
-                { classificacao: { contains: filters.busca, mode: 'insensitive' } },
+                {
+                  classificacao: {
+                    contains: filters.busca,
+                    mode: 'insensitive',
+                  },
+                },
                 { nomeConta: { contains: filters.busca, mode: 'insensitive' } },
               ],
             },
@@ -77,8 +83,16 @@ export class AlertasService {
         // Sem filtro de linha, buscar em linha também
         where.OR = [
           { mensagem: { contains: filters.busca, mode: 'insensitive' } },
-          { linha: { classificacao: { contains: filters.busca, mode: 'insensitive' } } },
-          { linha: { nomeConta: { contains: filters.busca, mode: 'insensitive' } } },
+          {
+            linha: {
+              classificacao: { contains: filters.busca, mode: 'insensitive' },
+            },
+          },
+          {
+            linha: {
+              nomeConta: { contains: filters.busca, mode: 'insensitive' },
+            },
+          },
         ];
       }
     }
@@ -106,7 +120,7 @@ export class AlertasService {
       throw new NotFoundException('Alerta não encontrado');
     }
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       status: dto.status,
     };
 
@@ -135,14 +149,18 @@ export class AlertasService {
 
     // Registrar auditoria
     if (userId) {
-      await this.auditoria.registrarAlerta(userId, id, `ATUALIZAR_STATUS_${dto.status}`);
+      await this.auditoria.registrarAlerta(
+        userId,
+        id,
+        `ATUALIZAR_STATUS_${dto.status}`,
+      );
     }
 
     return alertaAtualizado;
   }
 
   async getContagemPorTipoConta(filters?: FilterAlertasDto) {
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
     // Aplicar mesmos filtros base (exceto tipoConta, pois queremos agrupar por ele)
     if (filters?.status) {
@@ -188,11 +206,14 @@ export class AlertasService {
     });
 
     // Agrupar por tipoConta
-    const contagem = alertas.reduce((acc, alerta) => {
-      const tipoConta = alerta.linha?.tipoConta || 'Sem tipo';
-      acc[tipoConta] = (acc[tipoConta] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const contagem = alertas.reduce(
+      (acc, alerta) => {
+        const tipoConta = alerta.linha?.tipoConta || 'Sem tipo';
+        acc[tipoConta] = (acc[tipoConta] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     return Object.entries(contagem)
       .map(([tipoConta, quantidade]) => ({

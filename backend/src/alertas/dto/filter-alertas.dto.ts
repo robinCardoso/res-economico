@@ -34,4 +34,3 @@ export class FilterAlertasDto {
   @IsOptional()
   tipoConta?: string; // Filtro por tipo de conta (ex: "1-Ativo", "2-Passivo", etc.)
 }
-

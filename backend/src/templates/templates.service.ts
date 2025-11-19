@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
 
@@ -37,8 +38,9 @@ export class TemplatesService {
 
   async create(dto: CreateTemplateDto) {
     // Normalizar empresaId: string vazia ou null = template global
-    const empresaId = dto.empresaId && dto.empresaId.trim() !== '' ? dto.empresaId : null;
-    
+    const empresaId =
+      dto.empresaId && dto.empresaId.trim() !== '' ? dto.empresaId : null;
+
     // Se empresaId foi fornecido, verificar se a empresa existe
     if (empresaId) {
       const empresa = await this.prisma.empresa.findUnique({
@@ -57,7 +59,7 @@ export class TemplatesService {
         descricao: dto.descricao || null,
         configuracao: {
           columnMapping: dto.columnMapping as Record<string, unknown>,
-        } as any, // Prisma JSON type
+        } as unknown as Prisma.InputJsonValue, // Prisma JSON type
       },
       include: {
         empresa: true,
@@ -73,7 +75,7 @@ export class TemplatesService {
     if (dto.empresaId !== undefined && dto.empresaId !== null) {
       empresaId = dto.empresaId.trim() !== '' ? dto.empresaId : null;
     }
-    
+
     // Se empresaId foi fornecido, verificar se a empresa existe
     if (dto.empresaId !== undefined && empresaId) {
       const empresa = await this.prisma.empresa.findUnique({
@@ -107,7 +109,7 @@ export class TemplatesService {
 
     return this.prisma.templateImportacao.update({
       where: { id },
-      data: updateData as any, // Prisma types with nullable empresaId
+      data: updateData as unknown as Prisma.TemplateImportacaoUpdateInput, // Prisma types with nullable empresaId
       include: {
         empresa: true,
       },

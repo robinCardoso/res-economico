@@ -5,8 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useEmpresas } from '@/hooks/use-empresas';
 import { relatoriosService } from '@/services/relatorios.service';
 import type { TipoRelatorio, ContaComparativa } from '@/types/api';
-import { TipoComparacao } from '@/types/api';
-import { Loader2, ChevronRight, ChevronDown } from 'lucide-react';
+import { TipoComparacao, TipoValor } from '@/types/api';
+import { Loader2, ChevronRight, ChevronDown, FileSpreadsheet, FileText, BarChart3, ChevronUp } from 'lucide-react';
+import { exportarComparativoParaExcel, exportarComparativoParaPDF } from '@/utils/export-relatorio';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 const meses = [
   { value: 1, label: 'Janeiro' },
@@ -28,7 +30,7 @@ const RelatorioComparativoPage = () => {
   const [filtrosExpandidos, setFiltrosExpandidos] = useState<boolean>(true);
 
   // Estados locais dos filtros (não aplicados ainda)
-  const [tipoComparacaoLocal, setTipoComparacaoLocal] = useState<TipoComparacao>(TipoComparacao.MES_A_MES);
+  const [tipoComparacaoLocal, setTipoComparacaoLocal] = useState<TipoComparacao>(TipoComparacao.CUSTOMIZADO);
   const [mes1Local, setMes1Local] = useState<number>(new Date().getMonth() + 1);
   const [ano1Local, setAno1Local] = useState<number>(new Date().getFullYear());
   const [mes2Local, setMes2Local] = useState<number>(new Date().getMonth() + 1);
@@ -37,9 +39,10 @@ const RelatorioComparativoPage = () => {
   const [empresaIdLocal, setEmpresaIdLocal] = useState<string>('');
   const [empresaIdsLocal, setEmpresaIdsLocal] = useState<string[]>([]);
   const [descricaoLocal, setDescricaoLocal] = useState<string>('');
+  const [tipoValorLocal, setTipoValorLocal] = useState<TipoValor>(TipoValor.ACUMULADO);
 
   // Estados dos filtros aplicados (usados na query)
-  const [tipoComparacao, setTipoComparacao] = useState<TipoComparacao>(TipoComparacao.MES_A_MES);
+  const [tipoComparacao, setTipoComparacao] = useState<TipoComparacao>(TipoComparacao.CUSTOMIZADO);
   const [mes1, setMes1] = useState<number>(new Date().getMonth() + 1);
   const [ano1, setAno1] = useState<number>(new Date().getFullYear());
   const [mes2, setMes2] = useState<number>(new Date().getMonth() + 1);
@@ -48,11 +51,15 @@ const RelatorioComparativoPage = () => {
   const [empresaId, setEmpresaId] = useState<string>('');
   const [empresaIds, setEmpresaIds] = useState<string[]>([]);
   const [descricao, setDescricao] = useState<string>('');
+  const [tipoValor, setTipoValor] = useState<TipoValor>(TipoValor.ACUMULADO);
 
   // Estados para autocomplete de descrição
   const [descricoesSugeridas, setDescricoesSugeridas] = useState<string[]>([]);
   const [mostrarSugestoes, setMostrarSugestoes] = useState<boolean>(false);
   const [carregandoDescricoes, setCarregandoDescricoes] = useState<boolean>(false);
+
+  // Estado para controlar visibilidade dos gráficos
+  const [mostrarGraficos, setMostrarGraficos] = useState<boolean>(false);
 
   const { data: empresas } = useEmpresas();
   const empresasList = empresas || [];
@@ -109,8 +116,9 @@ const RelatorioComparativoPage = () => {
       empresaId: tipo === 'FILIAL' ? empresaId : undefined,
       empresaIds: tipo === 'CONSOLIDADO' && empresaIds.length > 0 ? empresaIds : undefined,
       descricao: descricao && descricao.trim().length > 0 ? descricao : undefined,
+      tipoValor,
     }),
-    [tipoComparacao, mes1, ano1, mes2, ano2, tipo, empresaId, empresaIds, descricao],
+    [tipoComparacao, mes1, ano1, mes2, ano2, tipo, empresaId, empresaIds, descricao, tipoValor],
   );
 
   // Buscar descrições para autocomplete
@@ -150,6 +158,7 @@ const RelatorioComparativoPage = () => {
     setEmpresaId(empresaIdLocal);
     setEmpresaIds(empresaIdsLocal);
     setDescricao(descricaoLocal);
+    setTipoValor(tipoValorLocal);
     setFiltrosExpandidos(false);
     setMostrarSugestoes(false);
   };
@@ -158,25 +167,27 @@ const RelatorioComparativoPage = () => {
     const anoParaUsar = anosDisponiveis.length > 0 ? anosDisponiveis[0] : new Date().getFullYear();
     const mesAtual = new Date().getMonth() + 1;
 
-    setTipoComparacaoLocal(TipoComparacao.MES_A_MES);
+    setTipoComparacaoLocal(TipoComparacao.CUSTOMIZADO);
     setMes1Local(mesAtual);
     setAno1Local(anoParaUsar);
-    setMes2Local(mesAtual === 12 ? 1 : mesAtual + 1);
-    setAno2Local(mesAtual === 12 ? anoParaUsar + 1 : anoParaUsar);
+    setMes2Local(mesAtual);
+    setAno2Local(anoParaUsar);
     setTipoLocal('CONSOLIDADO');
     setEmpresaIdLocal('');
     setEmpresaIdsLocal([]);
     setDescricaoLocal('');
+    setTipoValorLocal(TipoValor.ACUMULADO);
 
-    setTipoComparacao(TipoComparacao.MES_A_MES);
+    setTipoComparacao(TipoComparacao.CUSTOMIZADO);
     setMes1(mesAtual);
     setAno1(anoParaUsar);
-    setMes2(mesAtual === 12 ? 1 : mesAtual + 1);
-    setAno2(mesAtual === 12 ? anoParaUsar + 1 : anoParaUsar);
+    setMes2(mesAtual);
+    setAno2(anoParaUsar);
     setTipo('CONSOLIDADO');
     setEmpresaId('');
     setEmpresaIds([]);
     setDescricao('');
+    setTipoValor(TipoValor.ACUMULADO);
     setMostrarSugestoes(false);
     setFiltrosExpandidos(false);
   };
@@ -222,6 +233,44 @@ const RelatorioComparativoPage = () => {
 
   const [contasExpandidas, setContasExpandidas] = useState<Set<string>>(new Set());
   const [expandirTodosNiveis, setExpandirTodosNiveis] = useState<boolean>(false);
+
+  // Preparar dados para gráficos - top 10 contas por valor absoluto
+  const dadosGrafico = useMemo(() => {
+    if (!relatorio?.contas) return [];
+
+    const coletarTodasContas = (contas: ContaComparativa[]): ContaComparativa[] => {
+      const todas: ContaComparativa[] = [];
+      const processar = (lista: ContaComparativa[]) => {
+        for (const conta of lista) {
+          todas.push(conta);
+          if (conta.filhos && conta.filhos.length > 0) {
+            processar(conta.filhos);
+          }
+        }
+      };
+      processar(contas);
+      return todas;
+    };
+
+    const todasContas = coletarTodasContas(relatorio.contas);
+    const contasOrdenadas = todasContas
+      .filter((c) => Math.abs(c.valorPeriodo1) > 0 || Math.abs(c.valorPeriodo2) > 0)
+      .sort((a, b) => {
+        const valorA = Math.max(Math.abs(a.valorPeriodo1), Math.abs(a.valorPeriodo2));
+        const valorB = Math.max(Math.abs(b.valorPeriodo1), Math.abs(b.valorPeriodo2));
+        return valorB - valorA;
+      })
+      .slice(0, 10);
+
+    return contasOrdenadas.map((conta) => ({
+      nome: conta.nomeConta.length > 20 ? conta.nomeConta.substring(0, 20) + '...' : conta.nomeConta,
+      classificacao: conta.classificacao,
+      periodo1: conta.valorPeriodo1,
+      periodo2: conta.valorPeriodo2,
+      diferenca: conta.diferenca,
+      percentual: conta.percentual,
+    }));
+  }, [relatorio]);
 
   // Função para coletar todas as classificações de contas que têm filhos
   const coletarTodasClassificacoes = useCallback(
@@ -365,6 +414,48 @@ const RelatorioComparativoPage = () => {
                 {tipoComparacaoLocal === TipoComparacao.ANO_A_ANO && 'Compara o mesmo mês em anos diferentes (ex: Janeiro/2024 vs Janeiro/2025)'}
                 {tipoComparacaoLocal === TipoComparacao.CUSTOMIZADO && 'Compare dois períodos específicos de sua escolha'}
               </p>
+            </div>
+
+            {/* 1.1. Tipo de Valor */}
+            <div>
+              <label className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                1.1. Tipo de Valor
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="tipoValor"
+                    value={TipoValor.ACUMULADO}
+                    checked={tipoValorLocal === TipoValor.ACUMULADO}
+                    onChange={(e) => setTipoValorLocal(e.target.value as TipoValor)}
+                    className="h-3.5 w-3.5 text-sky-600 focus:ring-sky-500"
+                  />
+                  <span className="text-xs text-slate-700 dark:text-slate-300">
+                    Valor Acumulado
+                  </span>
+                </label>
+                <p className="ml-6 text-[10px] text-slate-500 dark:text-slate-400">
+                  Saldo acumulado até o mês (saldoAtual)
+                </p>
+                
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="tipoValor"
+                    value={TipoValor.PERIODO}
+                    checked={tipoValorLocal === TipoValor.PERIODO}
+                    onChange={(e) => setTipoValorLocal(e.target.value as TipoValor)}
+                    className="h-3.5 w-3.5 text-sky-600 focus:ring-sky-500"
+                  />
+                  <span className="text-xs text-slate-700 dark:text-slate-300">
+                    Valor do Período
+                  </span>
+                </label>
+                <p className="ml-6 text-[10px] text-slate-500 dark:text-slate-400">
+                  Movimentação do mês (crédito - débito)
+                </p>
+              </div>
             </div>
 
             {/* 2. Períodos */}
@@ -630,8 +721,11 @@ const RelatorioComparativoPage = () => {
                 <p className="text-sm text-slate-500">
                   Comparação: {relatorio.periodo1.label} vs {relatorio.periodo2.label}
                 </p>
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                  Tipo de valor: <span className="font-medium">{tipoValor === TipoValor.ACUMULADO ? 'Acumulado' : 'Período'}</span>
+                </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -643,6 +737,30 @@ const RelatorioComparativoPage = () => {
                     Expandir Níveis
                   </span>
                 </label>
+                <div className="h-4 w-px bg-slate-300 dark:bg-slate-700" />
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => exportarComparativoParaExcel(relatorio)}
+                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-300 bg-white px-2 text-[10px] font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    title="Exportar para Excel"
+                  >
+                    <FileSpreadsheet className="h-3 w-3" />
+                    Excel
+                  </button>
+                  <button
+                    onClick={() => {
+                      exportarComparativoParaPDF(relatorio).catch((error) => {
+                        console.error('Erro ao exportar PDF:', error);
+                        alert('Erro ao exportar PDF. Tente novamente.');
+                      });
+                    }}
+                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-300 bg-white px-2 text-[10px] font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    title="Exportar para PDF"
+                  >
+                    <FileText className="h-3 w-3" />
+                    PDF
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -677,6 +795,131 @@ const RelatorioComparativoPage = () => {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Gráficos (Opcional) */}
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+            <button
+              onClick={() => setMostrarGraficos(!mostrarGraficos)}
+              className="flex w-full items-center justify-between p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50"
+            >
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  Gráficos de Tendências
+                </h3>
+                <span className="text-xs text-slate-500 dark:text-slate-400">(Opcional)</span>
+              </div>
+              {mostrarGraficos ? (
+                <ChevronUp className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+              )}
+            </button>
+
+            {mostrarGraficos && (
+              <div className="border-t border-slate-200 p-4 dark:border-slate-800">
+                <div className="space-y-6">
+                  {/* Gráfico de Barras - Comparação */}
+                  <div>
+                    <h4 className="mb-3 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Comparação Lado a Lado (Top 10 Contas)
+                    </h4>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={dadosGrafico} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis
+                          dataKey="nome"
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                          tick={{ fontSize: 10 }}
+                          stroke="#64748b"
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10 }}
+                          stroke="#64748b"
+                          tickFormatter={(value) => {
+                            if (Math.abs(value) >= 1000000) {
+                              return `R$ ${(value / 1000000).toFixed(1)}M`;
+                            } else if (Math.abs(value) >= 1000) {
+                              return `R$ ${(value / 1000).toFixed(0)}k`;
+                            }
+                            return `R$ ${value.toFixed(0)}`;
+                          }}
+                        />
+                        <Tooltip
+                          formatter={(value: number) => formatarValor(value)}
+                          labelStyle={{ color: '#1e293b' }}
+                          contentStyle={{
+                            backgroundColor: '#fff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '6px',
+                          }}
+                        />
+                        <Legend />
+                        <Bar
+                          dataKey="periodo1"
+                          name={relatorio.periodo1.label}
+                          fill="#3b82f6"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar
+                          dataKey="periodo2"
+                          name={relatorio.periodo2.label}
+                          fill="#8b5cf6"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Gráfico de Linha - Tendência */}
+                  <div>
+                    <h4 className="mb-3 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Tendência de Variação (Top 10 Contas)
+                    </h4>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={dadosGrafico} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis
+                          dataKey="nome"
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                          tick={{ fontSize: 10 }}
+                          stroke="#64748b"
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10 }}
+                          stroke="#64748b"
+                          tickFormatter={(value) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`}
+                        />
+                        <Tooltip
+                          formatter={(value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`}
+                          labelStyle={{ color: '#1e293b' }}
+                          contentStyle={{
+                            backgroundColor: '#fff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '6px',
+                          }}
+                        />
+                        <Legend />
+                        <Line
+                          type="monotone"
+                          dataKey="percentual"
+                          name="Variação %"
+                          stroke="#10b981"
+                          strokeWidth={2}
+                          dot={{ r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Tabela */}

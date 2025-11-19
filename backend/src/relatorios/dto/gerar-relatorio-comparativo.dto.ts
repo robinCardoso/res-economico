@@ -1,10 +1,23 @@
-import { IsInt, IsOptional, IsString, IsArray, IsEnum, Min, Max } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  IsArray,
+  IsEnum,
+  Min,
+  Max,
+} from 'class-validator';
 import { TipoRelatorio } from './gerar-relatorio.dto';
 
 export enum TipoComparacao {
   MES_A_MES = 'MES_A_MES', // Comparar dois meses consecutivos
   ANO_A_ANO = 'ANO_A_ANO', // Comparar mesmo mês em anos diferentes
   CUSTOMIZADO = 'CUSTOMIZADO', // Comparar dois períodos específicos
+}
+
+export enum TipoValor {
+  ACUMULADO = 'ACUMULADO', // Saldo acumulado até o mês (saldoAtual)
+  PERIODO = 'PERIODO', // Movimentação do mês (credito - debito)
 }
 
 export class GerarRelatorioComparativoDto {
@@ -46,5 +59,8 @@ export class GerarRelatorioComparativoDto {
   @IsOptional()
   @IsString()
   descricao?: string; // Filtro opcional por descrição
-}
 
+  @IsOptional()
+  @IsEnum(TipoValor)
+  tipoValor?: TipoValor; // Tipo de valor: ACUMULADO (padrão) ou PERIODO
+}

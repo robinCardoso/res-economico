@@ -3,6 +3,7 @@ import { PrismaService } from '../core/prisma/prisma.service';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
+import * as path from 'path';
 import { Decimal } from '@prisma/client/runtime/library';
 
 interface ExcelRow {
@@ -53,14 +54,16 @@ export class ExcelProcessorService {
     onProgress?: (progress: number, etapa: string) => void,
   ): Promise<void> {
     this.logger.log(`[${uploadId}] processUpload iniciado`);
-    
+
     const upload = await this.prisma.upload.findUnique({
       where: { id: uploadId },
       include: { template: true, empresa: true },
     });
 
     if (!upload) {
-      this.logger.error(`[${uploadId}] Upload não encontrado no banco de dados`);
+      this.logger.error(
+        `[${uploadId}] Upload não encontrado no banco de dados`,
+      );
       throw new Error(`Upload ${uploadId} não encontrado`);
     }
 
@@ -69,7 +72,9 @@ export class ExcelProcessorService {
     this.logger.log(`[${uploadId}] Empresa: ${upload.empresa?.razaoSocial}`);
 
     if (upload.status !== 'PROCESSANDO') {
-      this.logger.warn(`[${uploadId}] Upload não está em status PROCESSANDO (status: ${upload.status})`);
+      this.logger.warn(
+        `[${uploadId}] Upload não está em status PROCESSANDO (status: ${upload.status})`,
+      );
       return;
     }
 
@@ -78,25 +83,35 @@ export class ExcelProcessorService {
       onProgress?.(10, 'Lendo arquivo Excel...');
       const filePath = upload.arquivoUrl.replace('/uploads/', './uploads/');
       this.logger.log(`[${uploadId}] Tentando ler arquivo: ${filePath}`);
-      this.logger.log(`[${uploadId}] Caminho absoluto: ${require('path').resolve(filePath)}`);
-      
+      this.logger.log(
+        `[${uploadId}] Caminho absoluto: ${path.resolve(filePath)}`,
+      );
+
       if (!fs.existsSync(filePath)) {
-        this.logger.error(`[${uploadId}] Arquivo não encontrado no caminho: ${filePath}`);
+        this.logger.error(
+          `[${uploadId}] Arquivo não encontrado no caminho: ${filePath}`,
+        );
         // Listar arquivos no diretório para debug
         const uploadsDir = './uploads';
         if (fs.existsSync(uploadsDir)) {
           const files = fs.readdirSync(uploadsDir);
-          this.logger.log(`[${uploadId}] Arquivos encontrados no diretório uploads: ${files.join(', ')}`);
+          this.logger.log(
+            `[${uploadId}] Arquivos encontrados no diretório uploads: ${files.join(', ')}`,
+          );
         } else {
           this.logger.error(`[${uploadId}] Diretório uploads não existe!`);
         }
         throw new Error(`Arquivo não encontrado: ${filePath}`);
       }
-      
-      this.logger.log(`[${uploadId}] Arquivo encontrado! Tamanho: ${fs.statSync(filePath).size} bytes`);
+
+      this.logger.log(
+        `[${uploadId}] Arquivo encontrado! Tamanho: ${fs.statSync(filePath).size} bytes`,
+      );
       this.logger.log(`[${uploadId}] Iniciando leitura do arquivo Excel...`);
       const workbook = XLSX.readFile(filePath);
-      this.logger.log(`[${uploadId}] Arquivo Excel lido com sucesso! Abas: ${workbook.SheetNames.join(', ')}`);
+      this.logger.log(
+        `[${uploadId}] Arquivo Excel lido com sucesso! Abas: ${workbook.SheetNames.join(', ')}`,
+      );
       const sheetName = workbook.SheetNames[0]; // Primeira aba
       const worksheet = workbook.Sheets[sheetName];
 
@@ -109,7 +124,9 @@ export class ExcelProcessorService {
       });
 
       // Log para debug - verificar estrutura
-      this.logger.log(`[${uploadId}] Total de linhas no Excel: ${rawData.length}`);
+      this.logger.log(
+        `[${uploadId}] Total de linhas no Excel: ${rawData.length}`,
+      );
 
       // Encontrar a primeira linha que parece ser cabeçalho (tem texto, não números)
       let headerRowIndex = 0;
@@ -148,8 +165,33 @@ export class ExcelProcessorService {
         if (value === null || value === undefined || value === '') {
           return '';
         }
-        let str = String(value).trim();
-        
+
+        let str: string;
+        if (typeof value === 'string') {
+          str = value;
+        } else if (typeof value === 'number' || typeof value === 'boolean') {
+          return String(value).trim();
+        } else if (typeof value === 'object') {
+          // Para objetos, usar JSON.stringify
+          return JSON.stringify(value).trim();
+        } else if (typeof value === 'symbol' || typeof value === 'function') {
+          // Para symbol e function, converter para string explicitamente
+          return String(value).trim();
+        } else {
+          // Para outros tipos desconhecidos, tentar converter
+          // Mas evitar objetos que possam ter passado pela verificação
+          if (value !== null && typeof value === 'object') {
+            return JSON.stringify(value).trim();
+          }
+          // Type guard: se não é objeto, null, undefined, string, number, boolean, symbol ou function,
+          // então é um tipo desconhecido - usar conversão segura
+          const safeValue: string | number | boolean = value as
+            | string
+            | number
+            | boolean;
+          return String(safeValue).trim();
+        }
+
         // Tentar corrigir encoding: se contém sequências comuns de encoding incorreto
         // (UTF-8 sendo interpretado como Latin-1)
         try {
@@ -157,18 +199,25 @@ export class ExcelProcessorService {
           // "UniÃ£o" → "União"
           // "SÃ£o" → "São"
           // "AÃ§Ã£o" → "Ação"
-          if (str.includes('Ã') || str.includes('Â') || str.includes('Õ') || str.includes('Ç')) {
+          const trimmed = str.trim();
+          if (
+            trimmed.includes('Ã') ||
+            trimmed.includes('Â') ||
+            trimmed.includes('Õ') ||
+            trimmed.includes('Ç')
+          ) {
             // Tentar corrigir: converter de Latin-1 para UTF-8
-            const corrected = Buffer.from(str, 'latin1').toString('utf8');
-            // Se a correção produz resultado diferente e não contém caracteres inválidos, usar
-            if (corrected !== str && !corrected.includes('')) {
+            const corrected = Buffer.from(trimmed, 'latin1').toString('utf8');
+            // Se a correção produz resultado diferente e válido (não contém caracteres de substituição Unicode), usar
+            if (corrected !== trimmed && !corrected.includes('\uFFFD')) {
               return corrected;
             }
           }
-        } catch (error) {
+          return trimmed;
+        } catch {
           // Se houver erro, manter original
+          return str.trim();
         }
-        return str;
       };
 
       const cleanHeaders = (headers as unknown[]).map(
@@ -485,8 +534,33 @@ export class ExcelProcessorService {
       if (value === null || value === undefined || value === '') {
         return '';
       }
-      let str = String(value).trim();
-      
+
+      let str: string;
+      if (typeof value === 'string') {
+        str = value;
+      } else if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value).trim();
+      } else if (typeof value === 'object') {
+        // Para objetos, usar JSON.stringify
+        return JSON.stringify(value).trim();
+      } else if (typeof value === 'symbol' || typeof value === 'function') {
+        // Para symbol e function, converter para string explicitamente
+        return String(value).trim();
+      } else {
+        // Para outros tipos desconhecidos, tentar converter
+        // Mas evitar objetos que possam ter passado pela verificação
+        if (value !== null && typeof value === 'object') {
+          return JSON.stringify(value).trim();
+        }
+        // Type guard: se não é objeto, null, undefined, string, number, boolean, symbol ou function,
+        // então é um tipo desconhecido - usar conversão segura
+        const safeValue: string | number | boolean = value as
+          | string
+          | number
+          | boolean;
+        return String(safeValue).trim();
+      }
+
       // Tentar corrigir encoding: se contém sequências comuns de encoding incorreto
       // (UTF-8 sendo interpretado como Latin-1)
       try {
@@ -494,18 +568,25 @@ export class ExcelProcessorService {
         // "UniÃ£o" → "União"
         // "SÃ£o" → "São"
         // "AÃ§Ã£o" → "Ação"
-        if (str.includes('Ã') || str.includes('Â') || str.includes('Õ')) {
+        const trimmed = str.trim();
+        if (
+          trimmed.includes('Ã') ||
+          trimmed.includes('Â') ||
+          trimmed.includes('Õ') ||
+          trimmed.includes('Ç')
+        ) {
           // Tentar corrigir: converter de Latin-1 para UTF-8
-          const corrected = Buffer.from(str, 'latin1').toString('utf8');
+          const corrected = Buffer.from(trimmed, 'latin1').toString('utf8');
           // Se a correção produz resultado diferente e válido (não contém caracteres de substituição Unicode), usar
-          if (corrected !== str && !corrected.includes('\uFFFD')) {
+          if (corrected !== trimmed && !corrected.includes('\uFFFD')) {
             return corrected;
           }
         }
-      } catch (error) {
+        return trimmed;
+      } catch {
         // Se houver erro, manter original
+        return str.trim();
       }
-      return str;
     };
 
     return rawData.map((row: Record<string, unknown>, index: number) => {
@@ -719,7 +800,8 @@ export class ExcelProcessorService {
 
       // Buscar conta pela chave composta: classificacao + conta + subConta
       // Usar string vazia em vez de null para subConta (Prisma não aceita null em chaves únicas compostas)
-      const subContaValue = (linha.subConta && linha.subConta.trim() !== '') ? linha.subConta : '';
+      const subContaValue =
+        linha.subConta && linha.subConta.trim() !== '' ? linha.subConta : '';
       const contaExistente = await this.prisma.contaCatalogo.findUnique({
         where: {
           classificacao_conta_subConta: {
@@ -820,9 +902,9 @@ export class ExcelProcessorService {
     // Se há template configurado, usar os cabeçalhos do template como referência
     let templateHeaders: string[] = [];
     if (template?.configuracao?.columnMapping) {
-      templateHeaders = Object.values(template.configuracao.columnMapping).filter(
-        (col): col is string => typeof col === 'string' && col !== '',
-      );
+      templateHeaders = Object.values(
+        template.configuracao.columnMapping,
+      ).filter((col): col is string => typeof col === 'string' && col !== '');
     }
 
     // Detectar colunas esperadas que não foram encontradas
@@ -844,7 +926,8 @@ export class ExcelProcessorService {
       if (currentCol && currentCol.trim() !== '') {
         const found = Array.from(expectedHeaders).some(
           (expectedCol) =>
-            currentCol.toLowerCase().trim() === expectedCol.toLowerCase().trim(),
+            currentCol.toLowerCase().trim() ===
+            expectedCol.toLowerCase().trim(),
         );
         if (!found) {
           colunasNovas.push(currentCol);
@@ -855,9 +938,10 @@ export class ExcelProcessorService {
     // Gerar alertas
     if (colunasAusentes.length > 0) {
       const colunasAusentesStr = colunasAusentes.join(', ');
-      const templateInfo = templateHeaders.length > 0 
-        ? ' (conforme template configurado)' 
-        : ' (conforme mapeamento esperado)';
+      const templateInfo =
+        templateHeaders.length > 0
+          ? ' (conforme template configurado)'
+          : ' (conforme mapeamento esperado)';
       alertas.push({
         uploadId,
         tipo: 'CABECALHO_ALTERADO',
@@ -867,18 +951,18 @@ export class ExcelProcessorService {
     }
 
     if (colunasNovas.length > 0) {
-      const colunasNovasStr = colunasNovas.join(', ');
-      const templateInfo = templateHeaders.length > 0 
-        ? ' (não estão no template configurado)' 
-        : ' (não estavam no mapeamento esperado)';
-      
+      const templateInfo =
+        templateHeaders.length > 0
+          ? ' (não estão no template configurado)'
+          : ' (não estavam no mapeamento esperado)';
+
       // Verificar se são colunas extras conhecidas (Mês, UF) que devem ser ignoradas
-      const colunasExtrasConhecidas = colunasNovas.filter(col => {
+      const colunasExtrasConhecidas = colunasNovas.filter((col) => {
         const colLower = col.toLowerCase().trim();
         return colLower === 'mês' || colLower === 'mes' || colLower === 'uf';
       });
-      
-      const colunasExtrasDesconhecidas = colunasNovas.filter(col => {
+
+      const colunasExtrasDesconhecidas = colunasNovas.filter((col) => {
         const colLower = col.toLowerCase().trim();
         return colLower !== 'mês' && colLower !== 'mes' && colLower !== 'uf';
       });
@@ -916,7 +1000,9 @@ export class ExcelProcessorService {
 
       if (ultimoUploadLinhas) {
         // Comparar número de colunas detectadas
-        const numColunasAtual = currentHeaders.filter((h) => h && h.trim() !== '').length;
+        const numColunasAtual = currentHeaders.filter(
+          (h) => h && h.trim() !== '',
+        ).length;
         // Estimativa: se o número de colunas mudou significativamente, alertar
         if (numColunasAtual < expectedHeaders.size * 0.8) {
           alertas.push({
@@ -951,7 +1037,11 @@ export class ExcelProcessorService {
     const alertas: Array<{
       uploadId: string;
       linhaId?: string;
-      tipo: 'SALDO_DIVERGENTE' | 'CONTA_NOVA' | 'DADO_INCONSISTENTE' | 'CONTINUIDADE_TEMPORAL_DIVERGENTE';
+      tipo:
+        | 'SALDO_DIVERGENTE'
+        | 'CONTA_NOVA'
+        | 'DADO_INCONSISTENTE'
+        | 'CONTINUIDADE_TEMPORAL_DIVERGENTE';
       severidade: 'BAIXA' | 'MEDIA' | 'ALTA';
       mensagem: string;
     }> = [];
@@ -974,9 +1064,14 @@ export class ExcelProcessorService {
     });
 
     // Buscar upload do mês anterior para validação de continuidade temporal
-    let uploadAnterior: { id: string; mes: number; ano: number; totalLinhas: number } | null = null;
+    let uploadAnterior: {
+      id: string;
+      mes: number;
+      ano: number;
+      totalLinhas: number;
+    } | null = null;
     // Usar chave composta: classificacao + conta + subConta (pode haver múltiplas linhas com mesma classificação e conta)
-    let linhasAnteriores: Map<string, { saldoAtual: number }> = new Map();
+    const linhasAnteriores: Map<string, { saldoAtual: number }> = new Map();
 
     if (uploadAtual.mes > 1) {
       // Mês anterior no mesmo ano
@@ -994,10 +1089,10 @@ export class ExcelProcessorService {
 
       if (uploadsAnteriores.length > 0) {
         // Se há múltiplos uploads, preferir o que tem mais linhas (mais completo)
-        uploadAnterior = uploadsAnteriores.reduce((prev, current) => 
-          (current.totalLinhas > prev.totalLinhas) ? current : prev
+        uploadAnterior = uploadsAnteriores.reduce((prev, current) =>
+          current.totalLinhas > prev.totalLinhas ? current : prev,
         );
-        
+
         if (uploadsAnteriores.length > 1) {
           this.logger.warn(
             `Múltiplos uploads encontrados para ${uploadAtual.mes - 1}/${uploadAtual.ano}: ${uploadsAnteriores.length}. Usando o upload com mais linhas (ID: ${uploadAnterior.id}, ${uploadAnterior.totalLinhas} linhas).`,
@@ -1019,10 +1114,10 @@ export class ExcelProcessorService {
 
       if (uploadsAnteriores.length > 0) {
         // Se há múltiplos uploads, preferir o que tem mais linhas (mais completo)
-        uploadAnterior = uploadsAnteriores.reduce((prev, current) => 
-          (current.totalLinhas > prev.totalLinhas) ? current : prev
+        uploadAnterior = uploadsAnteriores.reduce((prev, current) =>
+          current.totalLinhas > prev.totalLinhas ? current : prev,
         );
-        
+
         if (uploadsAnteriores.length > 1) {
           this.logger.warn(
             `Múltiplos uploads encontrados para 12/${uploadAtual.ano - 1}: ${uploadsAnteriores.length}. Usando o upload com mais linhas (ID: ${uploadAnterior.id}, ${uploadAnterior.totalLinhas} linhas).`,
@@ -1035,7 +1130,13 @@ export class ExcelProcessorService {
     if (uploadAnterior) {
       const linhasAnterioresData = await this.prisma.linhaUpload.findMany({
         where: { uploadId: uploadAnterior.id },
-        select: { classificacao: true, conta: true, subConta: true, saldoAtual: true, nomeConta: true },
+        select: {
+          classificacao: true,
+          conta: true,
+          subConta: true,
+          saldoAtual: true,
+          nomeConta: true,
+        },
       });
 
       // Criar mapa usando chave composta: classificacao + conta + subConta
@@ -1053,7 +1154,7 @@ export class ExcelProcessorService {
       this.logger.log(
         `Upload anterior encontrado: ${uploadAnterior.mes}/${uploadAnterior.ano} (ID: ${uploadAnterior.id}) com ${linhasAnteriores.size} linhas`,
       );
-      
+
       // Log de debug: verificar se a linha específica foi encontrada
       if (linhasAnteriores.size > 0) {
         const primeiraLinha = linhasAnterioresData[0];
@@ -1076,7 +1177,9 @@ export class ExcelProcessorService {
 
     // Criar Set com chave composta: classificacao + conta + subConta
     const contasNovasSet = new Set(
-      contasNovas.map((c) => `${c.classificacao}|${c.conta}|${c.subConta || ''}`)
+      contasNovas.map(
+        (c) => `${c.classificacao}|${c.conta}|${c.subConta || ''}`,
+      ),
     );
 
     for (let i = 0; i < linhas.length; i++) {
@@ -1093,7 +1196,8 @@ export class ExcelProcessorService {
         linha.credito !== undefined &&
         linha.saldoAtual !== undefined
       ) {
-        const saldoCalculado = linha.saldoAnterior + linha.debito + linha.credito;
+        const saldoCalculado =
+          linha.saldoAnterior + linha.debito + linha.credito;
         const diferenca = Math.abs(saldoCalculado - linha.saldoAtual);
 
         // Tolerância de 0.01 para diferenças de arredondamento
@@ -1101,24 +1205,24 @@ export class ExcelProcessorService {
           // Montar identificação completa da conta
           // Importante: dentro de uma Classificação podem existir várias contas
           const partesIdentificacao: string[] = [];
-          
+
           if (linha.classificacao) {
             partesIdentificacao.push(`Classificação: ${linha.classificacao}`);
           }
-          
+
           if (linha.conta) {
             partesIdentificacao.push(`Conta: ${linha.conta}`);
           } else {
             partesIdentificacao.push(`Conta: não informada`);
           }
-          
+
           if (linha.subConta) {
             partesIdentificacao.push(`SubConta: ${linha.subConta}`);
           }
-          
+
           const identificacaoCompleta = partesIdentificacao.join(' | ');
           const nomeContaCompleto = linha.nomeConta || 'Sem nome';
-          
+
           alertas.push({
             uploadId,
             linhaId: linhaCriada?.id,
@@ -1142,14 +1246,18 @@ export class ExcelProcessorService {
         const subContaStr = linha.subConta || '';
         const chave = `${linha.classificacao}|${linha.conta}|${subContaStr}`;
         const linhaAnterior = linhasAnteriores.get(chave);
-        
+
         if (linhaAnterior) {
           const saldoAtualMesAnterior = linhaAnterior.saldoAtual;
           const saldoAnteriorMesAtual = linha.saldoAnterior;
-          const diferenca = Math.abs(saldoAtualMesAnterior - saldoAnteriorMesAtual);
+          const diferenca = Math.abs(
+            saldoAtualMesAnterior - saldoAnteriorMesAtual,
+          );
 
           // Log de debug para investigação
-          const subContaInfo = linha.subConta ? ` (SubConta: ${linha.subConta})` : '';
+          const subContaInfo = linha.subConta
+            ? ` (SubConta: ${linha.subConta})`
+            : '';
           this.logger.log(
             `Validação continuidade temporal - Conta: ${linha.classificacao} (${linha.conta})${subContaInfo} - ${linha.nomeConta} | Saldo Atual ${uploadAnterior.mes}/${uploadAnterior.ano}: ${saldoAtualMesAnterior.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Saldo Anterior ${uploadAtual.mes}/${uploadAtual.ano}: ${saldoAnteriorMesAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Diferença: ${diferenca.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           );
@@ -1158,41 +1266,47 @@ export class ExcelProcessorService {
           if (diferenca > 0.01) {
             const mesAnteriorNome = this.getMesNome(uploadAnterior.mes);
             const mesAtualNome = this.getMesNome(uploadAtual.mes);
-            
+
             // Montar identificação completa da conta
             // Importante: dentro de uma Classificação podem existir várias contas
             // Por isso precisamos identificar claramente: Classificação + Conta + SubConta
             const partesIdentificacao: string[] = [];
-            
+
             if (linha.classificacao) {
               partesIdentificacao.push(`Classificação: ${linha.classificacao}`);
             }
-            
+
             if (linha.conta) {
               partesIdentificacao.push(`Conta: ${linha.conta}`);
             } else {
               partesIdentificacao.push(`Conta: não informada`);
             }
-            
+
             if (linha.subConta) {
               partesIdentificacao.push(`SubConta: ${linha.subConta}`);
             }
-            
+
             const identificacaoCompleta = partesIdentificacao.join(' | ');
             const nomeContaCompleto = linha.nomeConta || 'Sem nome';
-            
+
             alertas.push({
               uploadId,
               linhaId: linhaCriada?.id,
               tipo: 'CONTINUIDADE_TEMPORAL_DIVERGENTE',
               severidade:
-                diferenca > 10000 ? 'ALTA' : diferenca > 1000 ? 'MEDIA' : 'BAIXA',
+                diferenca > 10000
+                  ? 'ALTA'
+                  : diferenca > 1000
+                    ? 'MEDIA'
+                    : 'BAIXA',
               mensagem: `⚠️ ALTERAÇÃO RETROATIVA DETECTADA: A conta "${nomeContaCompleto}" identificada por ${identificacaoCompleta} teve seu saldo alterado retroativamente. Saldo Atual de ${mesAnteriorNome}/${uploadAnterior.ano}: ${saldoAtualMesAnterior.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, mas Saldo Anterior de ${mesAtualNome}/${uploadAtual.ano}: ${saldoAnteriorMesAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. A contabilidade pode ter feito um acerto no mês anterior sem avisar. Diferença: ${diferenca.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
             });
           }
         } else {
           // Log quando a linha não é encontrada no upload anterior
-          const subContaInfo = linha.subConta ? ` (SubConta: ${linha.subConta})` : '';
+          const subContaInfo = linha.subConta
+            ? ` (SubConta: ${linha.subConta})`
+            : '';
           this.logger.warn(
             `Linha ${linha.classificacao} (${linha.conta})${subContaInfo} - ${linha.nomeConta} não encontrada no upload anterior ${uploadAnterior.mes}/${uploadAnterior.ano}. Pode ser uma conta nova ou a conta/subConta mudou.`,
           );
@@ -1203,7 +1317,7 @@ export class ExcelProcessorService {
       if (linha.classificacao && linha.conta) {
         const subContaStr = linha.subConta || '';
         const chaveComposta = `${linha.classificacao}|${linha.conta}|${subContaStr}`;
-        
+
         if (contasNovasSet.has(chaveComposta)) {
           // Montar identificação completa da conta para a mensagem
           const partesIdentificacao: string[] = [];
@@ -1213,7 +1327,7 @@ export class ExcelProcessorService {
             partesIdentificacao.push(`SubConta: ${linha.subConta}`);
           }
           const identificacaoCompleta = partesIdentificacao.join(' | ');
-          
+
           alertas.push({
             uploadId,
             linhaId: linhaCriada?.id,

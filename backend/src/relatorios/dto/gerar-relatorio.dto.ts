@@ -1,4 +1,12 @@
-import { IsInt, IsOptional, IsString, IsArray, IsEnum, Min, Max } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  IsArray,
+  IsEnum,
+  Min,
+  Max,
+} from 'class-validator';
 
 export enum TipoRelatorio {
   FILIAL = 'FILIAL',
@@ -23,4 +31,3 @@ export class GerarRelatorioDto {
   @IsEnum(TipoRelatorio)
   tipo: TipoRelatorio;
 }
-

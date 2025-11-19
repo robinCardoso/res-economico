@@ -7,7 +7,7 @@ export class AuditoriaLogService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(filters?: FilterAuditoriaDto) {
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
     // Filtro por recurso
     if (filters?.recurso) {
@@ -26,13 +26,14 @@ export class AuditoriaLogService {
 
     // Filtro por data
     if (filters?.dataInicio || filters?.dataFim) {
-      where.createdAt = {};
+      const createdAtFilter: Record<string, unknown> = {};
       if (filters.dataInicio) {
-        where.createdAt.gte = new Date(filters.dataInicio);
+        createdAtFilter.gte = new Date(filters.dataInicio);
       }
       if (filters.dataFim) {
-        where.createdAt.lte = new Date(filters.dataFim);
+        createdAtFilter.lte = new Date(filters.dataFim);
       }
+      where.createdAt = createdAtFilter;
     }
 
     // Busca por texto (recurso ou ação)
@@ -90,4 +91,3 @@ export class AuditoriaLogService {
     return acoes.map((a) => a.acao);
   }
 }
-

@@ -7,7 +7,7 @@ export class ContasService {
   constructor(private readonly prisma: PrismaService) {}
 
   findAll(filters?: FilterContasDto) {
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
     // Filtro por status
     if (filters?.status) {

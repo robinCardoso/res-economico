@@ -21,4 +21,3 @@ export interface RelatorioResultado {
   }[];
   contas: ContaRelatorio[];
 }
-

@@ -169,6 +169,11 @@ export enum TipoComparacao {
   CUSTOMIZADO = 'CUSTOMIZADO',
 }
 
+export enum TipoValor {
+  ACUMULADO = 'ACUMULADO', // Saldo acumulado até o mês (saldoAtual)
+  PERIODO = 'PERIODO', // Movimentação do mês (credito - debito)
+}
+
 export interface ContaComparativa {
   classificacao: string;
   nomeConta: string;
