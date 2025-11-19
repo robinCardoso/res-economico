@@ -13,6 +13,9 @@ export function useContagemPorTipoConta(filters?: FilterAlertasParams) {
   return useQuery<ContagemPorTipoConta[]>({
     queryKey: ['alertas', 'contagem-por-tipo-conta', filters],
     queryFn: () => alertasService.getContagemPorTipoConta(filters),
+    enabled: !!filters?.uploadId, // Só executar quando tiver uploadId
+    staleTime: 1000 * 30, // Considerar dados válidos por 30 segundos
+    refetchOnWindowFocus: true, // Recarregar quando a janela ganhar foco
   });
 }
 

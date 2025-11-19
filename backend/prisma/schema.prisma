@@ -19,67 +19,66 @@ enum TipoEmpresa {
 }
 
 model Empresa {
-  id          String      @id @default(uuid())
-  cnpj        String      @unique
-  razaoSocial String
+  id           String               @id @default(uuid())
+  cnpj         String               @unique
+  razaoSocial  String
   nomeFantasia String?
-  tipo        TipoEmpresa @default(MATRIZ)
-  uf          String?     // Estado (SC, SP, etc.) - usado nos relatórios
-  uploads     Upload[]
-  templates   TemplateImportacao[]
-  usuarios    Usuario[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  tipo         TipoEmpresa          @default(MATRIZ)
+  uf           String? // Estado (SC, SP, etc.) - usado nos relatórios
+  uploads      Upload[]
+  templates    TemplateImportacao[]
+  usuarios     Usuario[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
 }
 
 model Usuario {
-  id          String      @id @default(uuid())
-  email       String      @unique
-  senha       String
-  nome        String
-  roles       String[]    @default(["user"])
+  id           String        @id @default(uuid())
+  email        String        @unique
+  senha        String
+  nome         String
+  roles        String[]      @default(["user"])
   departamento Departamento?
-  empresaId   String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  empresaId    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
-  empresa   Empresa? @relation(fields: [empresaId], references: [id], onDelete: SetNull)
-  logs      LogAuditoria[]
+  empresa Empresa?       @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  logs    LogAuditoria[]
 }
-
 
 model TemplateImportacao {
   id           String   @id @default(uuid())
-  empresaId    String?  // Opcional: null = template global (todas as empresas)
+  empresaId    String? // Opcional: null = template global (todas as empresas)
   nome         String
   descricao    String?
   configuracao Json
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  empresa      Empresa? @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  uploads      Upload[]
+  empresa Empresa? @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  uploads Upload[]
 }
 
 model Upload {
-  id           String        @id @default(uuid())
-  empresaId    String
-  templateId   String?
-  mes          Int
-  ano          Int
-  arquivoUrl   String
-  nomeArquivo  String         // Nome original do arquivo enviado pelo usuário
-  hashArquivo  String
-  status       UploadStatus  @default(PROCESSANDO)
-  totalLinhas  Int
-  alertas      Alerta[]
-  linhas       LinhaUpload[]
-  createdBy    String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id          String        @id @default(uuid())
+  empresaId   String
+  templateId  String?
+  mes         Int
+  ano         Int
+  arquivoUrl  String
+  nomeArquivo String // Nome original do arquivo enviado pelo usuário
+  hashArquivo String
+  status      UploadStatus  @default(PROCESSANDO)
+  totalLinhas Int
+  alertas     Alerta[]
+  linhas      LinhaUpload[]
+  createdBy   String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  empresa      Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  template     TemplateImportacao? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  empresa  Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  template TemplateImportacao? @relation(fields: [templateId], references: [id], onDelete: SetNull)
 }
 
 model LinhaUpload {
@@ -100,34 +99,38 @@ model LinhaUpload {
   hashLinha       String
   createdAt       DateTime @default(now())
 
-  upload          Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
-  alertas         Alerta[]
+  upload  Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  alertas Alerta[]
 }
 
 model ContaCatalogo {
-  id                String      @id @default(uuid())
-  classificacao     String      @unique
-  nomeConta         String
-  tipoConta         String
-  nivel             Int
-  primeiraImportacao DateTime   @default(now())
-  ultimaImportacao   DateTime   @default(now())
-  status            ContaStatus @default(ATIVA)
+  id                 String      @id @default(uuid())
+  classificacao      String
+  conta              String      // Número da conta (ex: "1304")
+  subConta           String      @default("") // Usar string vazia em vez de null para chave única composta
+  nomeConta          String      // Nome da conta (ex: "Fretes e Carretos") - padrão igual LinhaUpload
+  tipoConta          String
+  nivel              Int
+  primeiraImportacao DateTime    @default(now())
+  ultimaImportacao   DateTime    @default(now())
+  status             ContaStatus @default(ATIVA)
+
+  @@unique([classificacao, conta, subConta])
 }
 
 model Alerta {
-  id         String         @id @default(uuid())
+  id         String           @id @default(uuid())
   uploadId   String
   linhaId    String?
   tipo       AlertaTipo
   severidade AlertaSeveridade
   mensagem   String
-  status     AlertaStatus    @default(ABERTO)
-  createdAt  DateTime        @default(now())
+  status     AlertaStatus     @default(ABERTO)
+  createdAt  DateTime         @default(now())
   resolvedAt DateTime?
 
-  upload     Upload          @relation(fields: [uploadId], references: [id], onDelete: Cascade)
-  linha      LinhaUpload?    @relation(fields: [linhaId], references: [id], onDelete: SetNull)
+  upload Upload       @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  linha  LinhaUpload? @relation(fields: [linhaId], references: [id], onDelete: SetNull)
 }
 
 model LogAuditoria {
@@ -138,7 +141,7 @@ model LogAuditoria {
   dados     Json
   createdAt DateTime @default(now())
 
-  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 }
 
 enum UploadStatus {

@@ -18,9 +18,16 @@ export const OfflineBanner = () => {
     // Verificar se o backend está acessível
     const checkBackend = async () => {
       try {
-        await api.get('/');
+        // Usar a rota raiz do backend que retorna "Hello World!"
+        // Usar timeout curto e aceitar qualquer resposta HTTP como "online"
+        await api.get('/', { 
+          timeout: 3000,
+          validateStatus: () => true, // Aceitar qualquer resposta HTTP como "online"
+        });
         setBackendOnline(true);
-      } catch {
+      } catch (error) {
+        // Silenciar erros de rede - apenas marcar como offline
+        // Não logar erros aqui pois é esperado quando o backend não está rodando
         setBackendOnline(false);
       }
     };

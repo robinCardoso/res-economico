@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useAuditoria, useAuditoriaRecursos, useAuditoriaAcoes } from '@/hooks/use-auditoria';
 import { formatDateTime } from '@/lib/format';
-import { Search, Calendar, Filter } from 'lucide-react';
+import { Search, Calendar } from 'lucide-react';
 import type { FilterAuditoriaParams } from '@/services/auditoria.service';
 
 const AuditoriaPage = () => {

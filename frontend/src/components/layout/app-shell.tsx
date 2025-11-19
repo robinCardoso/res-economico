@@ -50,12 +50,12 @@ export const AppShell = ({ children }: AppShellProps) => {
               <Image
                 src="/minha-logo.png"
                 alt="Logo da empresa"
-                width={40}
-                height={40}
-                className="h-10 w-10 rounded-md object-contain shadow-sm"
+                width={52}
+                height={52}
+                className="h-[52px] w-[52px] rounded-md object-contain shadow-sm"
                 priority
               />
-              <span className="text-lg font-semibold leading-tight">
+              <span className="text-sm font-semibold leading-tight">
                 Resultado Econômico
               </span>
             </Link>

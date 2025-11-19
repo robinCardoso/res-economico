@@ -52,17 +52,24 @@ export class ExcelProcessorService {
     uploadId: string,
     onProgress?: (progress: number, etapa: string) => void,
   ): Promise<void> {
+    this.logger.log(`[${uploadId}] processUpload iniciado`);
+    
     const upload = await this.prisma.upload.findUnique({
       where: { id: uploadId },
       include: { template: true, empresa: true },
     });
 
     if (!upload) {
+      this.logger.error(`[${uploadId}] Upload não encontrado no banco de dados`);
       throw new Error(`Upload ${uploadId} não encontrado`);
     }
 
+    this.logger.log(`[${uploadId}] Upload encontrado: ${upload.nomeArquivo}`);
+    this.logger.log(`[${uploadId}] Status atual: ${upload.status}`);
+    this.logger.log(`[${uploadId}] Empresa: ${upload.empresa?.razaoSocial}`);
+
     if (upload.status !== 'PROCESSANDO') {
-      this.logger.warn(`Upload ${uploadId} não está em status PROCESSANDO`);
+      this.logger.warn(`[${uploadId}] Upload não está em status PROCESSANDO (status: ${upload.status})`);
       return;
     }
 
@@ -70,23 +77,39 @@ export class ExcelProcessorService {
       // Etapa 1: Ler arquivo Excel (10-20%)
       onProgress?.(10, 'Lendo arquivo Excel...');
       const filePath = upload.arquivoUrl.replace('/uploads/', './uploads/');
+      this.logger.log(`[${uploadId}] Tentando ler arquivo: ${filePath}`);
+      this.logger.log(`[${uploadId}] Caminho absoluto: ${require('path').resolve(filePath)}`);
+      
       if (!fs.existsSync(filePath)) {
+        this.logger.error(`[${uploadId}] Arquivo não encontrado no caminho: ${filePath}`);
+        // Listar arquivos no diretório para debug
+        const uploadsDir = './uploads';
+        if (fs.existsSync(uploadsDir)) {
+          const files = fs.readdirSync(uploadsDir);
+          this.logger.log(`[${uploadId}] Arquivos encontrados no diretório uploads: ${files.join(', ')}`);
+        } else {
+          this.logger.error(`[${uploadId}] Diretório uploads não existe!`);
+        }
         throw new Error(`Arquivo não encontrado: ${filePath}`);
       }
-
+      
+      this.logger.log(`[${uploadId}] Arquivo encontrado! Tamanho: ${fs.statSync(filePath).size} bytes`);
+      this.logger.log(`[${uploadId}] Iniciando leitura do arquivo Excel...`);
       const workbook = XLSX.readFile(filePath);
+      this.logger.log(`[${uploadId}] Arquivo Excel lido com sucesso! Abas: ${workbook.SheetNames.join(', ')}`);
       const sheetName = workbook.SheetNames[0]; // Primeira aba
       const worksheet = workbook.Sheets[sheetName];
 
       // Converter para array de arrays (mantém estrutura original)
+      // A biblioteca XLSX já lida com UTF-8 corretamente
       const rawData = XLSX.utils.sheet_to_json(worksheet, {
-        raw: false,
+        raw: false, // Converter números para strings (garante que textos sejam lidos como strings)
         defval: null, // null para células vazias (não string vazia)
         header: 1, // Primeira linha como array de valores
       });
 
       // Log para debug - verificar estrutura
-      this.logger.log(`Total de linhas no Excel: ${rawData.length}`);
+      this.logger.log(`[${uploadId}] Total de linhas no Excel: ${rawData.length}`);
 
       // Encontrar a primeira linha que parece ser cabeçalho (tem texto, não números)
       let headerRowIndex = 0;
@@ -120,13 +143,41 @@ export class ExcelProcessorService {
 
       // Limpar e normalizar cabeçalhos
 
+      // Função auxiliar para normalizar strings e garantir UTF-8
+      const normalizeString = (value: unknown): string => {
+        if (value === null || value === undefined || value === '') {
+          return '';
+        }
+        let str = String(value).trim();
+        
+        // Tentar corrigir encoding: se contém sequências comuns de encoding incorreto
+        // (UTF-8 sendo interpretado como Latin-1)
+        try {
+          // Padrões comuns de encoding incorreto:
+          // "UniÃ£o" → "União"
+          // "SÃ£o" → "São"
+          // "AÃ§Ã£o" → "Ação"
+          if (str.includes('Ã') || str.includes('Â') || str.includes('Õ') || str.includes('Ç')) {
+            // Tentar corrigir: converter de Latin-1 para UTF-8
+            const corrected = Buffer.from(str, 'latin1').toString('utf8');
+            // Se a correção produz resultado diferente e não contém caracteres inválidos, usar
+            if (corrected !== str && !corrected.includes('')) {
+              return corrected;
+            }
+          }
+        } catch (error) {
+          // Se houver erro, manter original
+        }
+        return str;
+      };
+
       const cleanHeaders = (headers as unknown[]).map(
         (h: unknown, idx: number) => {
           if (h === null || h === undefined || h === '') {
             return `Coluna_${idx + 1}`;
           }
           if (typeof h === 'string' || typeof h === 'number') {
-            return String(h).trim();
+            return normalizeString(h);
           }
           return `Coluna_${idx + 1}`;
         },
@@ -429,6 +480,34 @@ export class ExcelProcessorService {
     rawData: Record<string, unknown>[],
     mapping: TemplateMapping,
   ): ExcelRow[] {
+    // Função auxiliar para normalizar strings e garantir UTF-8
+    const normalizeString = (value: unknown): string => {
+      if (value === null || value === undefined || value === '') {
+        return '';
+      }
+      let str = String(value).trim();
+      
+      // Tentar corrigir encoding: se contém sequências comuns de encoding incorreto
+      // (UTF-8 sendo interpretado como Latin-1)
+      try {
+        // Padrões comuns de encoding incorreto:
+        // "UniÃ£o" → "União"
+        // "SÃ£o" → "São"
+        // "AÃ§Ã£o" → "Ação"
+        if (str.includes('Ã') || str.includes('Â') || str.includes('Õ')) {
+          // Tentar corrigir: converter de Latin-1 para UTF-8
+          const corrected = Buffer.from(str, 'latin1').toString('utf8');
+          // Se a correção produz resultado diferente e válido (não contém caracteres de substituição Unicode), usar
+          if (corrected !== str && !corrected.includes('\uFFFD')) {
+            return corrected;
+          }
+        }
+      } catch (error) {
+        // Se houver erro, manter original
+      }
+      return str;
+    };
+
     return rawData.map((row: Record<string, unknown>, index: number) => {
       const parsed: ExcelRow = {};
       const celulasVazias: string[] = [];
@@ -450,7 +529,7 @@ export class ExcelProcessorService {
         if (isCellEmpty(row[mapping.classificacao])) {
           celulasVazias.push('Classificação');
         } else {
-          parsed.classificacao = String(row[mapping.classificacao]).trim();
+          parsed.classificacao = normalizeString(row[mapping.classificacao]);
         }
       }
 
@@ -458,7 +537,7 @@ export class ExcelProcessorService {
         if (isCellEmpty(row[mapping.conta])) {
           celulasVazias.push('Conta');
         } else {
-          parsed.conta = String(row[mapping.conta]).trim();
+          parsed.conta = normalizeString(row[mapping.conta]);
         }
       }
 
@@ -466,7 +545,7 @@ export class ExcelProcessorService {
         if (isCellEmpty(row[mapping.subConta])) {
           // SubConta pode ser opcional, não adicionar aos alertas
         } else {
-          parsed.subConta = String(row[mapping.subConta]).trim();
+          parsed.subConta = normalizeString(row[mapping.subConta]);
         }
       }
 
@@ -474,7 +553,7 @@ export class ExcelProcessorService {
         if (isCellEmpty(row[mapping.nomeConta])) {
           celulasVazias.push('Nome da Conta');
         } else {
-          parsed.nomeConta = String(row[mapping.nomeConta]).trim();
+          parsed.nomeConta = normalizeString(row[mapping.nomeConta]);
         }
       }
 
@@ -482,7 +561,7 @@ export class ExcelProcessorService {
         if (isCellEmpty(row[mapping.tipoConta])) {
           celulasVazias.push('Tipo Conta');
         } else {
-          parsed.tipoConta = String(row[mapping.tipoConta]).trim();
+          parsed.tipoConta = normalizeString(row[mapping.tipoConta]);
         }
       }
 
@@ -638,28 +717,60 @@ export class ExcelProcessorService {
         continue;
       }
 
-      // Buscar conta pela classificação (única no sistema)
+      // Buscar conta pela chave composta: classificacao + conta + subConta
+      // Usar string vazia em vez de null para subConta (Prisma não aceita null em chaves únicas compostas)
+      const subContaValue = (linha.subConta && linha.subConta.trim() !== '') ? linha.subConta : '';
       const contaExistente = await this.prisma.contaCatalogo.findUnique({
         where: {
-          classificacao: linha.classificacao,
+          classificacao_conta_subConta: {
+            classificacao: linha.classificacao,
+            conta: linha.conta || '',
+            subConta: subContaValue,
+          },
         },
       });
 
       if (contaExistente) {
-        // Atualizar última importação
+        // Atualizar última importação e também nomeConta se for diferente
+        // (pode haver mudanças no nome da conta ao longo do tempo)
+        const dadosAtualizacao: {
+          ultimaImportacao: Date;
+          status: 'ATIVA' | 'NOVA' | 'ARQUIVADA';
+          nomeConta?: string;
+          tipoConta?: string;
+          nivel?: number;
+        } = {
+          ultimaImportacao: new Date(),
+          status: 'ATIVA',
+        };
+
+        // Atualizar nomeConta se for diferente (priorizar o mais recente)
+        if (linha.nomeConta && linha.nomeConta !== contaExistente.nomeConta) {
+          dadosAtualizacao.nomeConta = linha.nomeConta;
+        }
+
+        // Atualizar tipoConta e nivel se forem diferentes
+        if (linha.tipoConta && linha.tipoConta !== contaExistente.tipoConta) {
+          dadosAtualizacao.tipoConta = linha.tipoConta;
+        }
+
+        if (linha.nivel !== undefined && linha.nivel !== contaExistente.nivel) {
+          dadosAtualizacao.nivel = linha.nivel;
+        }
+
         await this.prisma.contaCatalogo.update({
           where: { id: contaExistente.id },
-          data: {
-            ultimaImportacao: new Date(),
-            status: 'ATIVA',
-          },
+          data: dadosAtualizacao,
         });
       } else {
         // Nova conta (única no sistema, não por empresa)
+        // Chave composta: classificacao + conta + subConta
         await this.prisma.contaCatalogo.create({
           data: {
             classificacao: linha.classificacao,
-            nomeConta: linha.nomeConta,
+            conta: linha.conta || '', // Número da conta (ex: "1304")
+            subConta: subContaValue, // String vazia se não houver subConta
+            nomeConta: linha.nomeConta, // Nome da conta (ex: "Fretes e Carretos") - padrão igual LinhaUpload
             tipoConta: linha.tipoConta,
             nivel: linha.nivel,
             primeiraImportacao: new Date(),
@@ -963,7 +1074,10 @@ export class ExcelProcessorService {
       },
     });
 
-    const contasNovasSet = new Set(contasNovas.map((c) => c.classificacao));
+    // Criar Set com chave composta: classificacao + conta + subConta
+    const contasNovasSet = new Set(
+      contasNovas.map((c) => `${c.classificacao}|${c.conta}|${c.subConta || ''}`)
+    );
 
     for (let i = 0; i < linhas.length; i++) {
       const linha = linhas[i];
@@ -1085,15 +1199,29 @@ export class ExcelProcessorService {
         }
       }
 
-      // Verificar conta nova
-      if (linha.classificacao && contasNovasSet.has(linha.classificacao)) {
-        alertas.push({
-          uploadId,
-          linhaId: linhaCriada?.id,
-          tipo: 'CONTA_NOVA',
-          severidade: 'MEDIA',
-          mensagem: `Nova conta detectada: ${linha.classificacao} - ${linha.nomeConta}`,
-        });
+      // Verificar conta nova usando chave composta: classificacao + conta + subConta
+      if (linha.classificacao && linha.conta) {
+        const subContaStr = linha.subConta || '';
+        const chaveComposta = `${linha.classificacao}|${linha.conta}|${subContaStr}`;
+        
+        if (contasNovasSet.has(chaveComposta)) {
+          // Montar identificação completa da conta para a mensagem
+          const partesIdentificacao: string[] = [];
+          partesIdentificacao.push(`Classificação: ${linha.classificacao}`);
+          partesIdentificacao.push(`Conta: ${linha.conta}`);
+          if (linha.subConta) {
+            partesIdentificacao.push(`SubConta: ${linha.subConta}`);
+          }
+          const identificacaoCompleta = partesIdentificacao.join(' | ');
+          
+          alertas.push({
+            uploadId,
+            linhaId: linhaCriada?.id,
+            tipo: 'CONTA_NOVA',
+            severidade: 'MEDIA',
+            mensagem: `Nova conta detectada: ${identificacaoCompleta} - ${linha.nomeConta}`,
+          });
+        }
       }
 
       // Verificar dados inconsistentes (campos obrigatórios ausentes)

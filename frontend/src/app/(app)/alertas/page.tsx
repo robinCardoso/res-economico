@@ -16,7 +16,7 @@ const AlertasPage = () => {
   const alertaIdFromUrl = searchParams.get('alertaId');
 
   const [empresaFiltro, setEmpresaFiltro] = useState<string>('');
-  const [statusFiltro, setStatusFiltro] = useState<AlertaStatus | ''>('');
+  const [statusFiltro, setStatusFiltro] = useState<AlertaStatus | ''>('ABERTO'); // Sempre iniciar com "Aberto" ativo
   const [tipoFiltro, setTipoFiltro] = useState<AlertaTipo | ''>('');
   const [severidadeFiltro, setSeveridadeFiltro] = useState<AlertaSeveridade | ''>('');
   const [tipoContaFiltro, setTipoContaFiltro] = useState<string>('');

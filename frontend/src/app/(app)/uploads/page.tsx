@@ -97,18 +97,18 @@ const UploadsPage = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-xs dark:divide-slate-800">
+            <table className="min-w-full divide-y divide-slate-200 text-[10px] dark:divide-slate-800">
               <thead className="bg-slate-50/60 dark:bg-slate-900/80">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 min-w-[240px]">
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-slate-700 dark:text-slate-300 min-w-[240px]">
                     Empresa
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Período</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-slate-500 min-w-[200px]">Arquivo</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Status</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Alertas</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Linhas</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-slate-500">Atualizado</th>
+                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500">Período</th>
+                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500 min-w-[200px]">Arquivo</th>
+                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500">Status</th>
+                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500">Alertas</th>
+                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500">Linhas</th>
+                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500">Atualizado</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -118,46 +118,46 @@ const UploadsPage = () => {
                     onClick={() => router.push(`/uploads/${upload.id}`)}
                     className="hover:bg-slate-50/70 dark:hover:bg-slate-900 transition-colors cursor-pointer"
                   >
-                    <td className="px-4 py-3">
-                      <div className="flex items-start gap-2">
+                    <td className="px-3 py-2">
+                      <div className="flex items-start gap-1.5">
                         <div className="flex-shrink-0 mt-0.5">
-                          <Building2 className="h-4 w-4 text-slate-400" />
+                          <Building2 className="h-3 w-3 text-slate-400" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                          <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
                             {upload.empresa?.razaoSocial || 'N/A'}
                           </div>
                           {upload.empresa?.nomeFantasia && (
-                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                               {upload.empresa.nomeFantasia}
                             </div>
                           )}
                           {upload.empresa?.cnpj && (
-                            <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-mono">
+                            <div className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5 font-mono">
                               CNPJ: {maskCNPJ(upload.empresa.cnpj)}
                             </div>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-300">
-                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                    <td className="px-2 py-2">
+                      <div className="flex items-center gap-1 text-xs text-slate-700 dark:text-slate-300">
+                        <Calendar className="h-3 w-3 text-slate-400" />
                         <span>{formatPeriodo(upload.mes, upload.ano)}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
-                        <FileText className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                    <td className="px-2 py-2">
+                      <div className="flex items-center gap-1 text-[10px] text-slate-600 dark:text-slate-400">
+                        <FileText className="h-3 w-3 text-slate-400 flex-shrink-0" />
                         <span className="truncate max-w-[200px]" title={upload.nomeArquivo || undefined}>
                           {upload.nomeArquivo || 'N/A'}
                         </span>
                       </div>
                     </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-2">
+                    <td className="px-2 py-2">
+                      <div className="flex items-center gap-1.5">
                         <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                          className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
                             upload.status === 'CONCLUIDO'
                               ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200'
                               : upload.status === 'COM_ALERTAS'
@@ -170,41 +170,41 @@ const UploadsPage = () => {
                           {getStatusLabel(upload.status)}
                         </span>
                         {upload.status === 'PROCESSANDO' && (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
+                          <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-2 py-2">
                       {(upload.alertas?.length || 0) > 0 ? (
                         <Link
                           href={`/alertas?uploadId=${upload.id}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="flex items-center gap-1.5 group hover:opacity-80 transition-opacity"
+                          className="flex items-center gap-1 group hover:opacity-80 transition-opacity"
                         >
-                          <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
-                          <span className="text-sm font-medium text-amber-700 dark:text-amber-300 group-hover:underline">
+                          <AlertCircle className="h-3 w-3 text-amber-500" />
+                          <span className="text-xs font-medium text-amber-700 dark:text-amber-300 group-hover:underline">
                             {upload.alertas?.length || 0}
                           </span>
                         </Link>
                       ) : (
-                        <div className="flex items-center gap-1.5">
-                          <AlertCircle className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600" />
-                          <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3 text-slate-300 dark:text-slate-600" />
+                          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                             0
                           </span>
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-300">
-                        <FileText className="h-3.5 w-3.5 text-slate-400" />
+                    <td className="px-2 py-2">
+                      <div className="flex items-center gap-1 text-xs text-slate-700 dark:text-slate-300">
+                        <FileText className="h-3 w-3 text-slate-400" />
                         <span>{upload.totalLinhas || 0}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-slate-500 dark:text-slate-400">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-slate-400" />
-                        <span className="text-xs">{formatDateTime(upload.updatedAt)}</span>
+                    <td className="px-2 py-2 text-slate-500 dark:text-slate-400">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3 text-slate-400" />
+                        <span className="text-[10px]">{formatDateTime(upload.updatedAt)}</span>
                       </div>
                     </td>
                   </tr>

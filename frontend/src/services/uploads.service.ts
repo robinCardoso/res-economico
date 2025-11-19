@@ -48,5 +48,24 @@ export const uploadsService = {
     );
     return data;
   },
+
+  async reprocessar(id: string): Promise<UploadWithRelations> {
+    const { data } = await api.patch<UploadWithRelations>(`/uploads/${id}/reprocessar`);
+    return data;
+  },
+
+  async verificarDuplicataPeriodo(empresaId: string, mes: number, ano: number): Promise<{ existe: boolean; upload?: UploadWithRelations }> {
+    const { data } = await api.get<{ existe: boolean; upload?: UploadWithRelations }>(
+      `/uploads/verificar-duplicata-periodo?empresaId=${encodeURIComponent(empresaId)}&mes=${mes}&ano=${ano}`
+    );
+    return data;
+  },
+
+  async verificarDuplicataNome(nomeArquivo: string): Promise<{ existe: boolean; upload?: UploadWithRelations }> {
+    const { data } = await api.get<{ existe: boolean; upload?: UploadWithRelations }>(
+      `/uploads/verificar-duplicata-nome?nomeArquivo=${encodeURIComponent(nomeArquivo)}`
+    );
+    return data;
+  },
 };
 

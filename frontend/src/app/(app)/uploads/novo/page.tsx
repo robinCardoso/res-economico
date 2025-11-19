@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -14,6 +14,8 @@ import { useEmpresas } from '@/hooks/use-empresas';
 import { useTemplates } from '@/hooks/use-templates';
 import { uploadsService } from '@/services/uploads.service';
 import { validateExcelFile, type ValidationAlert } from '@/lib/excel-validator';
+import type { UploadWithRelations } from '@/types/api';
+import { getStatusLabel } from '@/lib/format';
 
 const uploadSchema = z.object({
   empresaId: z.string().min(1, 'Selecione uma empresa'),
@@ -52,6 +54,9 @@ const NovoUploadPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [validationAlerts, setValidationAlerts] = useState<ValidationAlert[]>([]);
   const [showValidation, setShowValidation] = useState(false);
+  const [duplicataPeriodo, setDuplicataPeriodo] = useState<{ existe: boolean; upload?: UploadWithRelations } | null>(null);
+  const [duplicataNome, setDuplicataNome] = useState<{ existe: boolean; upload?: UploadWithRelations } | null>(null);
+  const [isVerificando, setIsVerificando] = useState(false);
 
   const {
     register,
@@ -67,6 +72,50 @@ const NovoUploadPage = () => {
   });
 
   const empresaId = watch('empresaId');
+  const mes = watch('mes');
+  const ano = watch('ano');
+
+  // Verificar duplicata de período quando empresa, mês ou ano mudarem
+  useEffect(() => {
+    if (empresaId && mes && ano) {
+      setIsVerificando(true);
+      uploadsService
+        .verificarDuplicataPeriodo(empresaId, mes, ano)
+        .then((result) => {
+          setDuplicataPeriodo(result);
+        })
+        .catch((err) => {
+          console.error('Erro ao verificar duplicata de período:', err);
+          setDuplicataPeriodo({ existe: false });
+        })
+        .finally(() => {
+          setIsVerificando(false);
+        });
+    } else {
+      setDuplicataPeriodo(null);
+    }
+  }, [empresaId, mes, ano]);
+
+  // Verificar duplicata de nome quando arquivo mudar
+  useEffect(() => {
+    if (file) {
+      setIsVerificando(true);
+      uploadsService
+        .verificarDuplicataNome(file.name)
+        .then((result) => {
+          setDuplicataNome(result);
+        })
+        .catch((err) => {
+          console.error('Erro ao verificar duplicata de nome:', err);
+          setDuplicataNome({ existe: false });
+        })
+        .finally(() => {
+          setIsVerificando(false);
+        });
+    } else {
+      setDuplicataNome(null);
+    }
+  }, [file]);
 
   // Função para detectar quais colunas são mapeadas vs extras
   const detectColumnMapping = useCallback((headers: unknown[]): {
@@ -236,7 +285,7 @@ const NovoUploadPage = () => {
         setPreview(previewData);
 
         // Validar arquivo completo
-        const validation = validateExcelFile(workbook, []);
+        const validation = validateExcelFile(workbook);
         setValidationAlerts(validation.alerts);
         setShowValidation(validation.alerts.length > 0);
         
@@ -294,6 +343,12 @@ const NovoUploadPage = () => {
   const onSubmit = async (data: UploadFormData) => {
     if (!file) {
       setError('Por favor, selecione um arquivo');
+      return;
+    }
+
+    // Bloquear se houver duplicata de nome de arquivo
+    if (duplicataNome?.existe) {
+      setError(`Não é permitido fazer upload de arquivos com o mesmo nome. Já existe um upload com o arquivo "${file.name}".`);
       return;
     }
 
@@ -384,6 +439,34 @@ const NovoUploadPage = () => {
       </header>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Alerta de duplicata de período */}
+        {duplicataPeriodo?.existe && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-sm dark:border-amber-600 dark:bg-amber-900/20">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <span className="text-2xl">⚠️</span>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">
+                  Upload já existe para este período
+                </h3>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  Já existe um upload para a empresa <strong>{duplicataPeriodo.upload?.empresa?.razaoSocial}</strong> no período <strong>{meses.find(m => m.value === mes)?.label}/{ano}</strong>.
+                  {duplicataPeriodo.upload && (
+                    <span className="block mt-1">
+                      Arquivo: <strong>{duplicataPeriodo.upload.nomeArquivo}</strong> | 
+                      Status: <strong>{getStatusLabel(duplicataPeriodo.upload.status)}</strong>
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                  Você pode continuar, mas isso criará um novo upload para o mesmo período.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Seleção de Empresa, Mês e Ano */}
         <section className="grid gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 sm:grid-cols-3">
           <div className="space-y-1">
@@ -475,6 +558,34 @@ const NovoUploadPage = () => {
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
             Selecionar arquivo Excel
           </h2>
+
+          {/* Alerta de duplicata de nome de arquivo */}
+          {duplicataNome?.existe && (
+            <div className="mb-4 rounded-xl border border-rose-300 bg-rose-50 p-4 shadow-sm dark:border-rose-600 dark:bg-rose-900/20">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <span className="text-2xl">🚫</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-rose-800 dark:text-rose-200 mb-1">
+                    Arquivo duplicado não permitido
+                  </h3>
+                  <p className="text-sm text-rose-700 dark:text-rose-300">
+                    Já existe um upload com o arquivo <strong>"{file.name}"</strong>.
+                    {duplicataNome.upload && (
+                      <span className="block mt-1">
+                        Empresa: <strong>{duplicataNome.upload.empresa?.razaoSocial}</strong> | 
+                        Período: <strong>{meses.find(m => m.value === duplicataNome.upload?.mes)?.label}/{duplicataNome.upload.ano}</strong>
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-rose-600 dark:text-rose-400 mt-2">
+                    Não é permitido fazer upload de arquivos com o mesmo nome. Por favor, selecione outro arquivo ou renomeie o arquivo antes de fazer o upload.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 rounded-md bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-700">

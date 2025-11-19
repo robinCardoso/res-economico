@@ -13,7 +13,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // Aguardar a hidratação do Zustand antes de verificar autenticação
   useEffect(() => {
     if (_hasHydrated) {
-      setIsChecking(false);
+      // Usar setTimeout para evitar setState síncrono no effect
+      setTimeout(() => {
+        setIsChecking(false);
+      }, 0);
       return;
     }
 
@@ -32,19 +35,27 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             return () => clearTimeout(timeout);
           } else {
             // Não há token válido, considerar não autenticado
-            setIsChecking(false);
+            setTimeout(() => {
+              setIsChecking(false);
+            }, 0);
           }
         } catch {
           // Erro ao parsear, considerar não autenticado
-          setIsChecking(false);
+          setTimeout(() => {
+            setIsChecking(false);
+          }, 0);
         }
       } else {
         // Não há storage, considerar não autenticado
-        setIsChecking(false);
+        setTimeout(() => {
+          setIsChecking(false);
+        }, 0);
       }
     } else {
       // Server-side, considerar não autenticado
-      setIsChecking(false);
+      setTimeout(() => {
+        setIsChecking(false);
+      }, 0);
     }
   }, [_hasHydrated]);
 

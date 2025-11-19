@@ -6,12 +6,14 @@ export interface CreateEmpresaDto {
   razaoSocial: string;
   nomeFantasia?: string;
   tipo?: 'MATRIZ' | 'FILIAL';
+  uf?: string;
 }
 
 export interface UpdateEmpresaDto {
   razaoSocial?: string;
   nomeFantasia?: string;
   tipo?: 'MATRIZ' | 'FILIAL';
+  uf?: string;
 }
 
 export const empresasService = {

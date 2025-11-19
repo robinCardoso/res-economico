@@ -46,7 +46,6 @@ function parseNumber(value: unknown): number {
  */
 export function validateExcelFile(
   workbook: XLSX.WorkBook,
-  headers: string[],
 ): ValidationResult {
   const alerts: ValidationAlert[] = [];
   const sheetName = workbook.SheetNames[0];

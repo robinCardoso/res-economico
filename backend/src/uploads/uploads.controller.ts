@@ -7,6 +7,7 @@ import {
   UseInterceptors,
   UploadedFile,
   Body,
+  Query,
   ParseFilePipe,
   MaxFileSizeValidator,
   Request,
@@ -35,6 +36,33 @@ export class UploadsController {
   @Get()
   list() {
     return this.uploadsService.findAll();
+  }
+
+  @Get('verificar-duplicata-periodo')
+  async verificarDuplicataPeriodo(
+    @Query('empresaId') empresaId: string,
+    @Query('mes') mes: string,
+    @Query('ano') ano: string,
+  ) {
+    if (!empresaId || !mes || !ano) {
+      throw new BadRequestException('empresaId, mes e ano são obrigatórios');
+    }
+    const mesNum = parseInt(mes, 10);
+    const anoNum = parseInt(ano, 10);
+    if (isNaN(mesNum) || isNaN(anoNum)) {
+      throw new BadRequestException('mes e ano devem ser números válidos');
+    }
+    const upload = await this.uploadsService.verificarDuplicataPeriodo(empresaId, mesNum, anoNum);
+    return { existe: !!upload, upload };
+  }
+
+  @Get('verificar-duplicata-nome')
+  async verificarDuplicataNome(@Query('nomeArquivo') nomeArquivo: string) {
+    if (!nomeArquivo) {
+      throw new BadRequestException('nomeArquivo é obrigatório');
+    }
+    const upload = await this.uploadsService.verificarDuplicataNomeArquivo(nomeArquivo);
+    return { existe: !!upload, upload };
   }
 
   // Rotas específicas devem vir ANTES das rotas genéricas com :id

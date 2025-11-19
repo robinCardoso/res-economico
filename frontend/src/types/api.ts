@@ -86,7 +86,9 @@ export interface Upload {
 export interface ContaCatalogo {
   id: string;
   classificacao: string;
-  nomeConta: string;
+  conta: string; // Número da conta (ex: "1304")
+  subConta: string;
+  nomeConta: string; // Nome da conta (ex: "Fretes e Carretos") - padrão igual LinhaUpload
   tipoConta: string;
   nivel: number;
   primeiraImportacao: string;
@@ -144,6 +146,8 @@ export interface ContaRelatorio {
     total: number;
   };
   filhos?: ContaRelatorio[];
+  conta?: string; // Número da conta (opcional, para chave composta)
+  subConta?: string; // SubConta (opcional, para chave composta)
 }
 
 export interface RelatorioResultado {

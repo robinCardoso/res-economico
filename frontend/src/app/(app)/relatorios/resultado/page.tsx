@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRelatorioResultado } from '@/hooks/use-relatorios';
 import { useEmpresas } from '@/hooks/use-empresas';
 import { relatoriosService } from '@/services/relatorios.service';
 import type { TipoRelatorio, ContaRelatorio } from '@/types/api';
-import { Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
+import { FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
+import { exportarParaExcel, exportarParaPDF } from '@/utils/export-relatorio';
 
 const RelatorioResultadoPage = () => {
   // Estado para controlar se os filtros estão expandidos
@@ -54,7 +55,6 @@ const RelatorioResultadoPage = () => {
       }
     };
     buscarAnos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const params = useMemo(
@@ -107,18 +107,22 @@ const RelatorioResultadoPage = () => {
   };
 
   const limparFiltros = () => {
-    const anoAtual = new Date().getFullYear();
-    setAnoLocal(anoAtual);
+    // Usar o primeiro ano disponível ou o ano atual
+    const anoParaUsar = anosDisponiveis.length > 0 ? anosDisponiveis[0] : new Date().getFullYear();
+    
+    setAnoLocal(anoParaUsar);
     setTipoLocal('CONSOLIDADO');
     setEmpresaIdLocal('');
     setEmpresaIdsLocal([]);
     setDescricaoLocal('');
-    setAno(anoAtual);
+    setAno(anoParaUsar);
     setTipo('CONSOLIDADO');
     setEmpresaId('');
     setEmpresaIds([]);
     setDescricao('');
     setMostrarSugestoes(false);
+    // Recolher os filtros após limpar
+    setFiltrosExpandidos(false);
   };
 
   const { data: relatorio, isLoading, error } = useRelatorioResultado(params);
@@ -139,19 +143,71 @@ const RelatorioResultadoPage = () => {
 
   const [contasExpandidas, setContasExpandidas] = useState<Set<string>>(new Set());
   const [expandirTodosNiveis, setExpandirTodosNiveis] = useState<boolean>(false);
+  const [exibirSubContas, setExibirSubContas] = useState<boolean>(true);
 
   // Função para coletar todas as classificações de contas que têm filhos
-  const coletarTodasClassificacoes = (contas: ContaRelatorio[] | undefined, resultado: Set<string> = new Set()): Set<string> => {
-    if (!contas || contas.length === 0) return resultado;
-    
-    for (const conta of contas) {
-      if (conta.filhos && conta.filhos.length > 0) {
-        resultado.add(conta.classificacao);
-        coletarTodasClassificacoes(conta.filhos, resultado);
+  const coletarTodasClassificacoes = useCallback(
+    (contas: ContaRelatorio[] | undefined, resultado: Set<string> = new Set()): Set<string> => {
+      if (!contas || contas.length === 0) return resultado;
+
+      for (const conta of contas) {
+        if (conta.filhos && conta.filhos.length > 0) {
+          resultado.add(conta.classificacao);
+          coletarTodasClassificacoes(conta.filhos, resultado);
+        }
       }
-    }
-    return resultado;
-  };
+      return resultado;
+    },
+    []
+  );
+
+  // Função para calcular a largura máxima necessária para a coluna CLASSI
+  const calcularLarguraClassi = useCallback(
+    (contas: ContaRelatorio[] | undefined, nivel = 0, maxLargura = 0): number => {
+      if (!contas || contas.length === 0) return maxLargura;
+
+      for (const conta of contas) {
+        const indentacao = nivel * 16; // Mesma indentação usada na renderização
+        const temFilhos = conta.filhos && conta.filhos.length > 0;
+        const estaExpandida = expandirTodosNiveis 
+          ? (temFilhos || nivel === 0)
+          : (contasExpandidas.has(conta.classificacao) || nivel === 0);
+
+        // Calcular largura necessária para esta linha
+        // Botão expandir/colapsar: 16px (ou espaço vazio: 16px)
+        const larguraBotao = 16;
+        // Indentação
+        const larguraIndentacao = indentacao;
+        // Texto da classificação (estimativa: ~7px por caractere em fonte monospace 10px)
+        const larguraTexto = conta.classificacao.length * 7;
+        // Padding: 8px de cada lado = 16px
+        const larguraPadding = 16;
+        // Borda: 1px
+        const larguraBorda = 1;
+        // Gap entre elementos: 4px
+        const larguraGap = 4;
+
+        const larguraTotal = larguraBotao + larguraIndentacao + larguraTexto + larguraPadding + larguraBorda + larguraGap;
+        maxLargura = Math.max(maxLargura, larguraTotal);
+
+        // Se estiver expandida, verificar filhos também
+        if (estaExpandida && conta.filhos && conta.filhos.length > 0) {
+          maxLargura = calcularLarguraClassi(conta.filhos, nivel + 1, maxLargura);
+        }
+      }
+
+      return maxLargura;
+    },
+    [expandirTodosNiveis, contasExpandidas]
+  );
+
+  // Calcular largura dinâmica da coluna CLASSI
+  const larguraClassi = useMemo(() => {
+    if (!relatorio?.contas) return 120; // Largura padrão
+    const larguraCalculada = calcularLarguraClassi(relatorio.contas);
+    // Adicionar margem de segurança (20px) e garantir mínimo de 100px
+    return Math.max(100, larguraCalculada + 20);
+  }, [relatorio?.contas, calcularLarguraClassi]);
 
   // Efeito para expandir/colapsar todos os níveis quando o checkbox mudar
   useEffect(() => {
@@ -165,7 +221,7 @@ const RelatorioResultadoPage = () => {
         setContasExpandidas(new Set());
       }
     }
-  }, [expandirTodosNiveis, relatorio?.contas]);
+  }, [expandirTodosNiveis, relatorio?.contas, coletarTodasClassificacoes]);
 
   const toggleExpandir = (classificacao: string) => {
     // Se "Expandir Todos" estiver marcado, desmarcar primeiro
@@ -188,6 +244,12 @@ const RelatorioResultadoPage = () => {
     if (!contas || contas.length === 0) return [];
 
     return contas.flatMap((conta) => {
+      // Se não exibir subContas e esta conta tem subConta, ocultar
+      const temSubConta = conta.subConta && conta.subConta.trim() !== '';
+      if (!exibirSubContas && temSubConta) {
+        return [];
+      }
+
       const indentacao = nivel * 16; // Reduzido de 24px para 16px
       const isRaiz = nivel === 0;
       const temFilhos = conta.filhos && conta.filhos.length > 0;
@@ -197,29 +259,45 @@ const RelatorioResultadoPage = () => {
         ? (temFilhos || nivel === 0) // Se expandir todos, todas com filhos ficam expandidas
         : (contasExpandidas.has(conta.classificacao) || nivel === 0); // Raiz sempre expandida
 
+      // Criar chave única incluindo conta e subConta (se disponíveis)
+      const contaNum = conta.conta || '';
+      const subConta = conta.subConta || '';
+      const chaveUnica = `${conta.classificacao}|${contaNum}|${subConta}`;
+      
+      // Filtrar filhos se não exibir subContas
+      const filhosParaRenderizar = exibirSubContas 
+        ? conta.filhos 
+        : conta.filhos?.filter(filho => !filho.subConta || filho.subConta.trim() === '');
+      
       return (
-        <React.Fragment key={conta.classificacao}>
+        <React.Fragment key={chaveUnica}>
           <tr
             className={`border-b border-slate-200 hover:bg-slate-50/50 dark:border-slate-800 dark:hover:bg-slate-900/50 ${
               isRaiz ? 'bg-slate-50/30 dark:bg-slate-900/30' : ''
             }`}
           >
-            <td className="sticky left-0 z-[50] bg-white border-r border-slate-200 px-2 py-1.5 text-[10px] font-medium text-slate-700 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+            <td 
+              className="sticky left-0 z-[51] bg-white !bg-white border-r border-slate-200 px-2 py-1.5 text-[10px] font-medium text-slate-700 dark:!bg-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border border-b border-slate-200 dark:border-b-slate-800"
+              style={{ minWidth: `${larguraClassi}px`, width: `${larguraClassi}px` }}
+            >
               <div className="flex items-center gap-1" style={{ paddingLeft: `${indentacao}px` }}>
                 {temFilhos && (
                   <button
                     onClick={() => toggleExpandir(conta.classificacao)}
-                    className="flex h-4 w-4 items-center justify-center rounded hover:bg-slate-200 dark:hover:bg-slate-700"
+                    className="flex h-4 w-4 items-center justify-center rounded hover:bg-slate-200 dark:hover:bg-slate-700 flex-shrink-0"
                     title={estaExpandida ? 'Recolher' : 'Expandir'}
                   >
                     <span className="text-[10px]">{estaExpandida ? '−' : '+'}</span>
                   </button>
                 )}
-                {!temFilhos && <span className="w-4" />}
+                {!temFilhos && <span className="w-4 flex-shrink-0" />}
                 <span className="whitespace-nowrap font-mono">{conta.classificacao}</span>
               </div>
             </td>
-            <td className="sticky left-[80px] z-[40] bg-white border-r border-slate-200 px-2 py-1.5 text-[10px] text-slate-600 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 min-w-[200px] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+            <td 
+              className="sticky z-[51] bg-white !bg-white border-r border-slate-200 px-2 py-1.5 text-[10px] text-slate-600 dark:!bg-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 min-w-[200px] shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border border-b border-slate-200 dark:border-b-slate-800"
+              style={{ left: `${larguraClassi}px` }}
+            >
               <div style={{ paddingLeft: `${indentacao}px` }} className="truncate" title={conta.nomeConta}>
                 {conta.nomeConta}
               </div>
@@ -229,18 +307,18 @@ const RelatorioResultadoPage = () => {
               return (
                 <td
                   key={periodo.mes}
-                  className={`px-2 py-1.5 text-right text-[10px] font-mono whitespace-nowrap min-w-[90px] ${getValorClassName(valor)}`}
+                  className={`px-2 py-1.5 text-right text-[10px] font-mono whitespace-nowrap min-w-[90px] border-b border-slate-200 dark:border-b-slate-800 ${getValorClassName(valor)}`}
                   title={formatarValor(valor)}
                 >
                   {formatarValor(valor)}
                 </td>
               );
             })}
-            <td className={`sticky right-0 z-[40] bg-white border-l border-slate-200 px-2 py-1.5 text-right text-[10px] font-mono font-semibold dark:bg-slate-900 dark:border-slate-800 whitespace-nowrap min-w-[90px] shadow-[-2px_0_4px_rgba(0,0,0,0.05)] ${getValorClassName(conta.valores.total || 0)}`}>
+            <td className={`sticky right-0 z-[40] bg-white border-l border-slate-200 border-b border-slate-200 px-2 py-1.5 text-right text-[10px] font-mono font-semibold dark:bg-slate-900 dark:border-slate-800 dark:border-b-slate-800 whitespace-nowrap min-w-[90px] shadow-[-2px_0_4px_rgba(0,0,0,0.05)] ${getValorClassName(conta.valores.total || 0)}`}>
               {formatarValor(conta.valores.total || 0)}
             </td>
           </tr>
-          {temFilhos && estaExpandida && renderizarContas(conta.filhos, nivel + 1)}
+          {temFilhos && estaExpandida && renderizarContas(filhosParaRenderizar, nivel + 1)}
         </React.Fragment>
       );
     });
@@ -439,15 +517,20 @@ const RelatorioResultadoPage = () => {
               {relatorio && (
                 <div className="flex items-start gap-1.5 pt-[18px]">
                   <button
-                    disabled
-                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-300 bg-white px-2 text-[10px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    onClick={() => exportarParaExcel(relatorio)}
+                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-300 bg-white px-2 text-[10px] font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                   >
                     <FileSpreadsheet className="h-3 w-3" />
                     Excel
                   </button>
                   <button
-                    disabled
-                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-300 bg-white px-2 text-[10px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    onClick={() => {
+                      exportarParaPDF(relatorio).catch((error) => {
+                        console.error('Erro ao exportar PDF:', error);
+                        alert('Erro ao exportar PDF. Tente novamente.');
+                      });
+                    }}
+                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-300 bg-white px-2 text-[10px] font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                   >
                     <FileText className="h-3 w-3" />
                     PDF
@@ -459,7 +542,7 @@ const RelatorioResultadoPage = () => {
             {/* Mensagem de validação */}
             {tipo === 'FILIAL' && !empresaId && (
               <div className="mt-1.5 rounded border border-amber-200 bg-amber-50/50 px-2 py-1 text-[9px] text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-                Selecione uma empresa e clique em "Filtrar" para gerar o relatório por filial.
+                Selecione uma empresa e clique em &quot;Filtrar&quot; para gerar o relatório por filial.
               </div>
             )}
           </div>
@@ -529,29 +612,48 @@ const RelatorioResultadoPage = () => {
                   RESULTADO ECONÔMICO {relatorio.empresaNome.toUpperCase()}
                   {relatorio.uf ? ` - ${relatorio.uf}` : ''} {relatorio.ano}
                 </h2>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={expandirTodosNiveis}
-                    onChange={(e) => setExpandirTodosNiveis(e.target.checked)}
-                    className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 focus:ring-offset-0 dark:border-slate-600 dark:bg-slate-800"
-                  />
-                  <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300">
-                    Expandir Níveis
-                  </span>
-                </label>
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={expandirTodosNiveis}
+                      onChange={(e) => setExpandirTodosNiveis(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 focus:ring-offset-0 dark:border-slate-600 dark:bg-slate-800"
+                    />
+                    <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                      Expandir Níveis
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={exibirSubContas}
+                      onChange={(e) => setExibirSubContas(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 focus:ring-offset-0 dark:border-slate-600 dark:bg-slate-800"
+                    />
+                    <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                      Exibir SubContas
+                    </span>
+                  </label>
+                </div>
               </div>
             </div>
 
             {/* Tabela com scroll horizontal e vertical */}
             <div className="h-[calc(100%-60px)] overflow-auto overscroll-contain">
-              <table className="min-w-full divide-y divide-slate-200 text-[10px] dark:divide-slate-800">
+              <table className="min-w-full border-collapse divide-y divide-slate-200 text-[10px] dark:divide-slate-800">
                 <thead className="sticky top-0 z-[100] bg-slate-50/95 backdrop-blur-sm dark:bg-slate-900/95 shadow-sm">
                   <tr>
-                    <th className="sticky left-0 z-[101] bg-slate-50/95 border-r border-slate-200 px-2 py-1.5 text-left text-[10px] font-medium text-slate-500 dark:bg-slate-900/95 dark:border-slate-800 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+                    <th 
+                      className="sticky left-0 z-[102] bg-slate-50/95 !bg-slate-50/95 border-r border-slate-200 px-2 py-1.5 text-left text-[10px] font-medium text-slate-500 dark:!bg-slate-900/95 dark:bg-slate-900/95 dark:border-slate-800 shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border"
+                      style={{ minWidth: `${larguraClassi}px`, width: `${larguraClassi}px` }}
+                    >
                       CLASSI
                     </th>
-                    <th className="sticky left-[80px] z-[100] bg-slate-50/95 border-r border-slate-200 px-2 py-1.5 text-left text-[10px] font-medium text-slate-500 dark:bg-slate-900/95 dark:border-slate-800 min-w-[200px] shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+                    <th 
+                      className="sticky z-[101] bg-slate-50/95 !bg-slate-50/95 border-r border-slate-200 px-2 py-1.5 text-left text-[10px] font-medium text-slate-500 dark:!bg-slate-900/95 dark:bg-slate-900/95 dark:border-slate-800 min-w-[200px] shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border"
+                      style={{ left: `${larguraClassi}px` }}
+                    >
                       DESCRI
                     </th>
                     {relatorio.periodo.map((periodo) => (

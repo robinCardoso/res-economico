@@ -1,4 +1,4 @@
-import type { AxiosError, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from "axios";
+import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
 
 // Carregar baseURL da variável de ambiente ou usar fallback
@@ -90,12 +90,10 @@ api.interceptors.response.use(
         }
       }
     } else if (error.request) {
-      // Requisição foi feita mas não houve resposta
-      console.error("Network error - sem resposta do servidor:", {
-        url: error.config?.url,
-        baseURL: error.config?.baseURL,
-        message: error.message,
-      });
+      // Requisição foi feita mas não houve resposta (erro de rede)
+      // Erros de rede são esperados quando o backend não está rodando
+      // Não logar no console - o código que chama a API já trata o erro e mostra mensagem ao usuário
+      // Apenas rejeitar a promise para que o código chamador possa tratar adequadamente
     } else {
       // Erro ao configurar a requisição
       console.error("Request setup error:", error.message);

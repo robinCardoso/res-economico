@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import * as os from 'os';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -38,8 +39,25 @@ async function bootstrap() {
   console.log(
     `🚀 Backend rodando em http://localhost:${port}`,
   );
+  // Obter IP da rede local para exibir na mensagem
+  const networkInterfaces = os.networkInterfaces();
+  let localIp = 'seu-IP-local';
+  for (const interfaceName in networkInterfaces) {
+    const addresses = networkInterfaces[interfaceName];
+    if (!addresses) continue;
+    for (const addr of addresses) {
+      if (addr.family === 'IPv4' && !addr.internal && addr.address.startsWith('10.1.')) {
+        localIp = addr.address;
+        break;
+      }
+    }
+    if (localIp !== 'seu-IP-local') break;
+  }
   console.log(
-    `🌐 Acessível na rede local via IP: http://<SEU_IP>:${port}`,
+    `🌐 Acessível na rede local: http://${localIp}:${port}`,
+  );
+  console.log(
+    `📱 Outros computadores na rede podem acessar em: http://${localIp}:3001`,
   );
 }
 void bootstrap();
