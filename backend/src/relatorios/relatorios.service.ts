@@ -1064,6 +1064,7 @@ export class RelatoriosService {
 
       contasMap.set(chaveComposta, {
         classificacao: classificacaoNorm,
+        conta: conta || undefined, // Incluir número da conta
         nomeConta,
         nivel,
         valorPeriodo1,

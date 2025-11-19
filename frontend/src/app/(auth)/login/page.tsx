@@ -40,8 +40,11 @@ const LoginPage = () => {
         // Erro com resposta do servidor
         errorMessage = error.response.data?.message || error.response.data?.error || errorMessage;
       } else if (error.request) {
-        // Requisição foi feita mas não houve resposta
-        errorMessage = 'Não foi possível conectar ao servidor. Verifique se o backend está rodando em http://localhost:3000';
+        // Requisição foi feita mas não houve resposta (erro de conexão)
+        const currentApiUrl = typeof window !== 'undefined' 
+          ? localStorage.getItem('api-url') || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+          : 'http://localhost:3000';
+        errorMessage = `Não foi possível conectar ao servidor em ${currentApiUrl}. Verifique se o backend está rodando. Se você mudou de rede, configure a URL da API no console do navegador: localStorage.setItem('api-url', 'http://SEU_IP:3000')`;
       } else {
         // Erro ao configurar a requisição
         errorMessage = error.message || errorMessage;

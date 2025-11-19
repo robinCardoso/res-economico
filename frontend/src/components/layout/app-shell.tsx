@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   BellRing,
   BrainCircuit,
@@ -13,8 +13,10 @@ import {
   UploadCloud,
   Building,
   FileText,
+  LogOut,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useAuthStore } from '@/stores/auth.store';
 
 type NavItem = {
   label: string;
@@ -40,6 +42,13 @@ type AppShellProps = {
 
 export const AppShell = ({ children }: AppShellProps) => {
   const pathname = usePathname();
+  const router = useRouter();
+  const { clearAuth, user } = useAuthStore();
+
+  const handleLogout = () => {
+    clearAuth();
+    router.push('/login');
+  };
 
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
@@ -91,7 +100,7 @@ export const AppShell = ({ children }: AppShellProps) => {
 
       <div className="flex flex-1 flex-col lg:pl-64 max-w-full overflow-x-hidden">
         <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
-          <div className="flex h-16 items-center justify-between px-4 sm:px-6">
+          <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3 lg:hidden">
               <Link
                 href="/dashboard"
@@ -107,6 +116,26 @@ export const AppShell = ({ children }: AppShellProps) => {
                 <span>Resultado Econômico</span>
               </Link>
             </div>
+            {user && (
+              <div className="ml-auto flex items-center gap-4">
+                <div className="hidden text-right lg:block">
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {user.nome}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {user.email}
+                  </p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:border-slate-600"
+                  title="Sair"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden lg:inline">Sair</span>
+                </button>
+              </div>
+            )}
           </div>
         </header>
 

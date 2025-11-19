@@ -263,7 +263,8 @@ const RelatorioComparativoPage = () => {
       .slice(0, 10);
 
     return contasOrdenadas.map((conta) => ({
-      nome: conta.nomeConta.length > 20 ? conta.nomeConta.substring(0, 20) + '...' : conta.nomeConta,
+      nome: conta.conta || conta.classificacao, // Usar número da conta, ou classificação como fallback
+      nomeCompleto: conta.nomeConta, // Manter nome completo para tooltip
       classificacao: conta.classificacao,
       periodo1: conta.valorPeriodo1,
       periodo2: conta.valorPeriodo2,
@@ -396,64 +397,43 @@ const RelatorioComparativoPage = () => {
         {filtrosExpandidos && (
           <div className="mt-4 space-y-6">
             {/* 1. Tipo de Comparação */}
-            <div>
-              <label className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                1. Tipo de Comparação
-              </label>
-              <select
-                value={tipoComparacaoLocal}
-                onChange={(e) => setTipoComparacaoLocal(e.target.value as TipoComparacao)}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-              >
-                <option value={TipoComparacao.MES_A_MES}>Mês a Mês</option>
-                <option value={TipoComparacao.ANO_A_ANO}>Ano a Ano</option>
-                <option value={TipoComparacao.CUSTOMIZADO}>Customizado</option>
-              </select>
-              <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
-                {tipoComparacaoLocal === TipoComparacao.MES_A_MES && 'Compara dois meses consecutivos (ex: Janeiro vs Fevereiro)'}
-                {tipoComparacaoLocal === TipoComparacao.ANO_A_ANO && 'Compara o mesmo mês em anos diferentes (ex: Janeiro/2024 vs Janeiro/2025)'}
-                {tipoComparacaoLocal === TipoComparacao.CUSTOMIZADO && 'Compare dois períodos específicos de sua escolha'}
-              </p>
-            </div>
-
-            {/* 1.1. Tipo de Valor */}
-            <div>
-              <label className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                1.1. Tipo de Valor
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="tipoValor"
-                    value={TipoValor.ACUMULADO}
-                    checked={tipoValorLocal === TipoValor.ACUMULADO}
-                    onChange={(e) => setTipoValorLocal(e.target.value as TipoValor)}
-                    className="h-3.5 w-3.5 text-sky-600 focus:ring-sky-500"
-                  />
-                  <span className="text-xs text-slate-700 dark:text-slate-300">
-                    Valor Acumulado
-                  </span>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  1. Tipo de Comparação
                 </label>
-                <p className="ml-6 text-[10px] text-slate-500 dark:text-slate-400">
-                  Saldo acumulado até o mês (saldoAtual)
+                <select
+                  value={tipoComparacaoLocal}
+                  onChange={(e) => setTipoComparacaoLocal(e.target.value as TipoComparacao)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                >
+                  <option value={TipoComparacao.MES_A_MES}>Mês a Mês</option>
+                  <option value={TipoComparacao.ANO_A_ANO}>Ano a Ano</option>
+                  <option value={TipoComparacao.CUSTOMIZADO}>Customizado</option>
+                </select>
+                <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                  {tipoComparacaoLocal === TipoComparacao.MES_A_MES && 'Compara dois meses consecutivos (ex: Janeiro vs Fevereiro)'}
+                  {tipoComparacaoLocal === TipoComparacao.ANO_A_ANO && 'Compara o mesmo mês em anos diferentes (ex: Janeiro/2024 vs Janeiro/2025)'}
+                  {tipoComparacaoLocal === TipoComparacao.CUSTOMIZADO && 'Compare dois períodos específicos de sua escolha'}
                 </p>
-                
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="tipoValor"
-                    value={TipoValor.PERIODO}
-                    checked={tipoValorLocal === TipoValor.PERIODO}
-                    onChange={(e) => setTipoValorLocal(e.target.value as TipoValor)}
-                    className="h-3.5 w-3.5 text-sky-600 focus:ring-sky-500"
-                  />
-                  <span className="text-xs text-slate-700 dark:text-slate-300">
-                    Valor do Período
-                  </span>
+              </div>
+
+              {/* 1.1. Tipo de Valor */}
+              <div>
+                <label className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  1.1. Tipo de Valor
                 </label>
-                <p className="ml-6 text-[10px] text-slate-500 dark:text-slate-400">
-                  Movimentação do mês (crédito - débito)
+                <select
+                  value={tipoValorLocal}
+                  onChange={(e) => setTipoValorLocal(e.target.value as TipoValor)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  title={tipoValorLocal === TipoValor.ACUMULADO ? 'Saldo acumulado até o mês (saldoAtual)' : 'Movimentação do mês (crédito - débito)'}
+                >
+                  <option value={TipoValor.ACUMULADO}>Valor Acumulado</option>
+                  <option value={TipoValor.PERIODO}>Valor do Período</option>
+                </select>
+                <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                  {tipoValorLocal === TipoValor.ACUMULADO ? 'Saldo acumulado até o mês (saldoAtual)' : 'Movimentação do mês (crédito - débito)'}
                 </p>
               </div>
             </div>
@@ -826,15 +806,16 @@ const RelatorioComparativoPage = () => {
                       Comparação Lado a Lado (Top 10 Contas)
                     </h4>
                     <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={dadosGrafico} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                      <BarChart data={dadosGrafico} margin={{ top: 5, right: 20, left: 0, bottom: 60 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                         <XAxis
                           dataKey="nome"
                           angle={-45}
                           textAnchor="end"
                           height={80}
-                          tick={{ fontSize: 10 }}
+                          tick={{ fontSize: 9 }}
                           stroke="#64748b"
+                          interval={0}
                         />
                         <YAxis
                           tick={{ fontSize: 10 }}
@@ -850,11 +831,19 @@ const RelatorioComparativoPage = () => {
                         />
                         <Tooltip
                           formatter={(value: number) => formatarValor(value)}
-                          labelStyle={{ color: '#1e293b' }}
+                          labelFormatter={(label, payload) => {
+                            if (payload && Array.isArray(payload) && payload[0]?.payload) {
+                              const nomeCompleto = (payload[0].payload as { nomeCompleto?: string })?.nomeCompleto;
+                              return nomeCompleto || label;
+                            }
+                            return label;
+                          }}
+                          labelStyle={{ color: '#1e293b', fontWeight: 600 }}
                           contentStyle={{
                             backgroundColor: '#fff',
                             border: '1px solid #e2e8f0',
                             borderRadius: '6px',
+                            padding: '8px 12px',
                           }}
                         />
                         <Legend />
@@ -880,15 +869,16 @@ const RelatorioComparativoPage = () => {
                       Tendência de Variação (Top 10 Contas)
                     </h4>
                     <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={dadosGrafico} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                      <LineChart data={dadosGrafico} margin={{ top: 5, right: 20, left: 0, bottom: 60 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                         <XAxis
                           dataKey="nome"
                           angle={-45}
                           textAnchor="end"
                           height={80}
-                          tick={{ fontSize: 10 }}
+                          tick={{ fontSize: 9 }}
                           stroke="#64748b"
+                          interval={0}
                         />
                         <YAxis
                           tick={{ fontSize: 10 }}
@@ -897,11 +887,19 @@ const RelatorioComparativoPage = () => {
                         />
                         <Tooltip
                           formatter={(value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`}
-                          labelStyle={{ color: '#1e293b' }}
+                          labelFormatter={(label, payload) => {
+                            if (payload && Array.isArray(payload) && payload[0]?.payload) {
+                              const nomeCompleto = (payload[0].payload as { nomeCompleto?: string })?.nomeCompleto;
+                              return nomeCompleto || label;
+                            }
+                            return label;
+                          }}
+                          labelStyle={{ color: '#1e293b', fontWeight: 600 }}
                           contentStyle={{
                             backgroundColor: '#fff',
                             border: '1px solid #e2e8f0',
                             borderRadius: '6px',
+                            padding: '8px 12px',
                           }}
                         />
                         <Legend />

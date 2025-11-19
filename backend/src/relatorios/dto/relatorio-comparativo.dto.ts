@@ -1,5 +1,6 @@
 export interface ContaComparativa {
   classificacao: string;
+  conta?: string; // Número da conta (ex: "1053")
   nomeConta: string;
   nivel: number;
   valorPeriodo1: number;

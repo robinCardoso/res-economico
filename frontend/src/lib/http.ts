@@ -1,31 +1,59 @@
 import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
 
-// Carregar baseURL da variável de ambiente ou usar fallback
-const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-const baseURL = rawBaseUrl || (typeof window !== 'undefined' ? 'http://localhost:3000' : undefined);
-
-// Log para debug (apenas em desenvolvimento)
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  console.log('[HTTP] baseURL configurado:', baseURL || 'NÃO CONFIGURADO');
-  console.log('[HTTP] NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
-  if (!baseURL) {
-    console.warn('[HTTP] AVISO: baseURL não configurado, usando fallback http://localhost:3000');
+// Função para obter a baseURL dinamicamente
+const getBaseURL = (): string | undefined => {
+  if (typeof window === 'undefined') {
+    // Server-side: usar variável de ambiente ou undefined
+    return process.env.NEXT_PUBLIC_API_URL?.trim() || undefined;
   }
-}
 
+  // Client-side: verificar localStorage primeiro (permite configuração dinâmica)
+  const storedApiUrl = localStorage.getItem('api-url');
+  if (storedApiUrl) {
+    return storedApiUrl.trim();
+  }
+
+  // Depois verificar variável de ambiente
+  const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (envApiUrl) {
+    return envApiUrl;
+  }
+
+  // Fallback: usar localhost (funciona quando frontend e backend estão na mesma máquina)
+  return 'http://localhost:3000';
+};
+
+// Criar instância do axios sem baseURL fixa
 export const api = axios.create({
-  baseURL,
   timeout: 15_000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Interceptor para adicionar token nas requisições
+// Log para debug (apenas em desenvolvimento)
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  const initialBaseURL = getBaseURL();
+  console.log('[HTTP] baseURL inicial:', initialBaseURL || 'NÃO CONFIGURADO');
+  console.log('[HTTP] NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
+  console.log('[HTTP] localStorage api-url:', localStorage.getItem('api-url'));
+  if (!initialBaseURL) {
+    console.warn('[HTTP] AVISO: baseURL não configurado, usando fallback http://localhost:3000');
+  }
+}
+
+// Interceptor para adicionar token e baseURL dinâmica nas requisições
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     if (typeof window !== 'undefined') {
+      // Definir baseURL dinamicamente a cada requisição
+      const dynamicBaseURL = getBaseURL();
+      if (dynamicBaseURL && !config.baseURL) {
+        config.baseURL = dynamicBaseURL;
+      }
+
+      // Adicionar token de autenticação
       const authStorage = localStorage.getItem('auth-storage');
       if (authStorage) {
         try {
@@ -91,9 +119,14 @@ api.interceptors.response.use(
       }
     } else if (error.request) {
       // Requisição foi feita mas não houve resposta (erro de rede)
-      // Erros de rede são esperados quando o backend não está rodando
-      // Não logar no console - o código que chama a API já trata o erro e mostra mensagem ao usuário
-      // Apenas rejeitar a promise para que o código chamador possa tratar adequadamente
+      // Logar informações úteis para debug
+      console.error('[HTTP] Erro de conexão:', {
+        message: error.message,
+        code: error.code,
+        baseURL: error.config?.baseURL,
+        url: error.config?.url,
+        suggestion: 'Verifique se o backend está rodando e se o IP/URL está correto. Você pode configurar a URL da API no localStorage com: localStorage.setItem("api-url", "http://SEU_IP:3000")',
+      });
     } else {
       // Erro ao configurar a requisição
       console.error("Request setup error:", error.message);
