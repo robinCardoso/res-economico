@@ -1,6 +1,7 @@
 import { Controller, Get, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { RelatoriosService } from './relatorios.service';
 import { GerarRelatorioDto, TipoRelatorio } from './dto/gerar-relatorio.dto';
+import { TipoComparacao } from './dto/gerar-relatorio-comparativo.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('relatorios')
@@ -38,6 +39,38 @@ export class RelatoriosController {
       empresaId,
       empresaIdsArray,
       tipo,
+      descricao,
+    );
+  }
+
+  @Get('comparativo')
+  async gerarComparativo(
+    @Query('tipoComparacao') tipoComparacao: TipoComparacao,
+    @Query('mes1', ParseIntPipe) mes1: number,
+    @Query('ano1', ParseIntPipe) ano1: number,
+    @Query('mes2', ParseIntPipe) mes2: number,
+    @Query('ano2', ParseIntPipe) ano2: number,
+    @Query('tipo') tipo: TipoRelatorio = TipoRelatorio.CONSOLIDADO,
+    @Query('empresaId') empresaId?: string,
+    @Query('empresaIds') empresaIds?: string | string[],
+    @Query('descricao') descricao?: string,
+  ) {
+    // Converter empresaIds para array se for string
+    const empresaIdsArray = Array.isArray(empresaIds)
+      ? empresaIds
+      : empresaIds
+        ? [empresaIds]
+        : undefined;
+
+    return this.relatoriosService.gerarRelatorioComparativo(
+      tipoComparacao,
+      mes1,
+      ano1,
+      mes2,
+      ano2,
+      tipo,
+      empresaId,
+      empresaIdsArray,
       descricao,
     );
   }

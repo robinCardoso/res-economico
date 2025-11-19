@@ -1,11 +1,23 @@
 import { api } from '@/lib/http';
-import type { RelatorioResultado, TipoRelatorio } from '@/types/api';
+import type { RelatorioResultado, RelatorioComparativo, TipoRelatorio, TipoComparacao } from '@/types/api';
 
 export interface GerarRelatorioParams {
   ano: number;
   empresaId?: string;
   empresaIds?: string[];
   tipo: TipoRelatorio;
+  descricao?: string;
+}
+
+export interface GerarRelatorioComparativoParams {
+  tipoComparacao: TipoComparacao;
+  mes1: number;
+  ano1: number;
+  mes2: number;
+  ano2: number;
+  tipo: TipoRelatorio;
+  empresaId?: string;
+  empresaIds?: string[];
   descricao?: string;
 }
 
@@ -47,6 +59,35 @@ export const relatoriosService = {
 
     const { data } = await api.get<RelatorioResultado>(
       `/relatorios/resultado?${queryParams.toString()}`,
+    );
+    return data;
+  },
+
+  async gerarComparativo(params: GerarRelatorioComparativoParams): Promise<RelatorioComparativo> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('tipoComparacao', params.tipoComparacao);
+    queryParams.append('mes1', params.mes1.toString());
+    queryParams.append('ano1', params.ano1.toString());
+    queryParams.append('mes2', params.mes2.toString());
+    queryParams.append('ano2', params.ano2.toString());
+    queryParams.append('tipo', params.tipo);
+    
+    if (params.empresaId) {
+      queryParams.append('empresaId', params.empresaId);
+    }
+    
+    if (params.empresaIds && params.empresaIds.length > 0) {
+      params.empresaIds.forEach((id) => {
+        queryParams.append('empresaIds', id);
+      });
+    }
+
+    if (params.descricao && params.descricao.trim().length > 0) {
+      queryParams.append('descricao', params.descricao.trim());
+    }
+
+    const { data } = await api.get<RelatorioComparativo>(
+      `/relatorios/comparativo?${queryParams.toString()}`,
     );
     return data;
   },

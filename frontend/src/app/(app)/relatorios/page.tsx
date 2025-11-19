@@ -51,6 +51,25 @@ const RelatoriosPage = () => {
           </div>
         </Link>
 
+        <Link
+          href="/relatorios/comparativo"
+          className="group rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-purple-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-purple-700"
+        >
+          <div className="flex items-start gap-4">
+            <div className="rounded-lg bg-purple-100 p-3 dark:bg-purple-500/20">
+              <FileBarChart className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Relatório Comparativo
+              </h2>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                Compare períodos (mês a mês ou ano a ano) com análise de variações e gráficos de tendências.
+              </p>
+            </div>
+          </div>
+        </Link>
+
         <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
           <div className="flex items-start gap-4">
             <div className="rounded-lg bg-purple-100 p-3 dark:bg-purple-500/20">

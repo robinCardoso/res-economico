@@ -163,3 +163,44 @@ export interface RelatorioResultado {
   contas: ContaRelatorio[];
 }
 
+export enum TipoComparacao {
+  MES_A_MES = 'MES_A_MES',
+  ANO_A_ANO = 'ANO_A_ANO',
+  CUSTOMIZADO = 'CUSTOMIZADO',
+}
+
+export interface ContaComparativa {
+  classificacao: string;
+  nomeConta: string;
+  nivel: number;
+  valorPeriodo1: number;
+  valorPeriodo2: number;
+  diferenca: number;
+  percentual: number;
+  filhos?: ContaComparativa[];
+}
+
+export interface RelatorioComparativo {
+  periodo1: {
+    ano: number;
+    mes: number;
+    label: string;
+  };
+  periodo2: {
+    ano: number;
+    mes: number;
+    label: string;
+  };
+  tipo: TipoRelatorio;
+  empresaId?: string;
+  empresaNome: string;
+  uf?: string;
+  contas: ContaComparativa[];
+  totais: {
+    periodo1: number;
+    periodo2: number;
+    diferenca: number;
+    percentual: number;
+  };
+}
+

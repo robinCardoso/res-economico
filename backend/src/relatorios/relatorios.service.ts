@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
 import type { RelatorioResultado, ContaRelatorio } from './dto/relatorio-resultado.dto';
+import type { RelatorioComparativo, ContaComparativa } from './dto/relatorio-comparativo.dto';
 import { TipoRelatorio } from './dto/gerar-relatorio.dto';
 
 @Injectable()
@@ -693,6 +694,373 @@ export class RelatoriosService {
 
         // Atualizar valores do pai
         conta.valores = valoresPai;
+      }
+    }
+  }
+
+  /**
+   * Busca dados de um período específico (mês/ano) para empresas selecionadas
+   * Retorna um Map com chave composta (classificacao|conta|subConta) e valor
+   */
+  private async buscarDadosPeriodo(
+    mes: number,
+    ano: number,
+    empresaIds: string[],
+    descricao?: string,
+  ): Promise<Map<string, number>> {
+    // Buscar uploads do período específico
+    const uploads = await this.prisma.upload.findMany({
+      where: {
+        mes,
+        ano,
+        empresaId: { in: empresaIds },
+        status: { in: ['CONCLUIDO', 'COM_ALERTAS'] },
+      },
+      include: {
+        linhas: true,
+      },
+    });
+
+    const dadosPorChaveComposta = new Map<string, number>();
+
+    // Função auxiliar para normalizar classificação
+    const normalizarClassificacaoParaChave = (classificacao: string): string => {
+      if (!classificacao) return '';
+      return classificacao.trim().replace(/\.$/, '');
+    };
+
+    // Função para criar chave composta
+    const criarChaveComposta = (classificacao: string, conta: string | null, subConta: string | null): string => {
+      const classificacaoNorm = normalizarClassificacaoParaChave(classificacao || '');
+      const contaStr = conta || '';
+      const subContaStr = subConta || '';
+      return `${classificacaoNorm}|${contaStr}|${subContaStr}`;
+    };
+
+    // Aplicar filtro por descrição se fornecido
+    const descricaoLower = descricao?.trim().toLowerCase() || '';
+
+    for (const upload of uploads) {
+      for (const linha of upload.linhas) {
+        // Filtrar apenas linhas DRE
+        if (linha.tipoConta !== '3-DRE') {
+          continue;
+        }
+
+        // Aplicar filtro por descrição
+        if (descricaoLower && linha.nomeConta) {
+          if (!linha.nomeConta.toLowerCase().includes(descricaoLower)) {
+            continue;
+          }
+        }
+
+        const classificacao = normalizarClassificacaoParaChave(linha.classificacao || '');
+        if (!classificacao) {
+          continue;
+        }
+
+        const chaveComposta = criarChaveComposta(linha.classificacao || '', linha.conta, linha.subConta);
+        const valorLinha = Number(linha.saldoAtual) || 0;
+
+        // Somar valores se já existe a chave
+        const valorAtual = dadosPorChaveComposta.get(chaveComposta) || 0;
+        dadosPorChaveComposta.set(chaveComposta, valorAtual + valorLinha);
+      }
+    }
+
+    return dadosPorChaveComposta;
+  }
+
+  /**
+   * Gera relatório comparativo entre dois períodos
+   */
+  async gerarRelatorioComparativo(
+    tipoComparacao: string,
+    mes1: number,
+    ano1: number,
+    mes2: number,
+    ano2: number,
+    tipo: TipoRelatorio,
+    empresaId?: string,
+    empresaIds?: string[],
+    descricao?: string,
+  ): Promise<RelatorioComparativo> {
+
+    // 1. Buscar empresas conforme tipo (mesma lógica do gerarRelatorioResultado)
+    let empresas;
+    let empresaNome = 'CONSOLIDADO';
+    let ufRelatorio: string | undefined;
+
+    if (tipo === TipoRelatorio.FILIAL) {
+      if (!empresaId) {
+        throw new NotFoundException('empresaId é obrigatório para relatório FILIAL');
+      }
+      const empresa = await this.prisma.empresa.findUnique({
+        where: { id: empresaId },
+      });
+      if (!empresa) {
+        throw new NotFoundException(`Empresa com ID ${empresaId} não encontrada`);
+      }
+      empresas = [empresa];
+      empresaNome = empresa.razaoSocial;
+      ufRelatorio = empresa.uf || undefined;
+    } else {
+      // CONSOLIDADO
+      if (empresaIds && empresaIds.length > 0) {
+        empresas = await this.prisma.empresa.findMany({
+          where: { id: { in: empresaIds } },
+        });
+        if (empresas.length === 0) {
+          throw new NotFoundException('Nenhuma empresa encontrada com os IDs fornecidos');
+        }
+        empresaNome = empresas.length === 1 ? empresas[0].razaoSocial : 'CONSOLIDADO';
+        ufRelatorio = empresas[0]?.uf || undefined;
+      } else {
+        empresas = await this.prisma.empresa.findMany();
+        empresaNome = 'CONSOLIDADO';
+        ufRelatorio = empresas[0]?.uf || undefined;
+      }
+    }
+
+    const empresaIdsList = empresas.map((e) => e.id);
+
+    // 2. Buscar dados dos dois períodos
+    const dadosPeriodo1 = await this.buscarDadosPeriodo(mes1, ano1, empresaIdsList, descricao);
+    const dadosPeriodo2 = await this.buscarDadosPeriodo(mes2, ano2, empresaIdsList, descricao);
+
+    // 3. Criar conjunto de todas as chaves (período 1 + período 2)
+    const todasChaves = new Set<string>();
+    dadosPeriodo1.forEach((_, chave) => todasChaves.add(chave));
+    dadosPeriodo2.forEach((_, chave) => todasChaves.add(chave));
+
+    // 4. Buscar informações das contas no catálogo
+    const contasCatalogo = await this.prisma.contaCatalogo.findMany({
+      where: {
+        tipoConta: '3-DRE',
+        ...(descricao && descricao.trim().length > 0
+          ? {
+              nomeConta: {
+                contains: descricao.trim(),
+                mode: 'insensitive',
+              },
+            }
+          : {}),
+      },
+      orderBy: [{ classificacao: 'asc' }],
+    });
+
+    // 5. Criar mapa de contas comparativas
+    const contasMap = new Map<string, ContaComparativa>();
+
+    // Função auxiliar para normalizar classificação
+    const normalizarClassificacaoParaChave = (classificacao: string): string => {
+      if (!classificacao) return '';
+      return classificacao.trim().replace(/\.$/, '');
+    };
+
+    // Processar cada chave composta
+    for (const chaveComposta of todasChaves) {
+      const [classificacao, conta, subConta] = chaveComposta.split('|');
+      const classificacaoNorm = normalizarClassificacaoParaChave(classificacao);
+
+      const valorPeriodo1 = dadosPeriodo1.get(chaveComposta) || 0;
+      const valorPeriodo2 = dadosPeriodo2.get(chaveComposta) || 0;
+      const diferenca = valorPeriodo2 - valorPeriodo1;
+      const percentual = valorPeriodo1 !== 0 ? (diferenca / Math.abs(valorPeriodo1)) * 100 : (valorPeriodo2 !== 0 ? 100 : 0);
+
+      // Buscar informações da conta no catálogo ou nos uploads
+      let nomeConta = classificacao;
+      let nivel = 0;
+
+      // Tentar encontrar no catálogo
+      const contaCatalogo = contasCatalogo.find(
+        (c) => normalizarClassificacaoParaChave(c.classificacao) === classificacaoNorm && c.conta === conta && c.subConta === subConta,
+      );
+
+      if (contaCatalogo) {
+        nomeConta = contaCatalogo.nomeConta || classificacao;
+        nivel = contaCatalogo.nivel || 0;
+      } else {
+        // Buscar nos uploads
+        // Nota: conta é obrigatória no schema, então sempre deve ter valor
+        // Se conta estiver vazia, buscar apenas por classificação
+        const whereLinhaUpload: any = {
+          tipoConta: '3-DRE',
+          classificacao: { contains: classificacao },
+        };
+        
+        if (conta && conta.trim() !== '') {
+          whereLinhaUpload.conta = conta;
+        }
+        
+        if (subConta && subConta.trim() !== '') {
+          whereLinhaUpload.subConta = subConta;
+        } else {
+          whereLinhaUpload.subConta = null;
+        }
+        
+        const linhaUpload = await this.prisma.linhaUpload.findFirst({
+          where: whereLinhaUpload,
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (linhaUpload) {
+          nomeConta = linhaUpload.nomeConta || classificacao;
+          nivel = linhaUpload.nivel || 0;
+        }
+      }
+
+      contasMap.set(chaveComposta, {
+        classificacao: classificacaoNorm,
+        nomeConta,
+        nivel,
+        valorPeriodo1,
+        valorPeriodo2,
+        diferenca,
+        percentual,
+        filhos: [],
+      });
+    }
+
+    // 6. Construir hierarquia (similar ao relatório de resultado)
+    // Função para encontrar classificação pai
+    const encontrarPai = (classificacao: string): string | null => {
+      const partes = classificacao.split('.').filter((p) => p.length > 0);
+      if (partes.length <= 1) return null;
+      return partes.slice(0, -1).join('.');
+    };
+
+    const raiz: ContaComparativa[] = [];
+    const contasProcessadas = new Set<string>();
+
+    // Ordenar contas por classificação
+    const contasOrdenadas = Array.from(contasMap.values()).sort((a, b) => {
+      // Primeiro, ordenar por classificação
+      const comparacao = a.classificacao.localeCompare(b.classificacao);
+      if (comparacao !== 0) return comparacao;
+      // Se classificação igual, ordenar por nível
+      return a.nivel - b.nivel;
+    });
+
+    // Criar um mapa auxiliar para buscar contas por classificação (sem conta/subConta)
+    const contasPorClassificacao = new Map<string, ContaComparativa[]>();
+    for (const [chaveComposta, conta] of contasMap.entries()) {
+      const classificacao = conta.classificacao;
+      if (!contasPorClassificacao.has(classificacao)) {
+        contasPorClassificacao.set(classificacao, []);
+      }
+      contasPorClassificacao.get(classificacao)!.push(conta);
+    }
+
+    for (const contaComparativa of contasOrdenadas) {
+      const classificacao = contaComparativa.classificacao;
+      const chaveUnica = Array.from(contasMap.entries()).find(([_, conta]) => conta === contaComparativa)?.[0];
+
+      if (!chaveUnica || contasProcessadas.has(chaveUnica)) {
+        continue;
+      }
+
+      let pai: ContaComparativa | undefined = undefined;
+
+      // Buscar pelo pai da classificação
+      const classificacaoPai = encontrarPai(classificacao);
+      if (classificacaoPai) {
+        // Buscar qualquer conta com a classificação pai
+        const contasPai = contasPorClassificacao.get(classificacaoPai);
+        if (contasPai && contasPai.length > 0) {
+          // Pegar a primeira conta pai (ou podemos escolher a mais adequada)
+          pai = contasPai[0];
+        }
+      }
+
+      if (pai) {
+        pai.filhos = pai.filhos || [];
+        pai.filhos.push(contaComparativa);
+      } else {
+        raiz.push(contaComparativa);
+      }
+
+      contasProcessadas.add(chaveUnica);
+    }
+
+    // 7. Calcular totais hierárquicos
+    this.calcularTotaisComparativos(raiz);
+
+    // 8. Calcular totais gerais
+    let totalPeriodo1 = 0;
+    let totalPeriodo2 = 0;
+
+    const calcularTotais = (contas: ContaComparativa[]) => {
+      for (const conta of contas) {
+        if (!conta.filhos || conta.filhos.length === 0) {
+          // Conta folha: somar ao total
+          totalPeriodo1 += conta.valorPeriodo1;
+          totalPeriodo2 += conta.valorPeriodo2;
+        } else {
+          // Conta pai: calcular totais dos filhos
+          calcularTotais(conta.filhos);
+        }
+      }
+    };
+
+    calcularTotais(raiz);
+
+    const diferencaTotal = totalPeriodo2 - totalPeriodo1;
+    const percentualTotal = totalPeriodo1 !== 0 ? (diferencaTotal / Math.abs(totalPeriodo1)) * 100 : (totalPeriodo2 !== 0 ? 100 : 0);
+
+    // 9. Criar labels dos períodos
+    const mes1Nome = this.meses.find((m) => m.mes === mes1)?.nome || `Mês ${mes1}`;
+    const mes2Nome = this.meses.find((m) => m.mes === mes2)?.nome || `Mês ${mes2}`;
+
+    return {
+      periodo1: {
+        ano: ano1,
+        mes: mes1,
+        label: `${mes1Nome}/${ano1}`,
+      },
+      periodo2: {
+        ano: ano2,
+        mes: mes2,
+        label: `${mes2Nome}/${ano2}`,
+      },
+      tipo: tipo as 'FILIAL' | 'CONSOLIDADO',
+      empresaId: tipo === TipoRelatorio.FILIAL ? empresaId : undefined,
+      empresaNome,
+      uf: ufRelatorio,
+      contas: raiz,
+      totais: {
+        periodo1: totalPeriodo1,
+        periodo2: totalPeriodo2,
+        diferenca: diferencaTotal,
+        percentual: percentualTotal,
+      },
+    };
+  }
+
+  /**
+   * Calcula totais hierárquicos para contas comparativas
+   * Contas pai = soma de todas as contas filhas
+   */
+  private calcularTotaisComparativos(contas: ContaComparativa[]): void {
+    for (const conta of contas) {
+      if (conta.filhos && conta.filhos.length > 0) {
+        // Primeiro, calcular totais dos filhos
+        this.calcularTotaisComparativos(conta.filhos);
+
+        // Depois, somar valores dos filhos para o pai
+        let valorPeriodo1Pai = 0;
+        let valorPeriodo2Pai = 0;
+
+        for (const filho of conta.filhos) {
+          valorPeriodo1Pai += filho.valorPeriodo1;
+          valorPeriodo2Pai += filho.valorPeriodo2;
+        }
+
+        // Atualizar valores do pai
+        conta.valorPeriodo1 = valorPeriodo1Pai;
+        conta.valorPeriodo2 = valorPeriodo2Pai;
+        conta.diferenca = valorPeriodo2Pai - valorPeriodo1Pai;
+        conta.percentual = valorPeriodo1Pai !== 0 ? (conta.diferenca / Math.abs(valorPeriodo1Pai)) * 100 : (valorPeriodo2Pai !== 0 ? 100 : 0);
       }
     }
   }
