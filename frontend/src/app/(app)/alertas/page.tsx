@@ -353,9 +353,9 @@ const AlertasPage = () => {
                       <td className="px-3 py-2">
                         {alerta.linha?.tipoConta ? (
                           <button
-                            onClick={() => handleTipoContaClick(alerta.linha!.tipoConta)}
+                            onClick={() => alerta.linha?.tipoConta && handleTipoContaClick(alerta.linha.tipoConta)}
                             className={`text-xs font-medium transition-colors ${
-                              tipoContaFiltro === alerta.linha!.tipoConta
+                                tipoContaFiltro === alerta.linha?.tipoConta
                                 ? 'text-sky-600 underline dark:text-sky-400'
                                 : 'text-slate-600 hover:text-sky-600 dark:text-slate-400 dark:hover:text-sky-400'
                             }`}

@@ -9,8 +9,20 @@ export interface CreateUploadDto {
 }
 
 export const uploadsService = {
-  async list(): Promise<UploadWithRelations[]> {
-    const { data } = await api.get<UploadWithRelations[]>('/uploads');
+  async list(filters?: { empresaId?: string; ano?: number; mes?: number }): Promise<UploadWithRelations[]> {
+    const params = new URLSearchParams();
+    if (filters?.empresaId) {
+      params.append('empresaId', filters.empresaId);
+    }
+    if (filters?.ano) {
+      params.append('ano', filters.ano.toString());
+    }
+    if (filters?.mes) {
+      params.append('mes', filters.mes.toString());
+    }
+
+    const url = params.toString() ? `/uploads?${params.toString()}` : '/uploads';
+    const { data } = await api.get<UploadWithRelations[]>(url);
     // Garantir que sempre retorne um array
     return Array.isArray(data) ? data : [];
   },

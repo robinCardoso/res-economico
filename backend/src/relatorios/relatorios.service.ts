@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
+import { CacheService } from '../core/cache/cache.service';
 import type {
   RelatorioResultado,
   ContaRelatorio,
@@ -13,23 +14,97 @@ import type { Empresa } from '@prisma/client';
 
 @Injectable()
 export class RelatoriosService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(RelatoriosService.name);
+  private readonly CACHE_TTL_ANOS = 300; // 5 minutos
+  private readonly CACHE_TTL_MESES = 180; // 3 minutos
 
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
+
+  /**
+   * Busca anos disponíveis de forma otimizada
+   * - Usa query raw SQL (mais eficiente que ORM)
+   * - Cache com TTL de 5 minutos
+   * - Índices no banco aceleram a query
+   */
   async getAnosDisponiveis(): Promise<number[]> {
-    const uploads = await this.prisma.upload.findMany({
-      where: {
-        status: { in: ['CONCLUIDO', 'COM_ALERTAS'] },
-      },
-      select: {
-        ano: true,
-      },
-      distinct: ['ano'],
-      orderBy: {
-        ano: 'desc',
-      },
-    });
+    const cacheKey = 'relatorios:anos-disponiveis';
 
-    return uploads.map((upload) => upload.ano);
+    // Tentar buscar do cache primeiro
+    const cached = await this.cache.get<number[]>(cacheKey);
+    if (cached) {
+      this.logger.debug('Anos disponíveis retornados do cache');
+      return cached;
+    }
+
+    // Query otimizada usando índices
+    const result = await this.prisma.$queryRaw<Array<{ ano: number }>>`
+      SELECT DISTINCT ano
+      FROM "Upload"
+      WHERE status IN ('CONCLUIDO', 'COM_ALERTAS')
+      ORDER BY ano DESC
+    `;
+
+    const anos = result.map((row) => row.ano);
+
+    // Armazenar no cache
+    await this.cache.set(cacheKey, anos, this.CACHE_TTL_ANOS);
+
+    return anos;
+  }
+
+  /**
+   * Busca meses disponíveis de forma otimizada
+   * - Usa query raw SQL (mais eficiente que ORM)
+   * - Cache com TTL de 3 minutos
+   * - Índices no banco aceleram a query
+   */
+  async getMesesDisponiveis(
+    ano: number,
+    empresaId?: string,
+  ): Promise<number[]> {
+    const cacheKey = empresaId
+      ? `relatorios:meses-disponiveis:${ano}:${empresaId}`
+      : `relatorios:meses-disponiveis:${ano}`;
+
+    // Tentar buscar do cache primeiro
+    const cached = await this.cache.get<number[]>(cacheKey);
+    if (cached) {
+      this.logger.debug(
+        `Meses disponíveis para ano ${ano} retornados do cache`,
+      );
+      return cached;
+    }
+
+    // Query otimizada usando índices
+    let result: Array<{ mes: number }>;
+    if (empresaId) {
+      result = await this.prisma.$queryRaw<Array<{ mes: number }>>`
+        SELECT DISTINCT mes
+        FROM "Upload"
+        WHERE ano = ${ano}
+          AND status IN ('CONCLUIDO', 'COM_ALERTAS')
+          AND "empresaId" = ${empresaId}
+        ORDER BY mes ASC
+      `;
+    } else {
+      result = await this.prisma.$queryRaw<Array<{ mes: number }>>`
+        SELECT DISTINCT mes
+        FROM "Upload"
+        WHERE ano = ${ano}
+          AND status IN ('CONCLUIDO', 'COM_ALERTAS')
+        ORDER BY mes ASC
+      `;
+    }
+
+    const meses = result.map((row) => row.mes);
+
+    // Armazenar no cache
+    await this.cache.set(cacheKey, meses, this.CACHE_TTL_MESES);
+
+    return meses;
   }
 
   async getDescricoesDisponiveis(busca?: string): Promise<string[]> {

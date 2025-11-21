@@ -28,6 +28,16 @@ export const relatoriosService = {
     return data;
   },
 
+  async getMesesDisponiveis(ano: number, empresaId?: string): Promise<number[]> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('ano', ano.toString());
+    if (empresaId) {
+      queryParams.append('empresaId', empresaId);
+    }
+    const { data } = await api.get<number[]>(`/relatorios/meses-disponiveis?${queryParams.toString()}`);
+    return data;
+  },
+
   async getDescricoesDisponiveis(busca?: string): Promise<string[]> {
     const queryParams = new URLSearchParams();
     if (busca && busca.trim().length > 0) {

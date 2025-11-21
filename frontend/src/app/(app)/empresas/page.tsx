@@ -55,6 +55,17 @@ const empresaSchema = z.object({
     ],
     { message: 'Selecione uma UF válida' }
   ).optional(),
+  // NOVOS CAMPOS PARA CONTEXTO IA
+  setor: z.string().optional(),
+  porte: z.enum(['MICRO', 'PEQUENA', 'MEDIA', 'GRANDE']).optional(),
+  dataFundacao: z.string().optional(),
+  descricao: z.string().optional(),
+  website: z.string().url('Website deve ser uma URL válida').optional().or(z.literal('')),
+  modeloNegocio: z.enum(['ASSOCIACAO', 'COMERCIO', 'INDUSTRIA', 'SERVICOS', 'AGROPECUARIA', 'OUTRO']).optional(),
+  modeloNegocioDetalhes: z.record(z.string(), z.unknown()).optional(),
+  contasReceita: z.record(z.string(), z.string()).optional(),
+  custosCentralizados: z.boolean().optional(),
+  contasCustos: z.record(z.string(), z.string()).optional(),
 });
 
 type EmpresaFormData = z.infer<typeof empresaSchema>;
@@ -94,6 +105,16 @@ const EmpresasPage = () => {
       nomeFantasia: '',
       tipo: 'MATRIZ' as const,
       uf: undefined as EmpresaFormData['uf'],
+      setor: '',
+      porte: undefined,
+      dataFundacao: '',
+      descricao: '',
+      website: '',
+      modeloNegocio: undefined,
+      modeloNegocioDetalhes: undefined,
+      contasReceita: undefined,
+      custosCentralizados: false,
+      contasCustos: undefined,
     });
     setIsModalOpen(true);
     setErrorMessage(null);
@@ -116,6 +137,16 @@ const EmpresasPage = () => {
       nomeFantasia: empresa.nomeFantasia || '',
       tipo: empresa.tipo || 'MATRIZ',
       uf: ufValido,
+      setor: empresa.setor || '',
+      porte: empresa.porte || undefined,
+      dataFundacao: empresa.dataFundacao ? empresa.dataFundacao.split('T')[0] : '',
+      descricao: empresa.descricao || '',
+      website: empresa.website || '',
+      modeloNegocio: empresa.modeloNegocio || undefined,
+      modeloNegocioDetalhes: empresa.modeloNegocioDetalhes || undefined,
+      contasReceita: empresa.contasReceita || undefined,
+      custosCentralizados: empresa.custosCentralizados || false,
+      contasCustos: empresa.contasCustos || undefined,
     });
     setIsModalOpen(true);
     setErrorMessage(null);
@@ -149,6 +180,16 @@ const EmpresasPage = () => {
             nomeFantasia: data.nomeFantasia || undefined,
             tipo: data.tipo,
             uf: data.uf || undefined,
+            setor: data.setor || undefined,
+            porte: data.porte,
+            dataFundacao: data.dataFundacao || undefined,
+            descricao: data.descricao || undefined,
+            website: data.website || undefined,
+            modeloNegocio: data.modeloNegocio,
+            modeloNegocioDetalhes: data.modeloNegocioDetalhes,
+            contasReceita: data.contasReceita,
+            custosCentralizados: data.custosCentralizados,
+            contasCustos: data.contasCustos,
           },
         });
       } else {
@@ -158,6 +199,16 @@ const EmpresasPage = () => {
           nomeFantasia: data.nomeFantasia || undefined,
           tipo: data.tipo,
           uf: data.uf || undefined,
+          setor: data.setor || undefined,
+          porte: data.porte,
+          dataFundacao: data.dataFundacao || undefined,
+          descricao: data.descricao || undefined,
+          website: data.website || undefined,
+          modeloNegocio: data.modeloNegocio,
+          modeloNegocioDetalhes: data.modeloNegocioDetalhes,
+          contasReceita: data.contasReceita,
+          custosCentralizados: data.custosCentralizados,
+          contasCustos: data.contasCustos,
         });
       }
       closeModal();

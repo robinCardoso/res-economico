@@ -99,15 +99,20 @@ api.interceptors.response.use(
       
       // Tentar extrair mensagem de erro mais detalhada
       const errorData = error.response.data as unknown;
+      let errorMessage = error.message;
+      
       if (errorData) {
         if (typeof errorData === 'string') {
+          errorMessage = errorData;
           console.error("Error message:", errorData);
         } else if (typeof errorData === 'object' && errorData !== null) {
           const errorObj = errorData as { message?: string | string[] };
           if (errorObj.message) {
             if (Array.isArray(errorObj.message)) {
+              errorMessage = errorObj.message.join(', ');
               console.error("Validation errors:", errorObj.message);
             } else {
+              errorMessage = errorObj.message;
               console.error("Error message:", errorObj.message);
             }
           } else {
@@ -117,21 +122,53 @@ api.interceptors.response.use(
           console.error("Error response data:", JSON.stringify(errorData, null, 2));
         }
       }
+      
+      // Criar um novo erro com a mensagem extraída para melhor propagação
+      const enhancedError = new Error(errorMessage);
+      (enhancedError as { response?: unknown }).response = error.response;
+      (enhancedError as { config?: unknown }).config = error.config;
+      return Promise.reject(enhancedError);
     } else if (error.request) {
       // Requisição foi feita mas não houve resposta (erro de rede)
       // Logar informações úteis para debug
-      console.error('[HTTP] Erro de conexão:', {
-        message: error.message,
-        code: error.code,
-        baseURL: error.config?.baseURL,
-        url: error.config?.url,
-        suggestion: 'Verifique se o backend está rodando e se o IP/URL está correto. Você pode configurar a URL da API no localStorage com: localStorage.setItem("api-url", "http://SEU_IP:3000")',
-      });
+      const baseURL = error.config?.baseURL || getBaseURL() || 'NÃO CONFIGURADO';
+      const url = error.config?.url || 'NÃO DEFINIDO';
+      const fullURL = baseURL && url ? `${baseURL}${url}` : 'NÃO DISPONÍVEL';
+      
+      const errorInfo: Record<string, unknown> = {
+        message: error.message || 'Erro de conexão desconhecido',
+        code: error.code || 'NETWORK_ERROR',
+        baseURL,
+        url,
+        fullURL,
+      };
+
+      // Adicionar informações adicionais se disponíveis
+      if (error.request) {
+        errorInfo.requestStatus = error.request.status;
+        errorInfo.requestReadyState = error.request.readyState;
+      }
+
+      console.error('[HTTP] Erro de conexão:', errorInfo);
+      console.error('[HTTP] Sugestão: Verifique se o backend está rodando e se o IP/URL está correto.');
+      console.error('[HTTP] Para configurar a URL da API, execute no console do navegador:');
+      console.error(`[HTTP]   localStorage.setItem("api-url", "http://SEU_IP:3000")`);
+      console.error(`[HTTP] URL atual configurada: ${baseURL}`);
+      
+      // Criar erro mais descritivo
+      const networkError = new Error(
+        `Erro de conexão: Não foi possível conectar ao servidor em ${fullURL}. ` +
+        `Verifique se o backend está rodando na URL: ${baseURL}`
+      );
+      (networkError as { code?: string }).code = error.code || 'NETWORK_ERROR';
+      (networkError as { config?: unknown }).config = error.config;
+      return Promise.reject(networkError);
     } else {
       // Erro ao configurar a requisição
-      console.error("Request setup error:", error.message);
+      const setupError = error.message || 'Erro desconhecido ao configurar requisição';
+      console.error("[HTTP] Request setup error:", setupError);
+      return Promise.reject(new Error(setupError));
     }
-    return Promise.reject(error);
   },
 );
 

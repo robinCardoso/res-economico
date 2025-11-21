@@ -4,8 +4,8 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useEmpresas } from '@/hooks/use-empresas';
 import { relatoriosService } from '@/services/relatorios.service';
-import type { TipoRelatorio, ContaComparativa } from '@/types/api';
-import { TipoComparacao, TipoValor } from '@/types/api';
+import type { ContaComparativa } from '@/types/api';
+import { TipoRelatorio, TipoComparacao, TipoValor } from '@/types/api';
 import { Loader2, ChevronRight, ChevronDown, FileSpreadsheet, FileText, BarChart3, ChevronUp } from 'lucide-react';
 import { exportarComparativoParaExcel, exportarComparativoParaPDF } from '@/utils/export-relatorio';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -35,7 +35,7 @@ const RelatorioComparativoPage = () => {
   const [ano1Local, setAno1Local] = useState<number>(new Date().getFullYear());
   const [mes2Local, setMes2Local] = useState<number>(new Date().getMonth() + 1);
   const [ano2Local, setAno2Local] = useState<number>(new Date().getFullYear());
-  const [tipoLocal, setTipoLocal] = useState<TipoRelatorio>('CONSOLIDADO');
+  const [tipoLocal, setTipoLocal] = useState<TipoRelatorio>(TipoRelatorio.CONSOLIDADO);
   const [empresaIdLocal, setEmpresaIdLocal] = useState<string>('');
   const [empresaIdsLocal, setEmpresaIdsLocal] = useState<string[]>([]);
   const [descricaoLocal, setDescricaoLocal] = useState<string>('');
@@ -47,7 +47,7 @@ const RelatorioComparativoPage = () => {
   const [ano1, setAno1] = useState<number>(new Date().getFullYear());
   const [mes2, setMes2] = useState<number>(new Date().getMonth() + 1);
   const [ano2, setAno2] = useState<number>(new Date().getFullYear());
-  const [tipo, setTipo] = useState<TipoRelatorio>('CONSOLIDADO');
+  const [tipo, setTipo] = useState<TipoRelatorio>(TipoRelatorio.CONSOLIDADO);
   const [empresaId, setEmpresaId] = useState<string>('');
   const [empresaIds, setEmpresaIds] = useState<string[]>([]);
   const [descricao, setDescricao] = useState<string>('');
@@ -172,7 +172,7 @@ const RelatorioComparativoPage = () => {
     setAno1Local(anoParaUsar);
     setMes2Local(mesAtual);
     setAno2Local(anoParaUsar);
-    setTipoLocal('CONSOLIDADO');
+    setTipoLocal(TipoRelatorio.CONSOLIDADO);
     setEmpresaIdLocal('');
     setEmpresaIdsLocal([]);
     setDescricaoLocal('');
@@ -183,7 +183,7 @@ const RelatorioComparativoPage = () => {
     setAno1(anoParaUsar);
     setMes2(mesAtual);
     setAno2(anoParaUsar);
-    setTipo('CONSOLIDADO');
+    setTipo(TipoRelatorio.CONSOLIDADO);
     setEmpresaId('');
     setEmpresaIds([]);
     setDescricao('');

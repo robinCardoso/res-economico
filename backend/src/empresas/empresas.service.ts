@@ -7,6 +7,7 @@ import { PrismaService } from '../core/prisma/prisma.service';
 import { AuditoriaService } from '../core/auditoria/auditoria.service';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class EmpresasService {
@@ -52,6 +53,23 @@ export class EmpresasService {
         razaoSocial: dto.razaoSocial,
         nomeFantasia: dto.nomeFantasia || null,
         tipo: dto.tipo || 'MATRIZ',
+        uf: dto.uf || null,
+        setor: dto.setor || null,
+        porte: dto.porte || null,
+        dataFundacao: dto.dataFundacao ? new Date(dto.dataFundacao) : null,
+        descricao: dto.descricao || null,
+        website: dto.website || null,
+        modeloNegocio: dto.modeloNegocio || null,
+        modeloNegocioDetalhes: dto.modeloNegocioDetalhes
+          ? (dto.modeloNegocioDetalhes as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+        contasReceita: dto.contasReceita
+          ? (dto.contasReceita as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+        custosCentralizados: dto.custosCentralizados ?? null,
+        contasCustos: dto.contasCustos
+          ? (dto.contasCustos as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
       },
     });
 
@@ -66,9 +84,47 @@ export class EmpresasService {
   async update(id: string, dto: UpdateEmpresaDto, userId?: string) {
     await this.findOne(id); // Verificar se existe
 
+    // Preparar dados com cast correto para campos JSON
+    const updateData: Prisma.EmpresaUpdateInput = {
+      ...(dto.razaoSocial !== undefined && { razaoSocial: dto.razaoSocial }),
+      ...(dto.nomeFantasia !== undefined && {
+        nomeFantasia: dto.nomeFantasia || null,
+      }),
+      ...(dto.tipo !== undefined && { tipo: dto.tipo }),
+      ...(dto.uf !== undefined && { uf: dto.uf || null }),
+      ...(dto.setor !== undefined && { setor: dto.setor || null }),
+      ...(dto.porte !== undefined && { porte: dto.porte || null }),
+      ...(dto.dataFundacao !== undefined && {
+        dataFundacao: dto.dataFundacao ? new Date(dto.dataFundacao) : null,
+      }),
+      ...(dto.descricao !== undefined && { descricao: dto.descricao || null }),
+      ...(dto.website !== undefined && { website: dto.website || null }),
+      ...(dto.modeloNegocio !== undefined && {
+        modeloNegocio: dto.modeloNegocio || null,
+      }),
+      ...(dto.modeloNegocioDetalhes !== undefined && {
+        modeloNegocioDetalhes: dto.modeloNegocioDetalhes
+          ? (dto.modeloNegocioDetalhes as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+      }),
+      ...(dto.contasReceita !== undefined && {
+        contasReceita: dto.contasReceita
+          ? (dto.contasReceita as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+      }),
+      ...(dto.custosCentralizados !== undefined && {
+        custosCentralizados: dto.custosCentralizados ?? null,
+      }),
+      ...(dto.contasCustos !== undefined && {
+        contasCustos: dto.contasCustos
+          ? (dto.contasCustos as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+      }),
+    };
+
     const empresa = await this.prisma.empresa.update({
       where: { id },
-      data: dto,
+      data: updateData,
     });
 
     // Registrar auditoria

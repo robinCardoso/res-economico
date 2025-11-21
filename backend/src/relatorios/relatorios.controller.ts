@@ -23,6 +23,14 @@ export class RelatoriosController {
     return this.relatoriosService.getAnosDisponiveis();
   }
 
+  @Get('meses-disponiveis')
+  async getMesesDisponiveis(
+    @Query('ano', ParseIntPipe) ano: number,
+    @Query('empresaId') empresaId?: string,
+  ) {
+    return this.relatoriosService.getMesesDisponiveis(ano, empresaId);
+  }
+
   @Get('descricoes-disponiveis')
   async getDescricoesDisponiveis(@Query('busca') busca?: string) {
     return this.relatoriosService.getDescricoesDisponiveis(busca);

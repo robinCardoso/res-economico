@@ -30,10 +30,22 @@ export class ContasService {
         startsWith: filters.classificacaoPrefix,
       };
     } else if (filters?.busca) {
-      // Busca por texto (classificação ou nome da conta) - apenas se não houver prefixo
+      // Busca por texto (classificação ou nome da conta) - case-insensitive
+      // No PostgreSQL, usar Prisma.sql com ILIKE para busca case-insensitive
+      const buscaTerm = filters.busca.trim();
       where.OR = [
-        { classificacao: { contains: filters.busca } },
-        { nomeConta: { contains: filters.busca } },
+        {
+          classificacao: {
+            contains: buscaTerm,
+            mode: 'insensitive',
+          },
+        },
+        {
+          nomeConta: {
+            contains: buscaTerm,
+            mode: 'insensitive',
+          },
+        },
       ];
     }
 

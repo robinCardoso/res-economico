@@ -12,6 +12,9 @@ import { AuthModule } from './auth/auth.module';
 import { EmpresasModule } from './empresas/empresas.module';
 import { AuditoriaModule } from './auditoria/auditoria.module';
 import { RelatoriosModule } from './relatorios/relatorios.module';
+import { AiModule } from './ai/ai.module';
+import { ResumosModule } from './resumos/resumos.module';
+import { ConfiguracaoModeloNegocioModule } from './configuracao-modelo-negocio/configuracao-modelo-negocio.module';
 
 @Module({
   imports: [
@@ -28,6 +31,9 @@ import { RelatoriosModule } from './relatorios/relatorios.module';
     EmpresasModule,
     AuditoriaModule,
     RelatoriosModule,
+    AiModule,
+    ResumosModule,
+    ConfiguracaoModeloNegocioModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
+import { CacheService } from '../core/cache/cache.service';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
@@ -42,7 +43,10 @@ interface TemplateMapping {
 export class ExcelProcessorService {
   private readonly logger = new Logger(ExcelProcessorService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   /**
    * Processa um arquivo Excel e cria os registros de LinhaUpload
@@ -345,6 +349,12 @@ export class ExcelProcessorService {
         where: { uploadId, status: 'ABERTO' },
       });
 
+      // Buscar dados do upload antes de atualizar para invalidar cache
+      const uploadCache = await this.prisma.upload.findUnique({
+        where: { id: uploadId },
+        select: { ano: true, mes: true, empresaId: true },
+      });
+
       await this.prisma.upload.update({
         where: { id: uploadId },
         data: {
@@ -352,6 +362,15 @@ export class ExcelProcessorService {
           totalLinhas: linhasValidas.length,
         },
       });
+
+      // Invalidar cache de relatórios quando upload é concluído
+      if (uploadCache) {
+        await this.invalidarCacheRelatorios(
+          uploadCache.ano,
+          uploadCache.mes,
+          uploadCache.empresaId,
+        );
+      }
 
       onProgress?.(100, 'Processamento concluído');
       this.logger.log(
@@ -1512,5 +1531,29 @@ export class ExcelProcessorService {
       'Dezembro',
     ];
     return meses[mes - 1] || `Mês ${mes}`;
+  }
+
+  /**
+   * Invalida cache de relatórios quando há mudanças nos uploads
+   */
+  private async invalidarCacheRelatorios(
+    ano: number,
+    mes: number,
+    empresaId: string,
+  ): Promise<void> {
+    try {
+      // Invalidar cache de anos disponíveis
+      await this.cache.del('relatorios:anos-disponiveis');
+
+      // Invalidar cache de meses disponíveis para o ano específico
+      await this.cache.del(`relatorios:meses-disponiveis:${ano}`);
+      await this.cache.del(`relatorios:meses-disponiveis:${ano}:${empresaId}`);
+
+      this.logger.debug(
+        `Cache de relatórios invalidado para ano ${ano}, mês ${mes}, empresa ${empresaId}`,
+      );
+    } catch (error) {
+      this.logger.warn('Erro ao invalidar cache de relatórios:', error);
+    }
   }
 }

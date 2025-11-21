@@ -1,5 +1,5 @@
 import { api } from '@/lib/http';
-import type { Empresa } from '@/types/api';
+import type { Empresa, PorteEmpresa, ModeloNegocio } from '@/types/api';
 
 export interface CreateEmpresaDto {
   cnpj: string;
@@ -7,6 +7,17 @@ export interface CreateEmpresaDto {
   nomeFantasia?: string;
   tipo?: 'MATRIZ' | 'FILIAL';
   uf?: string;
+  // NOVOS CAMPOS PARA CONTEXTO IA
+  setor?: string;
+  porte?: PorteEmpresa;
+  dataFundacao?: string;
+  descricao?: string;
+  website?: string;
+  modeloNegocio?: ModeloNegocio;
+  modeloNegocioDetalhes?: Record<string, unknown>;
+  contasReceita?: Record<string, string>;
+  custosCentralizados?: boolean;
+  contasCustos?: Record<string, string>;
 }
 
 export interface UpdateEmpresaDto {
@@ -14,6 +25,17 @@ export interface UpdateEmpresaDto {
   nomeFantasia?: string;
   tipo?: 'MATRIZ' | 'FILIAL';
   uf?: string;
+  // NOVOS CAMPOS PARA CONTEXTO IA
+  setor?: string;
+  porte?: PorteEmpresa;
+  dataFundacao?: string;
+  descricao?: string;
+  website?: string;
+  modeloNegocio?: ModeloNegocio;
+  modeloNegocioDetalhes?: Record<string, unknown>;
+  contasReceita?: Record<string, string>;
+  custosCentralizados?: boolean;
+  contasCustos?: Record<string, string>;
 }
 
 export const empresasService = {

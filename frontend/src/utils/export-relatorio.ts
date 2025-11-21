@@ -105,12 +105,12 @@ export const exportarParaExcel = (relatorio: RelatorioResultado): void => {
 
     // Valores dos meses - cada valor em sua própria célula
     relatorio.periodo.forEach((p) => {
-      const valor = conta.valores[p.mes] || 0;
+      const valor = conta.valores?.[p.mes] || 0;
       linha.push(valor); // Número puro para Excel calcular
     });
 
     // Total - em sua própria célula
-    linha.push(conta.valores.total || 0);
+    linha.push(conta.valores?.total || 0);
 
     dados.push(linha);
   });
@@ -256,14 +256,14 @@ export const exportarParaPDF = async (relatorio: RelatorioResultado): Promise<vo
 
     // Valores dos meses
     relatorio.periodo.forEach((p) => {
-      const valor = conta.valores[p.mes] || 0;
+      const valor = conta.valores?.[p.mes] || 0;
       const valorFormatado = formatarValor(valor);
       doc.text(valorFormatado, xPos, yPos, { align: 'right' });
       xPos += colValor;
     });
 
     // Total
-    const totalFormatado = formatarValor(conta.valores.total || 0);
+    const totalFormatado = formatarValor(conta.valores?.total || 0);
     doc.text(totalFormatado, xPos, yPos, { align: 'right' });
 
     yPos += lineHeight * Math.max(1, descricao.length);

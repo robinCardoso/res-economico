@@ -3,6 +3,7 @@ import type { Job } from 'bull';
 import { Logger } from '@nestjs/common';
 import { ExcelProcessorService } from '../excel-processor.service';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { CacheService } from '../../core/cache/cache.service';
 
 export interface UploadJobData {
   uploadId: string;
@@ -15,6 +16,7 @@ export class UploadProcessor {
   constructor(
     private readonly excelProcessor: ExcelProcessorService,
     private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
   ) {
     this.logger.log('===== UploadProcessor INICIALIZADO =====');
     this.logger.log(

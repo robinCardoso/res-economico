@@ -34,7 +34,18 @@ export class UploadsController {
   ) {}
 
   @Get()
-  list() {
+  list(
+    @Query('empresaId') empresaId?: string,
+    @Query('ano') ano?: string,
+    @Query('mes') mes?: string,
+  ) {
+    // Se houver filtros, usar método filtrado
+    if (empresaId || ano || mes) {
+      const anoNum = ano ? parseInt(ano, 10) : undefined;
+      const mesNum = mes ? parseInt(mes, 10) : undefined;
+      return this.uploadsService.findWithFilters(empresaId, anoNum, mesNum);
+    }
+    // Caso contrário, retornar todos
     return this.uploadsService.findAll();
   }
 

@@ -1,22 +1,5 @@
 import Link from 'next/link';
-import { FileBarChart, BrainCircuit } from 'lucide-react';
-
-const consultas = [
-  {
-    id: 'ai-001',
-    titulo: 'Resumo econômico Agosto/2025',
-    status: 'Concluído',
-    modelo: 'Groq LLaMA 3.1',
-    criadoEm: '12/11/2025 09:12',
-  },
-  {
-    id: 'ai-002',
-    titulo: 'Anomalias em despesas administrativas',
-    status: 'Processando',
-    modelo: 'Groq LLaMA 3.1',
-    criadoEm: '12/11/2025 11:05',
-  },
-];
+import { FileBarChart, BrainCircuit, FileText } from 'lucide-react';
 
 const RelatoriosPage = () => {
   return (
@@ -70,7 +53,10 @@ const RelatoriosPage = () => {
           </div>
         </Link>
 
-        <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+        <Link
+          href="/analises"
+          className="group rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-purple-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-purple-700"
+        >
           <div className="flex items-start gap-4">
             <div className="rounded-lg bg-purple-100 p-3 dark:bg-purple-500/20">
               <BrainCircuit className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -80,40 +66,30 @@ const RelatoriosPage = () => {
                 Análises Inteligentes
               </h2>
               <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                Em breve: análises assistidas pela Groq para explicar variações e apontar anomalias.
+                Análises assistidas pela Groq AI para explicar variações, apontar anomalias e gerar insights automáticos dos seus dados.
               </p>
             </div>
           </div>
-        </article>
-      </section>
+        </Link>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        {consultas.map((consulta) => (
-          <article
-            key={consulta.id}
-            className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70"
-          >
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              {consulta.titulo}
-            </h2>
-            <p className="mt-2 text-xs text-slate-500">
-              Criado em {consulta.criadoEm} • Modelo {consulta.modelo}
-            </p>
-            <span
-              className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-medium ${
-                consulta.status === 'Concluído'
-                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200'
-                  : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200'
-              }`}
-            >
-              {consulta.status}
-            </span>
-            <p className="mt-4 text-sm text-slate-500 dark:text-slate-300">
-              Em breve: histórico de perguntas, respostas detalhadas e exportação de
-              insights.
-            </p>
-          </article>
-        ))}
+        <Link
+          href="/resumos"
+          className="group rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-sky-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-sky-700"
+        >
+          <div className="flex items-start gap-4">
+            <div className="rounded-lg bg-sky-100 p-3 dark:bg-sky-500/20">
+              <FileText className="h-6 w-6 text-sky-600 dark:text-sky-400" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Resumos Econômicos
+              </h2>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                Histórico de análises salvas, respostas detalhadas e exportação de insights em PDF, Excel ou JSON.
+              </p>
+            </div>
+          </div>
+        </Link>
       </section>
     </div>
   );

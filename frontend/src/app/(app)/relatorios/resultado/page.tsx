@@ -4,7 +4,8 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRelatorioResultado } from '@/hooks/use-relatorios';
 import { useEmpresas } from '@/hooks/use-empresas';
 import { relatoriosService } from '@/services/relatorios.service';
-import type { TipoRelatorio, ContaRelatorio } from '@/types/api';
+import type { ContaRelatorio } from '@/types/api';
+import { TipoRelatorio } from '@/types/api';
 import { FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
 import { exportarParaExcel, exportarParaPDF } from '@/utils/export-relatorio';
 
@@ -14,14 +15,14 @@ const RelatorioResultadoPage = () => {
 
   // Estados locais dos filtros (não aplicados ainda)
   const [anoLocal, setAnoLocal] = useState<number>(new Date().getFullYear());
-  const [tipoLocal, setTipoLocal] = useState<TipoRelatorio>('CONSOLIDADO');
+  const [tipoLocal, setTipoLocal] = useState<TipoRelatorio>(TipoRelatorio.CONSOLIDADO);
   const [empresaIdLocal, setEmpresaIdLocal] = useState<string>('');
   const [empresaIdsLocal, setEmpresaIdsLocal] = useState<string[]>([]);
   const [descricaoLocal, setDescricaoLocal] = useState<string>('');
 
   // Estados dos filtros aplicados (usados na query)
   const [ano, setAno] = useState<number>(new Date().getFullYear());
-  const [tipo, setTipo] = useState<TipoRelatorio>('CONSOLIDADO');
+  const [tipo, setTipo] = useState<TipoRelatorio>(TipoRelatorio.CONSOLIDADO);
   const [empresaId, setEmpresaId] = useState<string>('');
   const [empresaIds, setEmpresaIds] = useState<string[]>([]);
   const [descricao, setDescricao] = useState<string>('');
@@ -62,7 +63,7 @@ const RelatorioResultadoPage = () => {
       ano,
       tipo,
       empresaId: tipo === 'FILIAL' ? empresaId : undefined,
-      empresaIds: tipo === 'CONSOLIDADO' && empresaIds.length > 0 ? empresaIds : undefined,
+      empresaIds: tipo === TipoRelatorio.CONSOLIDADO && empresaIds.length > 0 ? empresaIds : undefined,
       descricao: descricao && descricao.trim().length > 0 ? descricao : undefined,
     }),
     [ano, tipo, empresaId, empresaIds, descricao],
@@ -111,12 +112,12 @@ const RelatorioResultadoPage = () => {
     const anoParaUsar = anosDisponiveis.length > 0 ? anosDisponiveis[0] : new Date().getFullYear();
     
     setAnoLocal(anoParaUsar);
-    setTipoLocal('CONSOLIDADO');
+    setTipoLocal(TipoRelatorio.CONSOLIDADO);
     setEmpresaIdLocal('');
     setEmpresaIdsLocal([]);
     setDescricaoLocal('');
     setAno(anoParaUsar);
-    setTipo('CONSOLIDADO');
+    setTipo(TipoRelatorio.CONSOLIDADO);
     setEmpresaId('');
     setEmpresaIds([]);
     setDescricao('');
@@ -303,7 +304,7 @@ const RelatorioResultadoPage = () => {
               </div>
             </td>
             {relatorio?.periodo.map((periodo) => {
-              const valor = conta.valores[periodo.mes] || 0;
+              const valor = conta.valores?.[periodo.mes] || 0;
               return (
                 <td
                   key={periodo.mes}
@@ -314,8 +315,8 @@ const RelatorioResultadoPage = () => {
                 </td>
               );
             })}
-            <td className={`sticky right-0 z-[40] bg-white border-l border-slate-200 border-b border-slate-200 px-2 py-1.5 text-right text-[10px] font-mono font-semibold dark:bg-slate-900 dark:border-slate-800 dark:border-b-slate-800 whitespace-nowrap min-w-[90px] shadow-[-2px_0_4px_rgba(0,0,0,0.05)] ${getValorClassName(conta.valores.total || 0)}`}>
-              {formatarValor(conta.valores.total || 0)}
+            <td className={`sticky right-0 z-[40] bg-white border-l border-slate-200 border-b border-slate-200 px-2 py-1.5 text-right text-[10px] font-mono font-semibold dark:bg-slate-900 dark:border-slate-800 dark:border-b-slate-800 whitespace-nowrap min-w-[90px] shadow-[-2px_0_4px_rgba(0,0,0,0.05)] ${getValorClassName(conta.valores?.total || 0)}`}>
+              {formatarValor(conta.valores?.total || 0)}
             </td>
           </tr>
           {temFilhos && estaExpandida && renderizarContas(filhosParaRenderizar, nivel + 1)}
@@ -372,8 +373,8 @@ const RelatorioResultadoPage = () => {
                   }}
                   className="h-7 w-full rounded border border-slate-300 bg-white px-2 text-[10px] text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 >
-                  <option value="CONSOLIDADO">Consolidado</option>
-                  <option value="FILIAL">Filial</option>
+                  <option value={TipoRelatorio.CONSOLIDADO}>Consolidado</option>
+                  <option value={TipoRelatorio.FILIAL}>Filial</option>
                 </select>
               </div>
 
@@ -403,7 +404,7 @@ const RelatorioResultadoPage = () => {
               )}
 
               {/* Empresas (CONSOLIDADO) */}
-              {tipoLocal === 'CONSOLIDADO' && (
+              {tipoLocal === TipoRelatorio.CONSOLIDADO && (
                 <div className="min-w-[250px]">
                   <label
                     htmlFor="empresas-consolidado"
@@ -562,7 +563,7 @@ const RelatorioResultadoPage = () => {
                   </span>
                 </>
               )}
-              {tipo === 'CONSOLIDADO' && empresaIds.length > 0 && (
+              {tipo === TipoRelatorio.CONSOLIDADO && empresaIds.length > 0 && (
                 <>
                   <span>•</span>
                   <span>{empresaIds.length} empresa(s) selecionada(s)</span>

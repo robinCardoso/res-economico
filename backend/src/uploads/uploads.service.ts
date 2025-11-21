@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import { PrismaService } from '../core/prisma/prisma.service';
+import { CacheService } from '../core/cache/cache.service';
 import { CreateUploadDto } from './dto/create-upload.dto';
 import { ExcelProcessorService } from './excel-processor.service';
 import { AuditoriaService } from '../core/auditoria/auditoria.service';
@@ -16,6 +17,7 @@ export class UploadsService {
     private readonly prisma: PrismaService,
     private readonly excelProcessor: ExcelProcessorService,
     private readonly auditoria: AuditoriaService,
+    private readonly cache: CacheService,
     @InjectQueue('upload-processing')
     private readonly uploadQueue: Queue,
   ) {}
@@ -27,6 +29,42 @@ export class UploadsService {
         alertas: true,
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Busca uploads com filtros opcionais
+   */
+  async findWithFilters(empresaId?: string, ano?: number, mes?: number) {
+    const where: Record<string, unknown> = {
+      status: {
+        in: ['CONCLUIDO', 'COM_ALERTAS'],
+      },
+    };
+
+    if (empresaId) {
+      where.empresaId = empresaId;
+    }
+
+    if (ano) {
+      where.ano = ano;
+    }
+
+    if (mes) {
+      where.mes = mes;
+    }
+
+    return this.prisma.upload.findMany({
+      where,
+      include: {
+        empresa: true,
+        alertas: {
+          where: {
+            status: 'ABERTO',
+          },
+        },
+      },
+      orderBy: [{ ano: 'desc' }, { mes: 'desc' }, { createdAt: 'desc' }],
     });
   }
 
@@ -197,7 +235,23 @@ export class UploadsService {
     // Registrar auditoria
     await this.auditoria.registrarUpload(userId, upload.id, 'CRIAR');
 
+    // Invalidar cache de anos e meses disponíveis (será atualizado quando o upload for concluído)
+    await this.invalidarCacheRelatorios();
+
     return upload;
+  }
+
+  /**
+   * Invalida cache de relatórios quando há mudanças nos uploads
+   */
+  private async invalidarCacheRelatorios(): Promise<void> {
+    try {
+      await this.cache.delPattern('relatorios:anos-disponiveis');
+      await this.cache.delPattern('relatorios:meses-disponiveis:*');
+      this.logger.debug('Cache de relatórios invalidado');
+    } catch (error) {
+      this.logger.warn('Erro ao invalidar cache de relatórios:', error);
+    }
   }
 
   async limparProcessamento(uploadId: string) {

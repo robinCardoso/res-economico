@@ -18,18 +18,74 @@ enum TipoEmpresa {
   FILIAL
 }
 
+enum PorteEmpresa {
+  MICRO
+  PEQUENA
+  MEDIA
+  GRANDE
+}
+
+enum ModeloNegocio {
+  ASSOCIACAO
+  COMERCIO
+  INDUSTRIA
+  SERVICOS
+  AGROPECUARIA
+  OUTRO
+}
+
 model Empresa {
-  id           String               @id @default(uuid())
-  cnpj         String               @unique
+  id           String      @id @default(uuid())
+  cnpj         String      @unique
   razaoSocial  String
   nomeFantasia String?
-  tipo         TipoEmpresa          @default(MATRIZ)
+  tipo         TipoEmpresa @default(MATRIZ)
   uf           String? // Estado (SC, SP, etc.) - usado nos relatórios
-  uploads      Upload[]
-  templates    TemplateImportacao[]
-  usuarios     Usuario[]
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
+
+  // NOVOS CAMPOS PARA CONTEXTO IA
+  setor        String? // Ex: "Comércio", "Indústria", "Serviços", "Agronegócio"
+  porte        PorteEmpresa? // MICRO, PEQUENA, MEDIA, GRANDE
+  dataFundacao DateTime? // Data de fundação
+  descricao    String? // Descrição/observações sobre a empresa
+  website      String? // URL do site oficial da empresa (opcional - apenas para referência, IA não acessa)
+
+  // MODELO DE NEGÓCIO ESPECÍFICO
+  modeloNegocio         ModeloNegocio? // ASSOCIACAO, COMERCIO, INDUSTRIA, SERVICOS, etc.
+  modeloNegocioDetalhes Json? // Detalhes específicos do modelo (opcional: override da configuração global)
+
+  // FONTES DE RECEITA (para identificar contas no DRE)
+  // Opcional: se não informado, usa ConfiguracaoModeloNegocio.contasReceita
+  contasReceita Json? // Ex: { mensalidades: "3.1.01.01", bonificacoes: "3.1.02.01" }
+
+  // ESTRUTURA OPERACIONAL
+  // Opcional: se não informado, usa ConfiguracaoModeloNegocio.custosCentralizados
+  custosCentralizados Boolean? // Se custos estão centralizados na matriz
+  // Opcional: se não informado, usa ConfiguracaoModeloNegocio.receitasCentralizadas
+  receitasCentralizadas Boolean? // Se receitas (ex: bonificações) estão centralizadas na matriz
+  // Opcional: se não informado, usa ConfiguracaoModeloNegocio.contasCustos
+  contasCustos        Json? // Contas de custos operacionais (funcionários, sistema, contabilidade)
+
+  uploads   Upload[]
+  templates TemplateImportacao[]
+  usuarios  Usuario[]
+  resumos   ResumoEconomico[]
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+}
+
+// NOVA TABELA: Configuração Global por Modelo de Negócio
+model ConfiguracaoModeloNegocio {
+  id                    String        @id @default(uuid())
+  modeloNegocio         ModeloNegocio @unique
+  modeloNegocioDetalhes Json // Detalhes específicos do modelo (ex: associação para retificas)
+  contasReceita         Json // Mapeamento padrão de contas de receita
+  contasCustos          Json // Mapeamento padrão de contas de custos
+  custosCentralizados   Boolean // Padrão para custos centralizados
+  receitasCentralizadas Boolean // Padrão para receitas centralizadas
+  descricao             String? // Descrição da configuração
+  ativo                 Boolean       @default(true)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 }
 
 model Usuario {
@@ -43,8 +99,9 @@ model Usuario {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  empresa Empresa?       @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  empresa Empresa?          @relation(fields: [empresaId], references: [id], onDelete: SetNull)
   logs    LogAuditoria[]
+  resumos ResumoEconomico[]
 }
 
 model TemplateImportacao {
@@ -61,7 +118,7 @@ model TemplateImportacao {
 }
 
 model Upload {
-  id          String        @id @default(uuid())
+  id          String            @id @default(uuid())
   empresaId   String
   templateId  String?
   mes         Int
@@ -69,16 +126,23 @@ model Upload {
   arquivoUrl  String
   nomeArquivo String // Nome original do arquivo enviado pelo usuário
   hashArquivo String
-  status      UploadStatus  @default(PROCESSANDO)
+  status      UploadStatus      @default(PROCESSANDO)
   totalLinhas Int
   alertas     Alerta[]
   linhas      LinhaUpload[]
+  resumos     ResumoEconomico[]
   createdBy   String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   empresa  Empresa             @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   template TemplateImportacao? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  // Índices para otimizar queries de relatórios
+  @@index([status, ano])
+  @@index([ano, mes])
+  @@index([empresaId, ano, mes])
+  @@index([status, empresaId, ano])
 }
 
 model LinhaUpload {
@@ -106,9 +170,9 @@ model LinhaUpload {
 model ContaCatalogo {
   id                 String      @id @default(uuid())
   classificacao      String
-  conta              String      // Número da conta (ex: "1304")
+  conta              String // Número da conta (ex: "1304")
   subConta           String      @default("") // Usar string vazia em vez de null para chave única composta
-  nomeConta          String      // Nome da conta (ex: "Fretes e Carretos") - padrão igual LinhaUpload
+  nomeConta          String // Nome da conta (ex: "Fretes e Carretos") - padrão igual LinhaUpload
   tipoConta          String
   nivel              Int
   primeiraImportacao DateTime    @default(now())
@@ -142,6 +206,44 @@ model LogAuditoria {
   createdAt DateTime @default(now())
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model ResumoEconomico {
+  id        String  @id @default(uuid())
+  titulo    String // Ex: "Resumo econômico Agosto/2025"
+  periodo   String // Ex: "08/2025" ou "Agosto/2025"
+  mes       Int? // Mês (1-12)
+  ano       Int // Ano
+  empresaId String? // Opcional: null = consolidado
+  uploadId  String? // Opcional: se baseado em upload específico
+
+  // Dados da análise
+  tipoAnalise String // UPLOAD, RELATORIO, COMPARATIVO, etc.
+  parametros  Json // Parâmetros usados na análise (DTO completo)
+  resultado   Json // Resultado completo da análise (AnaliseResponse)
+
+  // Metadados
+  modeloIA  String // Ex: "Groq LLaMA 3.1 8B Instant" (modelo atual: llama-3.1-8b-instant)
+  status    ResumoStatus @default(PROCESSANDO)
+  criadoPor String // ID do usuário
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  // Relacionamentos
+  empresa Empresa? @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  upload  Upload?  @relation(fields: [uploadId], references: [id], onDelete: SetNull)
+  criador Usuario  @relation(fields: [criadoPor], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, ano, mes])
+  @@index([criadoPor, createdAt])
+  @@index([status])
+}
+
+enum ResumoStatus {
+  PROCESSANDO
+  CONCLUIDO
+  ERRO
+  CANCELADO
 }
 
 enum UploadStatus {

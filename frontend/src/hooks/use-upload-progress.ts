@@ -10,7 +10,7 @@ export function useUploadProgress(uploadId: string, enabled: boolean = true) {
     refetchInterval: (query) => {
       const data = query.state.data;
       // Parar de atualizar quando progresso for 100% ou estado for 'completed'
-      if (data?.progress === 100 || data?.estado === 'completed') {
+      if (data?.progress === 100) {
         return false;
       }
       // Atualizar a cada 2 segundos enquanto estiver processando

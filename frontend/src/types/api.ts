@@ -6,7 +6,34 @@ export type AlertaSeveridade = 'BAIXA' | 'MEDIA' | 'ALTA';
 export type AlertaStatus = 'ABERTO' | 'EM_ANALISE' | 'RESOLVIDO';
 export type ContaStatus = 'ATIVA' | 'NOVA' | 'ARQUIVADA';
 
+export interface ContaCatalogo {
+  id: string;
+  classificacao: string;
+  conta: string; // Número da conta (ex: "1304")
+  subConta: string; // Subconta (pode ser vazia)
+  nomeConta: string;
+  tipoConta: string;
+  nivel: number;
+  primeiraImportacao: string;
+  ultimaImportacao: string;
+  status: ContaStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ContaCatalogoWithRelations = ContaCatalogo;
+
 export type TipoEmpresa = 'MATRIZ' | 'FILIAL';
+export type PorteEmpresa = 'MICRO' | 'PEQUENA' | 'MEDIA' | 'GRANDE';
+export type ModeloNegocio = 'ASSOCIACAO' | 'COMERCIO' | 'INDUSTRIA' | 'SERVICOS' | 'AGROPECUARIA' | 'OUTRO';
+
+export enum TipoAnalise {
+  UPLOAD = 'UPLOAD',
+  ALERTAS = 'ALERTAS',
+  RELATORIO = 'RELATORIO',
+  COMPARATIVO = 'COMPARATIVO',
+  GERAL = 'GERAL',
+}
 
 export interface Empresa {
   id: string;
@@ -15,105 +42,113 @@ export interface Empresa {
   nomeFantasia: string | null;
   tipo: TipoEmpresa;
   uf?: string | null;
+  // NOVOS CAMPOS PARA CONTEXTO IA
+  setor?: string | null;
+  porte?: PorteEmpresa | null;
+  dataFundacao?: string | null;
+  descricao?: string | null;
+  website?: string | null;
+  modeloNegocio?: ModeloNegocio | null;
+  modeloNegocioDetalhes?: Record<string, unknown> | null;
+  contasReceita?: Record<string, string> | null;
+  custosCentralizados?: boolean | null;
+  receitasCentralizadas?: boolean | null;
+  contasCustos?: Record<string, string> | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface TemplateImportacao {
+export interface ConfiguracaoModeloNegocio {
   id: string;
-  empresaId: string;
-  nome: string;
-  descricao: string | null;
-  configuracao: Record<string, unknown>;
+  modeloNegocio: ModeloNegocio;
+  modeloNegocioDetalhes: Record<string, unknown>;
+  contasReceita: Record<string, string>;
+  contasCustos: Record<string, string>;
+  custosCentralizados: boolean;
+  receitasCentralizadas: boolean;
+  descricao?: string | null;
+  ativo: boolean;
   createdAt: string;
   updatedAt: string;
-  empresa?: Empresa;
 }
 
-export interface LinhaUpload {
-  id: string;
-  uploadId: string;
-  classificacao: string;
-  conta: string;
-  subConta: string | null;
-  nomeConta: string;
-  tipoConta: string;
-  nivel: number;
-  titulo: boolean;
-  estabelecimento: boolean;
-  saldoAnterior: string;
-  debito: string;
-  credito: string;
-  saldoAtual: string;
-  hashLinha: string;
-  createdAt: string;
+export type ResumoStatus = 'PROCESSANDO' | 'CONCLUIDO' | 'ERRO' | 'CANCELADO';
+
+export interface Insight {
+  tipo: 'POSITIVO' | 'ATENCAO' | 'CRITICO' | 'INFORMATIVO';
+  titulo: string;
+  descricao: string;
+  recomendacao?: string;
+  dados: Record<string, unknown>;
+  confianca: number; // 0-100
 }
 
-export interface Alerta {
+export interface PadraoAnomalo {
+  tipo: string;
+  descricao: string;
+  severidade: 'BAIXA' | 'MEDIA' | 'ALTA';
+  dados: Record<string, unknown>;
+}
+
+export interface SugestaoCorrecao {
+  alertaId?: string;
+  problema: string;
+  solucao: string;
+  confianca: number;
+}
+
+export interface AnaliseResponse {
   id: string;
-  uploadId: string;
-  linhaId: string | null;
-  tipo: AlertaTipo;
-  severidade: AlertaSeveridade;
-  mensagem: string;
-  status: AlertaStatus;
-  createdAt: string;
-  resolvedAt: string | null;
-  upload?: Upload;
-  linha?: LinhaUpload | null;
+  tipo: string;
+  dataAnalise: Date | string;
+  insights: Insight[];
+  padroesAnomalos: PadraoAnomalo[];
+  sugestoesCorrecao: SugestaoCorrecao[];
+  resumo: string;
 }
 
 export interface Upload {
   id: string;
   empresaId: string;
-  templateId: string | null;
+  templateId?: string | null;
   mes: number;
   ano: number;
   arquivoUrl: string;
-  nomeArquivo: string | null;
+  nomeArquivo: string;
   hashArquivo: string;
   status: UploadStatus;
   totalLinhas: number;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
-  empresa?: Empresa;
-  template?: TemplateImportacao | null;
-  alertas?: Alerta[];
-  linhas?: LinhaUpload[];
 }
 
-export interface ContaCatalogo {
+export interface Alerta {
   id: string;
-  classificacao: string;
-  conta: string; // Número da conta (ex: "1304")
-  subConta: string;
-  nomeConta: string; // Nome da conta (ex: "Fretes e Carretos") - padrão igual LinhaUpload
-  tipoConta: string;
-  nivel: number;
-  primeiraImportacao: string;
-  ultimaImportacao: string;
-  status: ContaStatus;
+  uploadId: string;
+  linhaId?: string | null;
+  tipo: AlertaTipo;
+  severidade: AlertaSeveridade;
+  mensagem: string;
+  status: AlertaStatus;
+  createdAt: string;
+  resolvedAt?: string | null;
+  linha?: {
+    classificacao: string;
+    nomeConta: string;
+    tipoConta?: string;
+  } | null;
 }
 
-// Tipos WithRelations (incluem relações)
-export type UploadWithRelations = Upload & {
-  empresa?: Empresa;
-  template?: TemplateImportacao | null;
-  alertas?: Alerta[];
-  linhas?: LinhaUpload[];
-};
-
-export type AlertaWithRelations = Alerta & {
-  upload?: Upload;
-  linha?: LinhaUpload | null;
-};
-
-export type TemplateImportacaoWithRelations = TemplateImportacao & {
-  empresa?: Empresa;
-};
-
-export type ContaCatalogoWithRelations = ContaCatalogo;
+export interface AlertaWithRelations extends Alerta {
+  upload?: {
+    id: string;
+    empresaId: string;
+    mes: number;
+    ano: number;
+    empresa?: Empresa | null;
+  } | null;
+}
 
 export interface LogAuditoria {
   id: string;
@@ -126,41 +161,115 @@ export interface LogAuditoria {
     id: string;
     nome: string;
     email: string;
-  };
+  } | null;
 }
 
 export interface UploadProgress {
   progress: number;
-  estado: string;
   etapa: string;
+  totalLinhas?: number;
+  linhasProcessadas?: number;
 }
 
-export type TipoRelatorio = 'FILIAL' | 'CONSOLIDADO';
-
-export interface ContaRelatorio {
-  classificacao: string;
-  nomeConta: string;
-  nivel: number;
-  valores: {
-    [mes: number]: number;
-    total: number;
-  };
-  filhos?: ContaRelatorio[];
-  conta?: string; // Número da conta (opcional, para chave composta)
-  subConta?: string; // SubConta (opcional, para chave composta)
-}
-
-export interface RelatorioResultado {
-  empresaId?: string;
-  empresaNome: string;
-  uf?: string;
-  ano: number;
-  tipo: TipoRelatorio;
-  periodo: {
-    mes: number;
+export interface UploadWithRelations extends Upload {
+  empresa?: Empresa | null;
+  template?: {
+    id: string;
     nome: string;
-  }[];
-  contas: ContaRelatorio[];
+  } | null;
+  alertas?: Alerta[];
+  linhas?: Array<{
+    id: string;
+    classificacao: string;
+    conta: string;
+    subConta?: string | null;
+    nomeConta: string;
+    tipoConta: string;
+    nivel: number;
+    saldoAtual: number;
+  }>;
+}
+
+export interface TemplateImportacao {
+  id: string;
+  empresaId?: string | null;
+  nome: string;
+  descricao?: string | null;
+  configuracao: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TemplateImportacaoWithRelations extends TemplateImportacao {
+  empresa?: Empresa | null;
+}
+
+export interface AnalisarDadosParams {
+  tipo: TipoAnalise;
+  uploadId?: string;
+  empresaId?: string;
+  empresaIds?: string[];
+  mes?: number;
+  ano?: number;
+  descricao?: string;
+  mes1?: number;
+  ano1?: number;
+  mes2?: number;
+  ano2?: number;
+  tipoValor?: 'ACUMULADO' | 'PERIODO';
+}
+
+export interface CreateResumoDto {
+  titulo: string;
+  mes?: number;
+  ano: number;
+  empresaId?: string;
+  uploadId?: string;
+  tipoAnalise: TipoAnalise;
+  parametros: AnalisarDadosParams;
+}
+
+export interface FilterResumoDto {
+  empresaId?: string;
+  ano?: number;
+  mes?: number;
+  status?: ResumoStatus;
+  tipoAnalise?: TipoAnalise;
+  page?: number;
+  limit?: number;
+}
+
+export interface ResumoEconomico {
+  id: string;
+  titulo: string;
+  mes?: number | null;
+  ano: number;
+  periodo?: string;
+  empresaId?: string | null;
+  uploadId?: string | null;
+  tipoAnalise: TipoAnalise;
+  parametros: Record<string, unknown>;
+  resultado: AnaliseResponse;
+  modeloIA: string;
+  status: ResumoStatus;
+  criadoPor: string;
+  createdAt: string;
+  updatedAt: string;
+  empresa?: Empresa | null;
+  upload?: Upload | null;
+}
+
+export interface ResumosListResponse {
+  data: ResumoEconomico[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export enum TipoRelatorio {
+  FILIAL = 'FILIAL',
+  CONSOLIDADO = 'CONSOLIDADO',
 }
 
 export enum TipoComparacao {
@@ -170,13 +279,43 @@ export enum TipoComparacao {
 }
 
 export enum TipoValor {
-  ACUMULADO = 'ACUMULADO', // Saldo acumulado até o mês (saldoAtual)
-  PERIODO = 'PERIODO', // Movimentação do mês (credito - debito)
+  ACUMULADO = 'ACUMULADO',
+  PERIODO = 'PERIODO',
+}
+
+export interface ContaRelatorio {
+  classificacao: string;
+  conta: string;
+  subConta?: string | null;
+  nomeConta: string;
+  tipoConta: string;
+  nivel: number;
+  titulo: boolean;
+  estabelecimento: boolean;
+  saldoAnterior: number;
+  debito: number;
+  credito: number;
+  saldoAtual: number;
+  valores?: { [mes: number]: number; total: number };
+  filhos?: ContaRelatorio[];
+}
+
+export interface RelatorioResultado {
+  empresaId?: string;
+  empresaNome: string;
+  uf?: string;
+  ano: number;
+  tipo: 'FILIAL' | 'CONSOLIDADO';
+  periodo: {
+    mes: number;
+    nome: string;
+  }[];
+  contas: ContaRelatorio[];
 }
 
 export interface ContaComparativa {
   classificacao: string;
-  conta?: string; // Número da conta (ex: "1053")
+  conta?: string;
   nomeConta: string;
   nivel: number;
   valorPeriodo1: number;
@@ -197,7 +336,7 @@ export interface RelatorioComparativo {
     mes: number;
     label: string;
   };
-  tipo: TipoRelatorio;
+  tipo: 'FILIAL' | 'CONSOLIDADO';
   empresaId?: string;
   empresaNome: string;
   uf?: string;
@@ -209,4 +348,3 @@ export interface RelatorioComparativo {
     percentual: number;
   };
 }
-

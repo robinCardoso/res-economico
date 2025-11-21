@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   BellRing,
-  BrainCircuit,
   ClipboardList,
   LayoutDashboard,
   Layers3,
@@ -32,7 +31,7 @@ const navItems: NavItem[] = [
   { label: 'Contas', href: '/contas', icon: Layers3 },
   { label: 'Empresas', href: '/empresas', icon: Building },
   { label: 'Auditoria', href: '/auditoria', icon: FileText },
-  { label: 'Relatórios', href: '/relatorios', icon: BrainCircuit },
+  { label: 'Relatórios', href: '/relatorios', icon: FileText },
   { label: 'Configurações', href: '/configuracoes', icon: Settings2 },
 ];
 
