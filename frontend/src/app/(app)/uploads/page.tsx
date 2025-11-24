@@ -88,7 +88,7 @@ const UploadsPage = () => {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
         {uploadsFiltrados.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-slate-500">
             {empresaFiltro
@@ -96,9 +96,15 @@ const UploadsPage = () => {
               : 'Nenhum upload encontrado. Comece criando um novo upload.'}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-[10px] dark:divide-slate-800">
-              <thead className="bg-slate-50/60 dark:bg-slate-900/80">
+          <div 
+            className="overflow-x-auto overflow-y-auto h-[400px] w-full" 
+            style={{ 
+              scrollbarWidth: 'thin',
+              WebkitOverflowScrolling: 'touch'
+            }}
+          >
+            <table className="divide-y divide-slate-200 text-[10px] dark:divide-slate-800" style={{ minWidth: '1000px', width: 'max-content' }}>
+              <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm dark:bg-slate-900/95 shadow-sm">
                 <tr>
                   <th className="px-3 py-2 text-left text-[10px] font-semibold text-slate-700 dark:text-slate-300 min-w-[240px]">
                     Empresa

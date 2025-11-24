@@ -236,4 +236,255 @@ export class AlertasService {
       },
     });
   }
+
+  async findOneDetalhes(id: string) {
+    const alerta = await this.findOne(id);
+
+    if (!alerta) {
+      throw new NotFoundException('Alerta não encontrado');
+    }
+
+    // Buscar histórico da conta (últimos 12 meses) se tiver linha
+    let historico: Array<{
+      mes: number;
+      ano: number;
+      saldoAnterior: number;
+      debito: number;
+      credito: number;
+      saldoAtual: number;
+      uploadId: string;
+      temAlerta: boolean;
+    }> = [];
+
+    if (alerta.linha && alerta.upload) {
+      // Buscar uploads dos últimos 12 meses da mesma empresa
+      const dataAtual = new Date(alerta.upload.ano, alerta.upload.mes - 1);
+      const uploads = await this.prisma.upload.findMany({
+        where: {
+          empresaId: alerta.upload.empresaId,
+          status: { in: ['CONCLUIDO', 'COM_ALERTAS'] },
+          OR: [
+            {
+              ano: dataAtual.getFullYear(),
+              mes: { lte: dataAtual.getMonth() + 1 },
+            },
+            {
+              ano: dataAtual.getFullYear() - 1,
+              mes: { gt: dataAtual.getMonth() + 1 },
+            },
+          ],
+        },
+        include: {
+          linhas: {
+            where: {
+              classificacao: alerta.linha.classificacao,
+              conta: alerta.linha.conta,
+              subConta: alerta.linha.subConta || '',
+            },
+            take: 1,
+          },
+          alertas: {
+            where: {
+              linha: {
+                classificacao: alerta.linha.classificacao,
+                conta: alerta.linha.conta,
+                subConta: alerta.linha.subConta || '',
+              },
+            },
+            select: { id: true },
+          },
+        },
+        orderBy: [{ ano: 'desc' }, { mes: 'desc' }],
+        take: 12,
+      });
+
+      historico = uploads.map((upload) => {
+        const linha = upload.linhas[0];
+        return {
+          mes: upload.mes,
+          ano: upload.ano,
+          saldoAnterior: linha ? Number(linha.saldoAnterior) : 0,
+          debito: linha ? Number(linha.debito) : 0,
+          credito: linha ? Number(linha.credito) : 0,
+          saldoAtual: linha ? Number(linha.saldoAtual) : 0,
+          uploadId: upload.id,
+          temAlerta: upload.alertas.length > 0,
+        };
+      });
+    }
+
+    // Calcular estatísticas do histórico
+    let estatisticas: {
+      valorMedio: number;
+      valorMaximo: number;
+      valorMinimo: number;
+      variacaoMedia: number;
+      tendencia: 'CRESCENTE' | 'DECRESCENTE' | 'ESTAVEL';
+    } | null = null;
+
+    if (historico.length > 0) {
+      const valores = historico.map((h) => h.saldoAtual);
+      const valorMedio = valores.reduce((a, b) => a + b, 0) / valores.length;
+      const valorMaximo = Math.max(...valores);
+      const valorMinimo = Math.min(...valores);
+
+      // Calcular variação média
+      let variacaoMedia = 0;
+      if (valores.length > 1) {
+        const variacoes: number[] = [];
+        for (let i = 1; i < valores.length; i++) {
+          const anterior = valores[i];
+          const atual = valores[i - 1];
+          if (anterior !== 0) {
+            variacoes.push(((atual - anterior) / Math.abs(anterior)) * 100);
+          }
+        }
+        variacaoMedia =
+          variacoes.length > 0
+            ? variacoes.reduce((a, b) => a + b, 0) / variacoes.length
+            : 0;
+      }
+
+      // Determinar tendência
+      let tendencia: 'CRESCENTE' | 'DECRESCENTE' | 'ESTAVEL' = 'ESTAVEL';
+      if (valores.length >= 3) {
+        const ultimos3 = valores.slice(0, 3);
+        const mediaUltimos3 = ultimos3.reduce((a, b) => a + b, 0) / 3;
+        const mediaAnteriores =
+          valores.slice(3, 6).length > 0
+            ? valores.slice(3, 6).reduce((a, b) => a + b, 0) / valores.slice(3, 6).length
+            : mediaUltimos3;
+
+        if (mediaUltimos3 > mediaAnteriores * 1.05) {
+          tendencia = 'CRESCENTE';
+        } else if (mediaUltimos3 < mediaAnteriores * 0.95) {
+          tendencia = 'DECRESCENTE';
+        }
+      }
+
+      estatisticas = {
+        valorMedio,
+        valorMaximo,
+        valorMinimo,
+        variacaoMedia,
+        tendencia,
+      };
+    }
+
+    // Comparação temporal para CONTINUIDADE_TEMPORAL_DIVERGENTE
+    let comparacaoTemporal: {
+      mesAnterior: {
+        mes: number;
+        ano: number;
+        saldoAtual: number;
+      };
+      mesAtual: {
+        mes: number;
+        ano: number;
+        saldoAnterior: number;
+      };
+      diferenca: number;
+      percentual: number;
+    } | null = null;
+
+    if (
+      alerta.tipo === 'CONTINUIDADE_TEMPORAL_DIVERGENTE' &&
+      alerta.linha &&
+      alerta.upload
+    ) {
+      // Calcular mês anterior
+      let mesAnterior = alerta.upload.mes - 1;
+      let anoAnterior = alerta.upload.ano;
+      if (mesAnterior < 1) {
+        mesAnterior = 12;
+        anoAnterior -= 1;
+      }
+
+      // Buscar upload do mês anterior
+      const uploadAnterior = await this.prisma.upload.findFirst({
+        where: {
+          empresaId: alerta.upload.empresaId,
+          mes: mesAnterior,
+          ano: anoAnterior,
+          status: { in: ['CONCLUIDO', 'COM_ALERTAS'] },
+        },
+        include: {
+          linhas: {
+            where: {
+              classificacao: alerta.linha.classificacao,
+              conta: alerta.linha.conta,
+              subConta: alerta.linha.subConta || '',
+            },
+            take: 1,
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (uploadAnterior && uploadAnterior.linhas.length > 0) {
+        const linhaAnterior = uploadAnterior.linhas[0];
+        const saldoAnteriorMesAnterior = Number(linhaAnterior.saldoAtual);
+        const saldoAnteriorMesAtual = Number(alerta.linha.saldoAnterior);
+        const diferenca = saldoAnteriorMesAtual - saldoAnteriorMesAnterior;
+        const percentual =
+          saldoAnteriorMesAnterior !== 0
+            ? (diferenca / Math.abs(saldoAnteriorMesAnterior)) * 100
+            : 0;
+
+        comparacaoTemporal = {
+          mesAnterior: {
+            mes: mesAnterior,
+            ano: anoAnterior,
+            saldoAtual: saldoAnteriorMesAnterior,
+          },
+          mesAtual: {
+            mes: alerta.upload.mes,
+            ano: alerta.upload.ano,
+            saldoAnterior: saldoAnteriorMesAtual,
+          },
+          diferenca,
+          percentual,
+        };
+      }
+    }
+
+    // Buscar alertas relacionados (mesma conta)
+    const alertasRelacionados = alerta.linha
+      ? await this.prisma.alerta.findMany({
+          where: {
+            id: { not: alerta.id },
+            linha: {
+              classificacao: alerta.linha.classificacao,
+              conta: alerta.linha.conta,
+              subConta: alerta.linha.subConta || '',
+            },
+          },
+          include: {
+            upload: {
+              select: {
+                id: true,
+                mes: true,
+                ano: true,
+                empresa: {
+                  select: {
+                    id: true,
+                    razaoSocial: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        })
+      : [];
+
+    return {
+      alerta,
+      historico,
+      estatisticas,
+      comparacaoTemporal,
+      alertasRelacionados,
+    };
+  }
 }

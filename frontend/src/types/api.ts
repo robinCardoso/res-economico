@@ -148,6 +148,61 @@ export interface AlertaWithRelations extends Alerta {
     ano: number;
     empresa?: Empresa | null;
   } | null;
+  linha?: {
+    id: string;
+    classificacao: string;
+    conta: string;
+    subConta?: string | null;
+    nomeConta: string;
+    tipoConta?: string;
+    nivel?: number;
+    saldoAnterior?: number | string;
+    debito?: number | string;
+    credito?: number | string;
+    saldoAtual?: number | string;
+  } | null;
+}
+
+export interface AlertaHistoricoItem {
+  mes: number;
+  ano: number;
+  saldoAnterior: number;
+  debito: number;
+  credito: number;
+  saldoAtual: number;
+  uploadId: string;
+  temAlerta: boolean;
+}
+
+export interface AlertaEstatisticas {
+  valorMedio: number;
+  valorMaximo: number;
+  valorMinimo: number;
+  variacaoMedia: number;
+  tendencia: 'CRESCENTE' | 'DECRESCENTE' | 'ESTAVEL';
+}
+
+export interface AlertaComparacaoTemporal {
+  mesAnterior: {
+    mes: number;
+    ano: number;
+    saldoAtual: number;
+  };
+  mesAtual: {
+    mes: number;
+    ano: number;
+    saldoAnterior: number;
+  };
+  diferenca: number;
+  percentual: number;
+}
+
+export interface AlertaDetalhesResponse {
+  alerta: AlertaWithRelations;
+  historico: AlertaHistoricoItem[];
+  estatisticas: AlertaEstatisticas | null;
+  comparacaoTemporal: AlertaComparacaoTemporal | null;
+  alertasRelacionados: AlertaWithRelations[];
 }
 
 export interface LogAuditoria {

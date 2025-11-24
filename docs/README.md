@@ -33,6 +33,8 @@ Documentação sobre infraestrutura e configuração:
 - **`ESTRUTURA.md`** - Explicação detalhada da organização da documentação
 - **`plano-resumo-economico.md`** - Plano de implementação de resumo econômico
 - **`plano-implementacao.html`** - Plano geral de implementação (HTML)
+- **`MELHORIAS-SUGERIDAS.md`** - Análise completa do projeto e sugestões de melhorias organizadas por prioridade
+- **`PLANO-DETALHES-ALERTA.md`** - Plano completo para visualização detalhada e analítica de alertas
 
 ---
 

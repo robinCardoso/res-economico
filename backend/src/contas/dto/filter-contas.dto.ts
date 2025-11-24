@@ -25,4 +25,12 @@ export class FilterContasDto {
   @IsString()
   @IsOptional()
   classificacaoPrefix?: string; // Prefixo da classificação (ex: "1." para ativos)
+
+  @IsString()
+  @IsOptional()
+  conta?: string; // Número da conta (ex: "1304")
+
+  @IsString()
+  @IsOptional()
+  subConta?: string; // Subconta (pode ser vazia)
 }

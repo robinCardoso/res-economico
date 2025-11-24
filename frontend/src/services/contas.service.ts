@@ -7,6 +7,8 @@ export interface FilterContasParams {
   nivel?: number;
   busca?: string;
   classificacaoPrefix?: string;
+  conta?: string;
+  subConta?: string;
 }
 
 export const contasService = {
@@ -18,6 +20,8 @@ export const contasService = {
     if (filters?.nivel) params.append('nivel', filters.nivel.toString());
     if (filters?.busca) params.append('busca', filters.busca);
     if (filters?.classificacaoPrefix) params.append('classificacaoPrefix', filters.classificacaoPrefix);
+    if (filters?.conta) params.append('conta', filters.conta);
+    if (filters?.subConta !== undefined) params.append('subConta', filters.subConta);
 
     const queryString = params.toString();
     const url = queryString ? `/contas?${queryString}` : '/contas';

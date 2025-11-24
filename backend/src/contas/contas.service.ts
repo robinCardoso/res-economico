@@ -24,6 +24,16 @@ export class ContasService {
       where.nivel = filters.nivel;
     }
 
+    // Filtro por conta (se fornecido, busca exata)
+    if (filters?.conta) {
+      where.conta = filters.conta;
+    }
+
+    // Filtro por subConta (se fornecido, busca exata)
+    if (filters?.subConta !== undefined) {
+      where.subConta = filters.subConta || '';
+    }
+
     // Filtro por prefixo de classificação (prioridade sobre busca)
     if (filters?.classificacaoPrefix) {
       where.classificacao = {

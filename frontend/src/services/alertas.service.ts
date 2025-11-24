@@ -1,5 +1,5 @@
 import { api } from '@/lib/http';
-import type { AlertaWithRelations, AlertaStatus } from '@/types/api';
+import type { AlertaWithRelations, AlertaStatus, AlertaDetalhesResponse } from '@/types/api';
 
 export interface FilterAlertasParams {
   status?: AlertaStatus;
@@ -58,6 +58,16 @@ export const alertasService = {
 
   async updateStatus(id: string, status: AlertaStatus): Promise<AlertaWithRelations> {
     const { data } = await api.patch<AlertaWithRelations>(`/alertas/${id}/status`, { status });
+    return data;
+  },
+
+  async getById(id: string): Promise<AlertaWithRelations> {
+    const { data } = await api.get<AlertaWithRelations>(`/alertas/${id}`);
+    return data;
+  },
+
+  async getDetalhes(id: string): Promise<AlertaDetalhesResponse> {
+    const { data } = await api.get<AlertaDetalhesResponse>(`/alertas/${id}/detalhes`);
     return data;
   },
 };

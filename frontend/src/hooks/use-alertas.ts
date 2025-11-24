@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { alertasService, type FilterAlertasParams, type ContagemPorTipoConta } from '@/services/alertas.service';
-import type { AlertaWithRelations, AlertaStatus } from '@/types/api';
+import type { AlertaWithRelations, AlertaStatus, AlertaDetalhesResponse } from '@/types/api';
 
 export function useAlertas(filters?: FilterAlertasParams) {
   return useQuery<AlertaWithRelations[]>({
@@ -29,6 +29,22 @@ export function useUpdateAlertaStatus() {
       // Invalidar queries de alertas para atualizar a lista
       queryClient.invalidateQueries({ queryKey: ['alertas'] });
     },
+  });
+}
+
+export function useAlerta(id: string) {
+  return useQuery<AlertaWithRelations>({
+    queryKey: ['alerta', id],
+    queryFn: () => alertasService.getById(id),
+    enabled: !!id,
+  });
+}
+
+export function useAlertaDetalhes(id: string) {
+  return useQuery<AlertaDetalhesResponse>({
+    queryKey: ['alerta', id, 'detalhes'],
+    queryFn: () => alertasService.getDetalhes(id),
+    enabled: !!id,
   });
 }
 

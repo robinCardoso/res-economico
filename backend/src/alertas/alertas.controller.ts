@@ -33,6 +33,11 @@ export class AlertasController {
     return this.alertasService.findOne(id);
   }
 
+  @Get(':id/detalhes')
+  findOneDetalhes(@Param('id') id: string) {
+    return this.alertasService.findOneDetalhes(id);
+  }
+
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,

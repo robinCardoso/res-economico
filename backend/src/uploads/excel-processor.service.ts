@@ -1077,10 +1077,20 @@ export class ExcelProcessorService {
     }
 
     // Buscar linhas criadas para obter IDs
-    const linhasCriadas = await this.prisma.linhaUpload.findMany({
+    // IMPORTANTE: Criar um Map usando chave composta para garantir associação correta
+    const linhasCriadasArray = await this.prisma.linhaUpload.findMany({
       where: { uploadId },
       orderBy: { createdAt: 'asc' },
     });
+
+    // Criar Map com chave composta: classificacao + conta + subConta
+    // Isso garante que podemos encontrar a linha correta mesmo se a ordem mudar
+    const linhasCriadasMap = new Map<string, { id: string }>();
+    for (const linhaCriada of linhasCriadasArray) {
+      const subContaStr = linhaCriada.subConta || '';
+      const chave = `${linhaCriada.classificacao}|${linhaCriada.conta}|${subContaStr}`;
+      linhasCriadasMap.set(chave, { id: linhaCriada.id });
+    }
 
     // Buscar upload do mês anterior para validação de continuidade temporal
     let uploadAnterior: {
@@ -1203,7 +1213,18 @@ export class ExcelProcessorService {
 
     for (let i = 0; i < linhas.length; i++) {
       const linha = linhas[i];
-      const linhaCriada = linhasCriadas[i];
+      
+      // Buscar linha criada usando chave composta para garantir associação correta
+      const subContaStr = linha.subConta || '';
+      const chaveLinha = `${linha.classificacao}|${linha.conta}|${subContaStr}`;
+      const linhaCriada = linhasCriadasMap.get(chaveLinha);
+
+      // Validação: se a linha não foi encontrada, logar erro mas continuar
+      if (!linhaCriada && linha.classificacao && linha.conta) {
+        this.logger.error(
+          `Linha não encontrada no banco para alerta: ${chaveLinha} - ${linha.nomeConta}. Isso não deveria acontecer.`,
+        );
+      }
 
       // Verificar saldo divergente
       // Fórmula contábil conforme formato do Excel: Saldo Atual = Saldo Anterior + Débito + Crédito

@@ -1,22 +1,51 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useContas } from '@/hooks/use-contas';
 import { getStatusLabel } from '@/lib/format';
 import type { ContaStatus } from '@/types/api';
 import { Search } from 'lucide-react';
 
 const ContasPage = () => {
+  const searchParams = useSearchParams();
+  
+  // Ler query params da URL
+  const classificacaoFromUrl = searchParams.get('classificacaoPrefix') || '';
+  const contaFromUrl = searchParams.get('conta') || '';
+  const subContaFromUrl = searchParams.get('subConta') || '';
+  const tipoContaFromUrl = searchParams.get('tipoConta') || '';
+
   const [statusFiltro, setStatusFiltro] = useState<ContaStatus | ''>('');
-  const [tipoContaFiltro, setTipoContaFiltro] = useState<string>('');
+  const [tipoContaFiltro, setTipoContaFiltro] = useState<string>(tipoContaFromUrl);
   const [nivelFiltro, setNivelFiltro] = useState<number | ''>('');
-  const [classificacaoPrefix, setClassificacaoPrefix] = useState<string>('');
+  const [classificacaoPrefix, setClassificacaoPrefix] = useState<string>(classificacaoFromUrl);
   const [buscaInput, setBuscaInput] = useState<string>(''); // Valor do input
   const [buscaFiltro, setBuscaFiltro] = useState<string>(''); // Valor aplicado no filtro
   const [showAutocomplete, setShowAutocomplete] = useState<boolean>(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
+
+  // Atualizar filtros quando query params mudarem
+  useEffect(() => {
+    if (classificacaoFromUrl) {
+      setClassificacaoPrefix(classificacaoFromUrl);
+    }
+    if (tipoContaFromUrl) {
+      setTipoContaFiltro(tipoContaFromUrl);
+    }
+    if (contaFromUrl) {
+      setContaFiltro(contaFromUrl);
+    }
+    if (subContaFromUrl !== null) {
+      setSubContaFiltro(subContaFromUrl);
+    }
+  }, [classificacaoFromUrl, tipoContaFromUrl, contaFromUrl, subContaFromUrl]);
+
+  // Estados para conta e subConta (para filtros vindos da URL)
+  const [contaFiltro, setContaFiltro] = useState<string>(contaFromUrl);
+  const [subContaFiltro, setSubContaFiltro] = useState<string>(subContaFromUrl);
 
   // Construir filtros
   type FilterType = {
@@ -25,6 +54,8 @@ const ContasPage = () => {
     nivel?: number;
     classificacaoPrefix?: string;
     busca?: string;
+    conta?: string;
+    subConta?: string;
   };
 
   const filters = useMemo(() => {
@@ -34,8 +65,10 @@ const ContasPage = () => {
     if (nivelFiltro) f.nivel = nivelFiltro;
     if (classificacaoPrefix) f.classificacaoPrefix = classificacaoPrefix;
     if (buscaFiltro) f.busca = buscaFiltro;
+    if (contaFiltro) f.conta = contaFiltro;
+    if (subContaFiltro !== undefined) f.subConta = subContaFiltro;
     return Object.keys(f).length > 0 ? f : undefined;
-  }, [statusFiltro, tipoContaFiltro, nivelFiltro, classificacaoPrefix, buscaFiltro]);
+  }, [statusFiltro, tipoContaFiltro, nivelFiltro, classificacaoPrefix, buscaFiltro, contaFiltro, subContaFiltro]);
 
   const { data: contas, isLoading, error } = useContas(filters);
   const { data: todasContas } = useContas(); // Buscar todas para popular filtros

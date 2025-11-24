@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useMemo } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAlertas, useUpdateAlertaStatus, useContagemPorTipoConta } from '@/hooks/use-alertas';
 import { useEmpresas } from '@/hooks/use-empresas';
+import { useDebounce } from '@/hooks/use-debounce';
 import { formatDateTime, getStatusLabel } from '@/lib/format';
 import { maskCNPJ } from '@/lib/masks';
 import type { AlertaStatus, AlertaTipo, AlertaSeveridade } from '@/types/api';
@@ -12,6 +13,7 @@ import Link from 'next/link';
 
 const AlertasPage = () => {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const uploadIdFromUrl = searchParams.get('uploadId');
   const alertaIdFromUrl = searchParams.get('alertaId');
 
@@ -21,26 +23,29 @@ const AlertasPage = () => {
   const [severidadeFiltro, setSeveridadeFiltro] = useState<AlertaSeveridade | ''>('');
   const [tipoContaFiltro, setTipoContaFiltro] = useState<string>('');
   const [busca, setBusca] = useState<string>('');
+  
+  // Debounce na busca para reduzir requisições
+  const buscaDebounced = useDebounce(busca, 300);
 
   const { data: empresas } = useEmpresas();
   const updateStatusMutation = useUpdateAlertaStatus();
 
-  // Construir filtros (sem tipoConta para contagem)
-  const filtersBase = {
+  // Construir filtros (sem tipoConta para contagem) - memoizado para evitar recálculos
+  const filtersBase = useMemo(() => ({
     ...(empresaFiltro && { empresaId: empresaFiltro }),
     ...(uploadIdFromUrl && { uploadId: uploadIdFromUrl }),
     ...(alertaIdFromUrl && { alertaId: alertaIdFromUrl }),
     ...(statusFiltro && { status: statusFiltro }),
     ...(tipoFiltro && { tipo: tipoFiltro }),
     ...(severidadeFiltro && { severidade: severidadeFiltro }),
-    ...(busca && { busca }),
-  };
+    ...(buscaDebounced && { busca: buscaDebounced }),
+  }), [empresaFiltro, uploadIdFromUrl, alertaIdFromUrl, statusFiltro, tipoFiltro, severidadeFiltro, buscaDebounced]);
 
-  // Filtros completos (incluindo tipoConta)
-  const filters = {
+  // Filtros completos (incluindo tipoConta) - memoizado
+  const filters = useMemo(() => ({
     ...filtersBase,
     ...(tipoContaFiltro && { tipoConta: tipoContaFiltro }),
-  };
+  }), [filtersBase, tipoContaFiltro]);
 
   // Buscar contagem por tipoConta (sem filtro de tipoConta)
   const { data: contagemPorTipoConta } = useContagemPorTipoConta(filtersBase);
@@ -79,7 +84,10 @@ const AlertasPage = () => {
   const alertasList = Array.isArray(alertas) ? alertas : [];
   const empresasList = Array.isArray(empresas) ? empresas : [];
 
-  const hasActiveFilters = empresaFiltro || statusFiltro || tipoFiltro || severidadeFiltro || tipoContaFiltro || busca || uploadIdFromUrl || alertaIdFromUrl;
+  const hasActiveFilters = useMemo(() => 
+    empresaFiltro || statusFiltro || tipoFiltro || severidadeFiltro || tipoContaFiltro || busca || uploadIdFromUrl || alertaIdFromUrl,
+    [empresaFiltro, statusFiltro, tipoFiltro, severidadeFiltro, tipoContaFiltro, busca, uploadIdFromUrl, alertaIdFromUrl]
+  );
 
   // Função para limpar filtro de tipoConta
   const handleTipoContaClick = (tipoConta: string) => {
@@ -341,7 +349,11 @@ const AlertasPage = () => {
                     : 'N/A';
 
                   return (
-                    <tr key={alerta.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900">
+                    <tr
+                      key={alerta.id}
+                      onClick={() => router.push(`/alertas/${alerta.id}`)}
+                      className="cursor-pointer hover:bg-slate-50/70 dark:hover:bg-slate-900 transition-colors"
+                    >
                       <td className="px-3 py-1 font-mono text-xs font-medium text-slate-600 dark:text-slate-400">
                         {alerta.id.slice(0, 8)}
                       </td>
