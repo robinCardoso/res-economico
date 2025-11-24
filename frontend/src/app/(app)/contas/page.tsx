@@ -27,7 +27,15 @@ const ContasPage = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
+  // Estados para conta e subConta (para filtros vindos da URL) - devem ser declarados antes do useEffect
+  const [contaFiltro, setContaFiltro] = useState<string>(contaFromUrl);
+  const [subContaFiltro, setSubContaFiltro] = useState<string>(subContaFromUrl);
+
   // Atualizar filtros quando query params mudarem
+  // Necessário sincronizar estado com parâmetros da URL quando mudarem externamente
+  // Esta é uma exceção necessária: precisamos sincronizar estado com URL externa
+  // Nota: setState dentro de useEffect é necessário aqui para sincronizar com URL externa
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (classificacaoFromUrl) {
       setClassificacaoPrefix(classificacaoFromUrl);
@@ -42,10 +50,7 @@ const ContasPage = () => {
       setSubContaFiltro(subContaFromUrl);
     }
   }, [classificacaoFromUrl, tipoContaFromUrl, contaFromUrl, subContaFromUrl]);
-
-  // Estados para conta e subConta (para filtros vindos da URL)
-  const [contaFiltro, setContaFiltro] = useState<string>(contaFromUrl);
-  const [subContaFiltro, setSubContaFiltro] = useState<string>(subContaFromUrl);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Construir filtros
   type FilterType = {

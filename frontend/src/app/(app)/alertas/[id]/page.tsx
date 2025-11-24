@@ -1,7 +1,6 @@
 'use client';
 
 import { use, useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -23,7 +22,6 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { useAlertaDetalhes, useUpdateAlertaStatus } from '@/hooks/use-alertas';
 import { formatDateTime, getStatusLabel } from '@/lib/format';
-import { maskCNPJ } from '@/lib/masks';
 import type { AlertaStatus } from '@/types/api';
 
 type AlertaDetalheProps = {
@@ -67,7 +65,6 @@ const meses = [
 
 export default function AlertaDetalhePage({ params }: AlertaDetalheProps) {
   const { id } = use(params);
-  const router = useRouter();
   const [abaAtiva, setAbaAtiva] = useState<'visao-geral' | 'historico' | 'comparacao' | 'acoes'>('visao-geral');
 
   // Filtros do histórico
@@ -81,35 +78,11 @@ export default function AlertaDetalhePage({ params }: AlertaDetalheProps) {
   const { data: detalhes, isLoading, error } = useAlertaDetalhes(id);
   const updateStatusMutation = useUpdateAlertaStatus();
 
-  const handleUpdateStatus = async (status: AlertaStatus) => {
-    try {
-      await updateStatusMutation.mutateAsync({ id, status });
-    } catch (error) {
-      console.error('Erro ao atualizar status do alerta:', error);
-    }
-  };
+  // Extrair dados antes dos early returns para usar nos hooks
+  const historico = detalhes?.historico;
+  const estatisticas = detalhes?.estatisticas;
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-slate-500">Carregando detalhes do alerta...</div>
-      </div>
-    );
-  }
-
-  if (error || !detalhes) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-rose-500">
-          Erro ao carregar alerta. Verifique se o backend está rodando.
-        </div>
-      </div>
-    );
-  }
-
-  const { alerta, historico, estatisticas, comparacaoTemporal, alertasRelacionados } = detalhes;
-
-  // Filtrar histórico baseado nos filtros
+  // Filtrar histórico baseado nos filtros (deve ser chamado antes dos early returns)
   const historicoFiltrado = useMemo(() => {
     if (!historico || historico.length === 0) return [];
 
@@ -217,6 +190,35 @@ export default function AlertaDetalhePage({ params }: AlertaDetalheProps) {
 
   const temFiltrosAtivos = anoInicio || anoFim || mesInicio || mesFim || apenasComAlerta;
 
+  const handleUpdateStatus = async (status: AlertaStatus) => {
+    try {
+      await updateStatusMutation.mutateAsync({ id, status });
+    } catch (err) {
+      console.error('Erro ao atualizar status do alerta:', err);
+    }
+  };
+
+  // Early returns devem vir depois de todos os hooks
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-sm text-slate-500">Carregando detalhes do alerta...</div>
+      </div>
+    );
+  }
+
+  if (error || !detalhes) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-sm text-rose-500">
+          Erro ao carregar alerta. Verifique se o backend está rodando.
+        </div>
+      </div>
+    );
+  }
+
+  const { alerta, comparacaoTemporal, alertasRelacionados } = detalhes;
+
   return (
     <div className="space-y-6">
       {/* Cabeçalho */}
@@ -297,7 +299,7 @@ export default function AlertaDetalhePage({ params }: AlertaDetalheProps) {
           ].map((aba) => (
             <button
               key={aba.id}
-              onClick={() => setAbaAtiva(aba.id as any)}
+              onClick={() => setAbaAtiva(aba.id as 'visao-geral' | 'historico' | 'comparacao' | 'acoes')}
               className={`px-4 py-2 text-sm font-medium transition-colors ${
                 abaAtiva === aba.id
                   ? 'border-b-2 border-sky-500 text-sky-600 dark:text-sky-400'
@@ -549,7 +551,7 @@ export default function AlertaDetalhePage({ params }: AlertaDetalheProps) {
                   </label>
                   <select
                     value={tipoDado}
-                    onChange={(e) => setTipoDado(e.target.value as any)}
+                    onChange={(e) => setTipoDado(e.target.value as 'saldoAtual' | 'saldoAnterior' | 'debito' | 'credito')}
                     className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                   >
                     <option value="saldoAtual">Saldo Atual</option>
@@ -846,55 +848,104 @@ export default function AlertaDetalhePage({ params }: AlertaDetalheProps) {
                         <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Débito</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Crédito</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Saldo Atual</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Variação</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                      {historicoFiltrado.map((item, index) => (
-                        <tr
-                          key={`${item.ano}-${item.mes}`}
-                          className={index === 0 ? 'bg-amber-50 dark:bg-amber-900/20' : ''}
-                        >
-                          <td className="px-3 py-2 whitespace-nowrap text-slate-900 dark:text-slate-50">
-                            {item.mes}/{item.ano}
-                          </td>
-                          <td className="px-3 py-2 text-slate-700 dark:text-slate-300">
-                            {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: 'BRL',
-                            }).format(item.saldoAnterior)}
-                          </td>
-                          <td className="px-3 py-2 text-slate-700 dark:text-slate-300">
-                            {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: 'BRL',
-                            }).format(item.debito)}
-                          </td>
-                          <td className="px-3 py-2 text-slate-700 dark:text-slate-300">
-                            {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: 'BRL',
-                            }).format(item.credito)}
-                          </td>
-                          <td className="px-3 py-2 font-semibold text-slate-900 dark:text-slate-50">
-                            {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: 'BRL',
-                            }).format(item.saldoAtual)}
-                          </td>
-                          <td className="px-3 py-2">
-                            {item.temAlerta ? (
-                              <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-400/20 dark:text-amber-200">
-                                Alerta
-                              </span>
-                            ) : (
-                              <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200">
-                                OK
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                      {historicoFiltrado.map((item, index) => {
+                        // Calcular variação: diferença entre o saldo atual deste mês e o saldo atual do mês anterior
+                        const mesAnterior = historicoFiltrado[index + 1];
+                        const variacao = mesAnterior
+                          ? item.saldoAtual - mesAnterior.saldoAtual
+                          : null; // Primeiro mês não tem variação
+                        const variacaoPercentual = mesAnterior && mesAnterior.saldoAtual !== 0
+                          ? ((variacao! / Math.abs(mesAnterior.saldoAtual)) * 100)
+                          : null;
+
+                        return (
+                          <tr
+                            key={`${item.ano}-${item.mes}`}
+                            className={index === 0 ? 'bg-amber-50 dark:bg-amber-900/20' : ''}
+                          >
+                            <td className="px-3 py-2 whitespace-nowrap text-slate-900 dark:text-slate-50">
+                              {item.mes}/{item.ano}
+                            </td>
+                            <td className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              }).format(item.saldoAnterior)}
+                            </td>
+                            <td className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              }).format(item.debito)}
+                            </td>
+                            <td className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              }).format(item.credito)}
+                            </td>
+                            <td className="px-3 py-2 font-semibold text-slate-900 dark:text-slate-50">
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              }).format(item.saldoAtual)}
+                            </td>
+                            <td className="px-3 py-2">
+                              {variacao !== null ? (
+                                <div className="flex flex-col gap-0.5">
+                                  <span
+                                    className={`text-xs font-medium ${
+                                      variacao > 0
+                                        ? 'text-emerald-600 dark:text-emerald-400'
+                                        : variacao < 0
+                                          ? 'text-rose-600 dark:text-rose-400'
+                                          : 'text-slate-600 dark:text-slate-400'
+                                    }`}
+                                  >
+                                    {variacao > 0 ? '+' : ''}
+                                    {new Intl.NumberFormat('pt-BR', {
+                                      style: 'currency',
+                                      currency: 'BRL',
+                                    }).format(variacao)}
+                                  </span>
+                                  {variacaoPercentual !== null && (
+                                    <span
+                                      className={`text-[10px] ${
+                                        variacao > 0
+                                          ? 'text-emerald-500 dark:text-emerald-500'
+                                          : variacao < 0
+                                            ? 'text-rose-500 dark:text-rose-500'
+                                            : 'text-slate-500 dark:text-slate-500'
+                                      }`}
+                                    >
+                                      {variacao > 0 ? '+' : ''}
+                                      {variacaoPercentual.toFixed(1)}%
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {item.temAlerta ? (
+                                <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-400/20 dark:text-amber-200">
+                                  Alerta
+                                </span>
+                              ) : (
+                                <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200">
+                                  OK
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

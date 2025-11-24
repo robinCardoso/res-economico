@@ -257,6 +257,9 @@ export class AlertasService {
     }> = [];
 
     if (alerta.linha && alerta.upload) {
+      // Garantir que TypeScript entenda que linha não é null
+      const linhaAlerta = alerta.linha;
+      
       // Buscar uploads dos últimos 12 meses da mesma empresa
       const dataAtual = new Date(alerta.upload.ano, alerta.upload.mes - 1);
       const uploads = await this.prisma.upload.findMany({
@@ -277,18 +280,29 @@ export class AlertasService {
         include: {
           linhas: {
             where: {
-              classificacao: alerta.linha.classificacao,
-              conta: alerta.linha.conta,
-              subConta: alerta.linha.subConta || '',
+              classificacao: linhaAlerta.classificacao,
+              conta: linhaAlerta.conta,
+              // Tratar subConta: buscar exatamente a mesma subConta
+              // Se subConta for fornecido (não null e não vazio), buscar exato
+              // Se for null ou vazio, buscar null ou string vazia
+              ...(linhaAlerta.subConta && linhaAlerta.subConta.trim() !== ''
+                ? { subConta: linhaAlerta.subConta }
+                : {
+                    OR: [{ subConta: null }, { subConta: '' }],
+                  }),
             },
             take: 1,
           },
           alertas: {
             where: {
               linha: {
-                classificacao: alerta.linha.classificacao,
-                conta: alerta.linha.conta,
-                subConta: alerta.linha.subConta || '',
+                classificacao: linhaAlerta.classificacao,
+                conta: linhaAlerta.conta,
+                ...(linhaAlerta.subConta && linhaAlerta.subConta.trim() !== ''
+                  ? { subConta: linhaAlerta.subConta }
+                  : {
+                      OR: [{ subConta: null }, { subConta: '' }],
+                    }),
               },
             },
             select: { id: true },
@@ -300,13 +314,39 @@ export class AlertasService {
 
       historico = uploads.map((upload) => {
         const linha = upload.linhas[0];
+        
+        // Converter Decimal para Number corretamente
+        // Prisma Decimal pode vir como string ou objeto Decimal
+        const converterDecimal = (value: any): number => {
+          if (value === null || value === undefined) return 0;
+          if (typeof value === 'number') return value;
+          if (typeof value === 'string') {
+            const parsed = parseFloat(value);
+            return isNaN(parsed) ? 0 : parsed;
+          }
+          // Se for objeto Decimal do Prisma, usar toString() e depois parseFloat
+          if (value && typeof value.toString === 'function') {
+            const parsed = parseFloat(value.toString());
+            return isNaN(parsed) ? 0 : parsed;
+          }
+          return 0;
+        };
+
+        // Log temporário para debug (remover depois)
+        if (!linha) {
+          console.warn(
+            `[AlertasService] Linha não encontrada para upload ${upload.id} (${upload.mes}/${upload.ano}). ` +
+            `Buscando: classificacao=${linhaAlerta.classificacao}, conta=${linhaAlerta.conta}, subConta=${linhaAlerta.subConta || 'null/empty'}`,
+          );
+        }
+
         return {
           mes: upload.mes,
           ano: upload.ano,
-          saldoAnterior: linha ? Number(linha.saldoAnterior) : 0,
-          debito: linha ? Number(linha.debito) : 0,
-          credito: linha ? Number(linha.credito) : 0,
-          saldoAtual: linha ? Number(linha.saldoAtual) : 0,
+          saldoAnterior: linha ? converterDecimal(linha.saldoAnterior) : 0,
+          debito: linha ? converterDecimal(linha.debito) : 0,
+          credito: linha ? converterDecimal(linha.credito) : 0,
+          saldoAtual: linha ? converterDecimal(linha.saldoAtual) : 0,
           uploadId: upload.id,
           temAlerta: upload.alertas.length > 0,
         };

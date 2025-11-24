@@ -62,6 +62,15 @@ const AlertasPage = () => {
     }
   };
 
+  // Garantir que alertas seja sempre um array
+  const alertasList = Array.isArray(alertas) ? alertas : [];
+  const empresasList = Array.isArray(empresas) ? empresas : [];
+
+  const hasActiveFilters = useMemo(() => 
+    empresaFiltro || statusFiltro || tipoFiltro || severidadeFiltro || tipoContaFiltro || busca || uploadIdFromUrl || alertaIdFromUrl,
+    [empresaFiltro, statusFiltro, tipoFiltro, severidadeFiltro, tipoContaFiltro, busca, uploadIdFromUrl, alertaIdFromUrl]
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -79,15 +88,6 @@ const AlertasPage = () => {
       </div>
     );
   }
-
-  // Garantir que alertas seja sempre um array
-  const alertasList = Array.isArray(alertas) ? alertas : [];
-  const empresasList = Array.isArray(empresas) ? empresas : [];
-
-  const hasActiveFilters = useMemo(() => 
-    empresaFiltro || statusFiltro || tipoFiltro || severidadeFiltro || tipoContaFiltro || busca || uploadIdFromUrl || alertaIdFromUrl,
-    [empresaFiltro, statusFiltro, tipoFiltro, severidadeFiltro, tipoContaFiltro, busca, uploadIdFromUrl, alertaIdFromUrl]
-  );
 
   // Função para limpar filtro de tipoConta
   const handleTipoContaClick = (tipoConta: string) => {
@@ -365,7 +365,12 @@ const AlertasPage = () => {
                       <td className="px-3 py-1">
                         {alerta.linha?.tipoConta ? (
                           <button
-                            onClick={() => alerta.linha?.tipoConta && handleTipoContaClick(alerta.linha.tipoConta)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (alerta.linha?.tipoConta) {
+                                handleTipoContaClick(alerta.linha.tipoConta);
+                              }
+                            }}
                             className={`text-xs font-medium transition-colors ${
                                 tipoContaFiltro === alerta.linha?.tipoConta
                                 ? 'text-sky-600 underline dark:text-sky-400'
@@ -429,7 +434,10 @@ const AlertasPage = () => {
                         {alerta.status === 'ABERTO' && (
                           <>
                             <button
-                              onClick={() => handleUpdateStatus(alerta.id, 'EM_ANALISE')}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateStatus(alerta.id, 'EM_ANALISE');
+                              }}
                               disabled={updateStatusMutation.isPending}
                               className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-400/20 dark:text-amber-200 dark:hover:bg-amber-400/30 whitespace-nowrap"
                               title="Marcar como em análise"
@@ -438,7 +446,10 @@ const AlertasPage = () => {
                               <span>Em análise</span>
                             </button>
                             <button
-                              onClick={() => handleUpdateStatus(alerta.id, 'RESOLVIDO')}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateStatus(alerta.id, 'RESOLVIDO');
+                              }}
                               disabled={updateStatusMutation.isPending}
                               className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-400/20 dark:text-emerald-200 dark:hover:bg-emerald-400/30 whitespace-nowrap"
                               title="Marcar como resolvido"
@@ -451,7 +462,10 @@ const AlertasPage = () => {
                         {alerta.status === 'EM_ANALISE' && (
                           <>
                             <button
-                              onClick={() => handleUpdateStatus(alerta.id, 'ABERTO')}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateStatus(alerta.id, 'ABERTO');
+                              }}
                               disabled={updateStatusMutation.isPending}
                               className="inline-flex items-center gap-1.5 rounded-md bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 whitespace-nowrap"
                               title="Reabrir alerta"
@@ -460,7 +474,10 @@ const AlertasPage = () => {
                               <span>Reabrir</span>
                             </button>
                             <button
-                              onClick={() => handleUpdateStatus(alerta.id, 'RESOLVIDO')}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateStatus(alerta.id, 'RESOLVIDO');
+                              }}
                               disabled={updateStatusMutation.isPending}
                               className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-400/20 dark:text-emerald-200 dark:hover:bg-emerald-400/30 whitespace-nowrap"
                               title="Marcar como resolvido"
@@ -472,7 +489,10 @@ const AlertasPage = () => {
                         )}
                         {alerta.status === 'RESOLVIDO' && (
                           <button
-                            onClick={() => handleUpdateStatus(alerta.id, 'ABERTO')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUpdateStatus(alerta.id, 'ABERTO');
+                            }}
                             disabled={updateStatusMutation.isPending}
                             className="inline-flex items-center gap-1.5 rounded-md bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 whitespace-nowrap"
                             title="Reabrir alerta"
