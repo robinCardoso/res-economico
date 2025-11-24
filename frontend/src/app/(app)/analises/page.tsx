@@ -1,15 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { BrainCircuit, Loader2, AlertCircle, CheckCircle2, Info, AlertTriangle, Sparkles, Save, X } from 'lucide-react';
+import Link from 'next/link';
 import { aiService } from '@/services/ai.service';
 import { relatoriosService } from '@/services/relatorios.service';
 import { uploadsService } from '@/services/uploads.service';
 import { resumosService } from '@/services/resumos.service';
 import { TipoAnalise, type AnaliseResponse, type Insight, type PadraoAnomalo, type UploadWithRelations, type CreateResumoDto } from '@/types/api';
 import { useEmpresas } from '@/hooks/use-empresas';
+import { ModeloNegocioBadge } from '@/components/configuracao/ModeloNegocioBadge';
+import { ConfiguracaoCard } from '@/components/configuracao/ConfiguracaoCard';
 
 const meses = [
   { value: 1, label: 'Janeiro' },
@@ -46,6 +49,9 @@ const AnalisesPage = () => {
   const [mesFiltro, setMesFiltro] = useState<string>('');
   const [uploadsFiltrados, setUploadsFiltrados] = useState<UploadWithRelations[]>([]);
   const [carregandoUploads, setCarregandoUploads] = useState<boolean>(false);
+  
+  // Filtro por modelo de negócio
+  const [filtroModeloNegocio, setFiltroModeloNegocio] = useState<string>('');
 
   // Estados para dados disponíveis
   const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([]);
@@ -63,6 +69,25 @@ const AnalisesPage = () => {
 
   const { data: empresas } = useEmpresas();
   const router = useRouter();
+
+  // Filtrar empresas por modelo de negócio
+  const empresasFiltradas = useMemo(() => {
+    if (!empresas) return [];
+    if (!filtroModeloNegocio) return empresas;
+    return empresas.filter((emp) => emp.modeloNegocio === filtroModeloNegocio);
+  }, [empresas, filtroModeloNegocio]);
+
+  // Obter lista única de modelos de negócio disponíveis
+  const modelosDisponiveis = useMemo(() => {
+    if (!empresas) return [];
+    const modelos = new Set<string>();
+    empresas.forEach((emp) => {
+      if (emp.modeloNegocio) {
+        modelos.add(emp.modeloNegocio);
+      }
+    });
+    return Array.from(modelos).sort();
+  }, [empresas]);
 
   // Buscar anos disponíveis
   useEffect(() => {
@@ -261,6 +286,22 @@ const AnalisesPage = () => {
   });
 
   const handleAnalisar = () => {
+    // Validação: verificar se empresa selecionada tem modelo de negócio configurado
+    const empresaSelecionadaId = empresaId || empresaFiltro;
+    if (empresaSelecionadaId) {
+      const empresaSelecionada = empresasFiltradas.find((e) => e.id === empresaSelecionadaId) ||
+                                  empresas?.find((e) => e.id === empresaSelecionadaId);
+      if (empresaSelecionada && !empresaSelecionada.modeloNegocio) {
+        const confirmar = window.confirm(
+          `⚠️ A empresa "${empresaSelecionada.nomeFantasia || empresaSelecionada.razaoSocial}" não tem modelo de negócio configurado.\n\n` +
+          `A análise será menos precisa sem essa informação.\n\n` +
+          `Deseja continuar mesmo assim?`
+        );
+        if (!confirmar) {
+          return;
+        }
+      }
+    }
     refetch();
   };
 
@@ -421,32 +462,102 @@ const AnalisesPage = () => {
 
           {/* 2. Empresa (quando aplicável) */}
           {(tipoAnalise === TipoAnalise.RELATORIO || tipoAnalise === TipoAnalise.ALERTAS || tipoAnalise === TipoAnalise.COMPARATIVO) && (
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                2. Empresa
-              </label>
-              <select
-                value={empresaId}
-                onChange={(e) => setEmpresaId(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-              >
-                <option value="">Todas as empresas (Consolidado)</option>
-                {empresas?.map((empresa) => (
-                  <option key={empresa.id} value={empresa.id}>
-                    {empresa.nomeFantasia || empresa.razaoSocial}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <>
+              {/* Filtro por Modelo de Negócio */}
+              {modelosDisponiveis.length > 0 && (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    2. Filtrar por Modelo de Negócio (opcional)
+                  </label>
+                  <select
+                    value={filtroModeloNegocio}
+                    onChange={(e) => {
+                      setFiltroModeloNegocio(e.target.value);
+                      setEmpresaId(''); // Limpar seleção ao mudar filtro
+                    }}
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  >
+                    <option value="">Todos os modelos</option>
+                    {modelosDisponiveis.map((modelo) => (
+                      <option key={modelo} value={modelo}>
+                        {modelo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  {modelosDisponiveis.length > 0 ? '3. ' : '2. '}Empresa
+                </label>
+                <select
+                  value={empresaId}
+                  onChange={(e) => setEmpresaId(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                >
+                  <option value="">Todas as empresas (Consolidado)</option>
+                  {empresasFiltradas.map((empresa) => (
+                    <option key={empresa.id} value={empresa.id}>
+                      {empresa.nomeFantasia || empresa.razaoSocial}
+                      {empresa.modeloNegocio ? ` (${empresa.modeloNegocio})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {empresaId && (
+                  <div className="mt-2 flex items-center gap-2">
+                    {(() => {
+                      const empresaSelecionada = empresasFiltradas.find((e) => e.id === empresaId);
+                      return empresaSelecionada ? (
+                        <>
+                          <span className="text-xs text-slate-600 dark:text-slate-400">Modelo:</span>
+                          <ModeloNegocioBadge modelo={empresaSelecionada.modeloNegocio} />
+                        </>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
+                {filtroModeloNegocio && empresasFiltradas.length === 0 && (
+                  <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                    Nenhuma empresa encontrada com o modelo selecionado.
+                  </p>
+                )}
+              </div>
+            </>
           )}
 
           {/* 2. Filtros para Seleção de Upload */}
           {tipoAnalise === TipoAnalise.UPLOAD && (
             <>
+              {/* Filtro por Modelo de Negócio */}
+              {modelosDisponiveis.length > 0 && (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    2. Filtrar por Modelo de Negócio (opcional)
+                  </label>
+                  <select
+                    value={filtroModeloNegocio}
+                    onChange={(e) => {
+                      setFiltroModeloNegocio(e.target.value);
+                      setEmpresaFiltro(''); // Limpar seleção ao mudar filtro
+                      setUploadId(''); // Limpar upload também
+                    }}
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  >
+                    <option value="">Todos os modelos</option>
+                    {modelosDisponiveis.map((modelo) => (
+                      <option key={modelo} value={modelo}>
+                        {modelo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="grid gap-4 md:grid-cols-3">
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    2. Empresa
+                    {modelosDisponiveis.length > 0 ? '3. ' : '2. '}Empresa
                   </label>
                   <select
                     value={empresaFiltro}
@@ -457,12 +568,31 @@ const AnalisesPage = () => {
                     className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                   >
                     <option value="">Todas as empresas</option>
-                    {empresas?.map((empresa) => (
+                    {empresasFiltradas.map((empresa) => (
                       <option key={empresa.id} value={empresa.id}>
                         {empresa.nomeFantasia || empresa.razaoSocial}
+                        {empresa.modeloNegocio ? ` (${empresa.modeloNegocio})` : ''}
                       </option>
                     ))}
                   </select>
+                  {empresaFiltro && (
+                    <div className="mt-2 flex items-center gap-2">
+                      {(() => {
+                        const empresaSelecionada = empresasFiltradas.find((e) => e.id === empresaFiltro);
+                        return empresaSelecionada ? (
+                          <>
+                            <span className="text-xs text-slate-600 dark:text-slate-400">Modelo:</span>
+                            <ModeloNegocioBadge modelo={empresaSelecionada.modeloNegocio} />
+                          </>
+                        ) : null;
+                      })()}
+                    </div>
+                  )}
+                  {filtroModeloNegocio && empresasFiltradas.length === 0 && (
+                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                      Nenhuma empresa encontrada com o modelo selecionado.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -786,6 +916,54 @@ const AnalisesPage = () => {
               </div>
             </div>
           )}
+
+          {/* Card de Configuração Aplicada */}
+          {(empresaId || empresaFiltro) && (
+            <div className="mt-4">
+              <ConfiguracaoCard
+                empresa={empresasFiltradas.find((e) => e.id === (empresaId || empresaFiltro)) || 
+                        empresas?.find((e) => e.id === (empresaId || empresaFiltro)) || null}
+              />
+            </div>
+          )}
+
+          {/* Aviso se empresa não tem modelo configurado */}
+          {(empresaId || empresaFiltro) && (() => {
+            const empresaSelecionada = empresasFiltradas.find((e) => e.id === (empresaId || empresaFiltro)) ||
+                                      empresas?.find((e) => e.id === (empresaId || empresaFiltro));
+            if (empresaSelecionada && !empresaSelecionada.modeloNegocio) {
+              return (
+                <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                        Modelo de Negócio não configurado
+                      </h3>
+                      <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                        Esta empresa não tem modelo de negócio definido. Configure em{' '}
+                        <Link
+                          href="/empresas"
+                          className="font-medium underline hover:text-amber-900 dark:hover:text-amber-100"
+                        >
+                          Empresas
+                        </Link>
+                        {' '}ou use uma{' '}
+                        <Link
+                          href="/configuracoes/modelos-negocio"
+                          className="font-medium underline hover:text-amber-900 dark:hover:text-amber-100"
+                        >
+                          Configuração Global
+                        </Link>
+                        {' '}para análises mais precisas.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
         </div>
 
         {/* Botão de Executar */}
@@ -882,6 +1060,30 @@ const AnalisesPage = () => {
       {/* Resultados */}
       {analise && (
         <div className="space-y-6">
+          {/* Indicador de Configuração Aplicada */}
+          {(empresaId || empresaFiltro) && (
+            <div className="rounded-lg border border-sky-200 bg-sky-50 p-4 dark:border-sky-800 dark:bg-sky-900/20">
+              <div className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                <p className="text-sm text-sky-800 dark:text-sky-200">
+                  {(() => {
+                    const empresaSelecionada = empresas?.find((e) => e.id === (empresaId || empresaFiltro));
+                    if (empresaSelecionada?.modeloNegocio) {
+                      return `Análise contextualizada com modelo ${empresaSelecionada.modeloNegocio}. `;
+                    }
+                    return 'Análise contextualizada com informações da empresa. ';
+                  })()}
+                  <Link
+                    href="/configuracoes/modelos-negocio"
+                    className="font-medium underline hover:text-sky-900 dark:hover:text-sky-100"
+                  >
+                    Ver/Editar configuração
+                  </Link>
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Botão Salvar como Resumo */}
           <div className="flex justify-end">
             <button

@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -13,6 +14,7 @@ import {
 import { ConfiguracaoModeloNegocioService } from './configuracao-modelo-negocio.service';
 import { CreateConfiguracaoModeloNegocioDto } from './dto/create-configuracao.dto';
 import { UpdateConfiguracaoModeloNegocioDto } from './dto/update-configuracao.dto';
+import { TestarConfiguracaoDto } from './dto/testar-configuracao.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('configuracao-modelo-negocio')
@@ -50,5 +52,24 @@ export class ConfiguracaoModeloNegocioController {
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('modeloNegocio') modeloNegocio: string) {
     return this.configuracaoService.remove(modeloNegocio);
+  }
+
+  @Get(':modeloNegocio/validar')
+  async validarConfiguracao(
+    @Param('modeloNegocio') modeloNegocio: string,
+    @Query('empresaId') empresaId?: string,
+  ) {
+    return this.configuracaoService.validarConfiguracao(
+      modeloNegocio,
+      empresaId,
+    );
+  }
+
+  @Post(':modeloNegocio/testar')
+  async testarConfiguracao(
+    @Param('modeloNegocio') modeloNegocio: string,
+    @Body() dto: TestarConfiguracaoDto,
+  ) {
+    return this.configuracaoService.testarConfiguracao(modeloNegocio, dto);
   }
 }

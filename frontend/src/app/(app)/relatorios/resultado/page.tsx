@@ -8,6 +8,10 @@ import type { ContaRelatorio } from '@/types/api';
 import { TipoRelatorio } from '@/types/api';
 import { FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
 import { exportarParaExcel, exportarParaPDF } from '@/utils/export-relatorio';
+import { ModeloNegocioBadge } from '@/components/configuracao/ModeloNegocioBadge';
+import { MetricasModelo } from '@/components/configuracao/MetricasModelo';
+import { useQuery } from '@tanstack/react-query';
+import { configuracaoModeloNegocioService } from '@/services/configuracao-modelo-negocio.service';
 
 const RelatorioResultadoPage = () => {
   // Estado para controlar se os filtros estão expandidos
@@ -33,7 +37,7 @@ const RelatorioResultadoPage = () => {
   const [carregandoDescricoes, setCarregandoDescricoes] = useState<boolean>(false);
 
   const { data: empresas } = useEmpresas();
-  const empresasList = empresas || [];
+  const empresasList = useMemo(() => empresas || [], [empresas]);
 
   // Buscar anos disponíveis no banco de dados
   const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([]);
@@ -127,6 +131,62 @@ const RelatorioResultadoPage = () => {
   };
 
   const { data: relatorio, isLoading, error } = useRelatorioResultado(params);
+
+  // Buscar empresa selecionada e sua configuração
+  const empresaSelecionada = useMemo(() => {
+    if (tipo === TipoRelatorio.FILIAL && empresaId) {
+      return empresasList.find((e) => e.id === empresaId);
+    }
+    return null;
+  }, [tipo, empresaId, empresasList]);
+
+  // Buscar configuração global se empresa tiver modelo definido
+  const { data: configuracaoGlobal } = useQuery({
+    queryKey: ['configuracao-modelo-negocio', empresaSelecionada?.modeloNegocio],
+    queryFn: () => {
+      if (!empresaSelecionada?.modeloNegocio) return null;
+      return configuracaoModeloNegocioService.getByModelo(empresaSelecionada.modeloNegocio);
+    },
+    enabled: !!empresaSelecionada?.modeloNegocio,
+  });
+
+  // Obter contas configuradas (empresa ou global)
+  const contasConfiguradas = useMemo(() => {
+    const contas: Record<string, { tipo: string; conta: string }> = {};
+    
+    // Contas de receita
+    const contasReceita = empresaSelecionada?.contasReceita || configuracaoGlobal?.contasReceita;
+    if (contasReceita) {
+      Object.entries(contasReceita).forEach(([tipo, conta]) => {
+        contas[conta] = { tipo: `receita-${tipo}`, conta };
+      });
+    }
+    
+    // Contas de custos
+    const contasCustos = empresaSelecionada?.contasCustos || configuracaoGlobal?.contasCustos;
+    if (contasCustos) {
+      Object.entries(contasCustos).forEach(([tipo, conta]) => {
+        contas[conta] = { tipo: `custo-${tipo}`, conta };
+      });
+    }
+    
+    return contas;
+  }, [empresaSelecionada, configuracaoGlobal]);
+
+  // Verificar se uma conta está configurada
+  const isContaConfigurada = useCallback((conta: ContaRelatorio): { tipo: string; conta: string } | null => {
+    const contaCompleta = conta.subConta && conta.subConta.trim() !== ''
+      ? `${conta.classificacao}.${conta.conta}.${conta.subConta}`
+      : `${conta.classificacao}.${conta.conta}`;
+    
+    // Verificar correspondência exata ou prefixo
+    for (const [contaConfig, info] of Object.entries(contasConfiguradas)) {
+      if (contaCompleta === contaConfig || contaCompleta.startsWith(contaConfig + '.')) {
+        return info;
+      }
+    }
+    return null;
+  }, [contasConfiguradas]);
 
   const formatarValor = (valor: number): string => {
     if (valor === 0) return '0';
@@ -270,11 +330,27 @@ const RelatorioResultadoPage = () => {
         ? conta.filhos 
         : conta.filhos?.filter(filho => !filho.subConta || filho.subConta.trim() === '');
       
+      // Verificar se conta está configurada
+      const contaConfigInfo = isContaConfigurada(conta);
+      const isContaConfig = !!contaConfigInfo;
+      
+      // Ícones para tipos de conta configurada
+      const getIconeConta = (tipo: string) => {
+        if (tipo.includes('receita-mensalidades')) return '💰';
+        if (tipo.includes('receita-bonificacoes')) return '🎁';
+        if (tipo.includes('custo-funcionarios')) return '👥';
+        if (tipo.includes('custo-sistema')) return '💻';
+        if (tipo.includes('custo-contabilidade')) return '📊';
+        return '⭐';
+      };
+      
       return (
         <React.Fragment key={chaveUnica}>
           <tr
             className={`border-b border-slate-200 hover:bg-slate-50/50 dark:border-slate-800 dark:hover:bg-slate-900/50 ${
               isRaiz ? 'bg-slate-50/30 dark:bg-slate-900/30' : ''
+            } ${
+              isContaConfig ? 'bg-purple-50/50 dark:bg-purple-900/20 border-l-2 border-l-purple-400 dark:border-l-purple-600' : ''
             }`}
           >
             <td 
@@ -296,11 +372,18 @@ const RelatorioResultadoPage = () => {
               </div>
             </td>
             <td 
-              className="sticky z-[51] bg-white !bg-white border-r border-slate-200 px-2 py-1.5 text-[10px] text-slate-600 dark:!bg-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 min-w-[200px] shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border border-b border-slate-200 dark:border-b-slate-800"
+              className={`sticky z-[51] bg-white !bg-white border-r border-slate-200 px-2 py-1.5 text-[10px] text-slate-600 dark:!bg-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 min-w-[200px] shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border border-b border-slate-200 dark:border-b-slate-800 ${
+                isContaConfig ? '!bg-purple-50/50 dark:!bg-purple-900/20' : ''
+              }`}
               style={{ left: `${larguraClassi}px` }}
             >
-              <div style={{ paddingLeft: `${indentacao}px` }} className="truncate" title={conta.nomeConta}>
-                {conta.nomeConta}
+              <div style={{ paddingLeft: `${indentacao}px` }} className="truncate flex items-center gap-1" title={conta.nomeConta}>
+                {isContaConfig && (
+                  <span className="flex-shrink-0 text-xs" title={contaConfigInfo?.tipo}>
+                    {getIconeConta(contaConfigInfo.tipo)}
+                  </span>
+                )}
+                <span className="truncate">{conta.nomeConta}</span>
               </div>
             </td>
             {relatorio?.periodo.map((periodo) => {
@@ -609,10 +692,15 @@ const RelatorioResultadoPage = () => {
             {/* Cabeçalho do Relatório - fixo no topo do container de scroll */}
             <div className="sticky top-0 z-[105] border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  RESULTADO ECONÔMICO {relatorio.empresaNome.toUpperCase()}
-                  {relatorio.uf ? ` - ${relatorio.uf}` : ''} {relatorio.ano}
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                    RESULTADO ECONÔMICO {relatorio.empresaNome.toUpperCase()}
+                    {relatorio.uf ? ` - ${relatorio.uf}` : ''} {relatorio.ano}
+                  </h2>
+                  {empresaSelecionada?.modeloNegocio && (
+                    <ModeloNegocioBadge modelo={empresaSelecionada.modeloNegocio} />
+                  )}
+                </div>
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -639,6 +727,48 @@ const RelatorioResultadoPage = () => {
                 </div>
               </div>
             </div>
+
+            {/* Seção de Métricas do Modelo (se empresa selecionada) */}
+            {empresaSelecionada && relatorio.contas && (
+              <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+                <MetricasModelo
+                  empresa={empresaSelecionada}
+                  relatorioContas={relatorio.contas.flatMap((conta) => {
+                    const coletarLinhas = (c: ContaRelatorio): Array<{
+                      classificacao: string;
+                      conta: string;
+                      subConta?: string | null;
+                      saldoAtual: number;
+                    }> => {
+                      const linhas: Array<{
+                        classificacao: string;
+                        conta: string;
+                        subConta?: string | null;
+                        saldoAtual: number;
+                      }> = [];
+                      
+                      if (c.conta) {
+                        linhas.push({
+                          classificacao: c.classificacao,
+                          conta: c.conta,
+                          subConta: c.subConta || null,
+                          saldoAtual: c.valores?.total || 0,
+                        });
+                      }
+                      
+                      if (c.filhos) {
+                        c.filhos.forEach((filho) => {
+                          linhas.push(...coletarLinhas(filho));
+                        });
+                      }
+                      
+                      return linhas;
+                    };
+                    return coletarLinhas(conta);
+                  })}
+                />
+              </div>
+            )}
 
             {/* Tabela com scroll horizontal e vertical */}
             <div className="h-[calc(100%-60px)] overflow-auto overscroll-contain">

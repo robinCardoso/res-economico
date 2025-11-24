@@ -14,6 +14,7 @@ Documentação sobre o sistema de relatórios:
 ### 🤖 `/ia-configuracao/`
 Documentação sobre IA e configuração de modelos de negócio:
 - **`plano-completo.md`** - Documento unificado com todos os planos de IA e configuração
+- **`plano-implementacao-uso-configuracao.md`** - **NOVO:** Plano completo para integrar configuração em todo o sistema
 - **`contexto-empresa-ia.md`** - Plano de contexto de empresa para análises IA
 - **`melhorias-configuracao.md`** - Melhorias na configuração de modelos de negócio
 

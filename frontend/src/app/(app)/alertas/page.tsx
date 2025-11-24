@@ -311,23 +311,23 @@ const AlertasPage = () => {
               : 'Nenhum alerta encontrado.'}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
             <table className="min-w-full divide-y divide-slate-200 text-xs dark:divide-slate-800">
               <thead className="bg-slate-50/60 dark:bg-slate-900/80">
                 <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 w-20">ID</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 w-32">Tipo</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 w-28">Tipo Conta</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 min-w-[200px] max-w-[300px]">
+                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 w-20">ID</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 w-32">Tipo</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 w-28">Tipo Conta</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 min-w-[200px] max-w-[300px]">
                     Detalhe
                   </th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 min-w-[180px] max-w-[250px]">Empresa</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 w-24">Severidade</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 w-28">Status</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 min-w-[140px]">
+                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 min-w-[180px] max-w-[250px]">Empresa</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 w-24">Severidade</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 w-28">Status</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 min-w-[140px]">
                     Criado em
                   </th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 min-w-[180px]">Ações</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 min-w-[180px]">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -342,15 +342,15 @@ const AlertasPage = () => {
 
                   return (
                     <tr key={alerta.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900">
-                      <td className="px-3 py-2 font-mono text-xs font-medium text-slate-600 dark:text-slate-400">
+                      <td className="px-3 py-1 font-mono text-xs font-medium text-slate-600 dark:text-slate-400">
                         {alerta.id.slice(0, 8)}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-1">
                         <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
                           {getStatusLabel(alerta.tipo)}
                         </span>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-1">
                         {alerta.linha?.tipoConta ? (
                           <button
                             onClick={() => alerta.linha?.tipoConta && handleTipoContaClick(alerta.linha.tipoConta)}
@@ -368,7 +368,7 @@ const AlertasPage = () => {
                         )}
                       </td>
                       <td 
-                        className="px-3 py-2 max-w-[300px]"
+                        className="px-3 py-1 max-w-[300px]"
                         title={detalheTexto}
                       >
                         <div className="truncate text-xs text-slate-700 dark:text-slate-300">
@@ -376,14 +376,14 @@ const AlertasPage = () => {
                         </div>
                       </td>
                       <td 
-                        className="px-3 py-2 max-w-[250px]"
+                        className="px-3 py-1 max-w-[250px]"
                         title={empresaCompleto}
                       >
                         <div className="truncate text-xs text-slate-700 dark:text-slate-300">
                           {empresaTexto}
                         </div>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-1">
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
                             alerta.severidade === 'ALTA'
@@ -396,7 +396,7 @@ const AlertasPage = () => {
                           {getStatusLabel(alerta.severidade)}
                         </span>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-1">
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
                             alerta.status === 'ABERTO'
@@ -409,11 +409,11 @@ const AlertasPage = () => {
                           {getStatusLabel(alerta.status)}
                         </span>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                      <td className="px-3 py-1 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
                         {formatDateTime(alerta.createdAt)}
                       </td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-2 flex-wrap">
+                    <td className="px-3 py-1">
+                      <div className="flex items-center gap-2">
                         {alerta.status === 'ABERTO' && (
                           <>
                             <button

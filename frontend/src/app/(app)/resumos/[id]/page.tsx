@@ -20,7 +20,11 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { resumosService } from '@/services/resumos.service';
+import { uploadsService } from '@/services/uploads.service';
 import type { Insight, PadraoAnomalo, SugestaoCorrecao } from '@/types/api';
+import { ConfiguracaoCard } from '@/components/configuracao/ConfiguracaoCard';
+import { ModeloNegocioBadge } from '@/components/configuracao/ModeloNegocioBadge';
+import { MetricasModelo } from '@/components/configuracao/MetricasModelo';
 
 type ResumoDetalheProps = {
   params: Promise<{ id: string }>;
@@ -73,6 +77,16 @@ export default function ResumoDetalhePage({ params }: ResumoDetalheProps) {
   } = useQuery({
     queryKey: ['resumo', id],
     queryFn: () => resumosService.getById(id),
+  });
+
+  // Buscar upload se disponível para calcular métricas
+  const { data: upload } = useQuery({
+    queryKey: ['upload', resumo?.uploadId],
+    queryFn: () => {
+      if (!resumo?.uploadId) return null;
+      return uploadsService.getById(resumo.uploadId);
+    },
+    enabled: !!resumo?.uploadId,
   });
 
   const resultado = resumo?.resultado as {
@@ -263,8 +277,38 @@ export default function ResumoDetalhePage({ params }: ResumoDetalheProps) {
               <p className="text-slate-900 dark:text-slate-100">{resumo.criadoPor}</p>
             </div>
           )}
+          {resumo.empresa?.modeloNegocio && (
+            <div>
+              <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Modelo de Negócio</label>
+              <div className="mt-1">
+                <ModeloNegocioBadge modelo={resumo.empresa.modeloNegocio} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Card de Configuração Aplicada */}
+      {resumo.empresa && (
+        <ConfiguracaoCard empresa={resumo.empresa} />
+      )}
+
+      {/* Métricas do Modelo (se upload disponível) */}
+      {resumo.empresa && upload?.linhas && upload.linhas.length > 0 && (
+        <MetricasModelo
+          empresa={resumo.empresa}
+          relatorioContas={upload.linhas.map((linha) => ({
+            classificacao: linha.classificacao,
+            conta: linha.conta,
+            subConta: linha.subConta || null,
+            saldoAtual: typeof linha.saldoAtual === 'number' 
+              ? linha.saldoAtual 
+              : typeof linha.saldoAtual === 'string'
+              ? parseFloat(linha.saldoAtual)
+              : 0,
+          }))}
+        />
+      )}
 
       {/* Resumo da Análise */}
       {resultado?.resumo && (
