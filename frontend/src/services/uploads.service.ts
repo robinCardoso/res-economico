@@ -79,5 +79,23 @@ export const uploadsService = {
     );
     return data;
   },
+
+  async getConta745(ano?: number, mes?: number) {
+    const params = new URLSearchParams();
+    if (ano) params.append('ano', ano.toString());
+    if (mes) params.append('mes', mes.toString());
+    
+    const url = params.toString() ? `/uploads/dashboard/conta-745?${params.toString()}` : '/uploads/dashboard/conta-745';
+    const { data } = await api.get<{
+      consolidado: Array<{ periodo: string; valor: number }>;
+      porEmpresa: Array<{
+        empresaId: string;
+        empresaNome: string;
+        periodo: string;
+        valor: number;
+      }>;
+    }>(url);
+    return data;
+  },
 };
 

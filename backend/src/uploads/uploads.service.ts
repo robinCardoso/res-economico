@@ -448,6 +448,150 @@ export class UploadsService {
     return { message: 'Upload removido com sucesso' };
   }
 
+  /**
+   * Busca dados da conta 745 (Resultado do Exercício-Período do Balanço)
+   * Retorna dados consolidados e por empresa
+   * Se mês não estiver selecionado, retorna valor acumulado do ano
+   */
+  async getConta745(ano?: number, mes?: number) {
+    const where: Record<string, unknown> = {
+      status: {
+        in: ['CONCLUIDO', 'COM_ALERTAS'],
+      },
+    };
+
+    if (ano) {
+      where.ano = ano;
+    }
+
+    if (mes) {
+      where.mes = mes;
+    }
+
+    // Buscar uploads do período
+    const uploads = await this.prisma.upload.findMany({
+      where,
+      include: {
+        empresa: {
+          select: {
+            id: true,
+            razaoSocial: true,
+            nomeFantasia: true,
+          },
+        },
+        linhas: {
+          where: {
+            conta: '745',
+            nomeConta: {
+              contains: 'Resultado do Exercício',
+              mode: 'insensitive',
+            },
+          },
+        },
+      },
+      orderBy: [{ ano: 'desc' }, { mes: 'desc' }],
+    });
+
+    // Consolidado sempre mostra mês a mês
+    // Por empresa: se mês está selecionado, mostra mês a mês; senão, mostra acumulado do ano
+    const mostrarMensalPorEmpresa = !!mes;
+
+    // Consolidar dados
+    const consolidado: Array<{ periodo: string; valor: number }> = [];
+    const porEmpresa: Array<{
+      empresaId: string;
+      empresaNome: string;
+      periodo: string;
+      valor: number;
+    }> = [];
+
+    // SEMPRE processar consolidado mês a mês
+    const consolidadoMap = new Map<string, number>();
+    // Usar chave composta empresaId|||periodo para evitar problemas com UUIDs que contêm hífens
+    const porEmpresaMap = new Map<string, { empresaId: string; empresaNome: string; periodo: string; valor: number }>();
+
+    for (const upload of uploads) {
+      const periodoMensal = `${upload.mes.toString().padStart(2, '0')}/${upload.ano}`;
+      const periodoAnual = ano ? ano.toString() : `${upload.ano}`;
+      
+      // Somar valores da conta 745 para este upload
+      const totalUpload = upload.linhas.reduce((sum, linha) => {
+        return sum + Number(linha.saldoAtual);
+      }, 0);
+
+      // Consolidado (todas as empresas) - SEMPRE mês a mês
+      const valorAtualConsolidado = consolidadoMap.get(periodoMensal) || 0;
+      consolidadoMap.set(periodoMensal, valorAtualConsolidado + totalUpload);
+
+      // Por empresa - depende se mês está selecionado
+      const empresaNome = upload.empresa.razaoSocial || upload.empresa.nomeFantasia || 'N/A';
+      const periodoParaEmpresa = mostrarMensalPorEmpresa ? periodoMensal : periodoAnual;
+      // Usar separador único ||| que não aparece em UUIDs
+      const keyEmpresa = `${upload.empresaId}|||${periodoParaEmpresa}`;
+      
+      if (mostrarMensalPorEmpresa) {
+        // Modo mensal: agrupar por mês/ano
+        porEmpresaMap.set(keyEmpresa, {
+          empresaId: upload.empresaId,
+          empresaNome,
+          periodo: periodoMensal,
+          valor: totalUpload,
+        });
+      } else {
+        // Modo acumulado: somar todos os meses do ano por empresa
+        const valorAtualEmpresa = porEmpresaMap.get(keyEmpresa)?.valor || 0;
+        porEmpresaMap.set(keyEmpresa, {
+          empresaId: upload.empresaId,
+          empresaNome,
+          periodo: periodoAnual,
+          valor: valorAtualEmpresa + totalUpload,
+        });
+      }
+    }
+
+    // Converter consolidado para array (sempre mês a mês)
+    for (const [periodo, valor] of consolidadoMap.entries()) {
+      consolidado.push({ periodo, valor });
+    }
+
+    // Converter porEmpresa para array - agora o período já está armazenado no objeto
+    for (const dados of porEmpresaMap.values()) {
+      porEmpresa.push({
+        empresaId: dados.empresaId,
+        empresaNome: dados.empresaNome,
+        periodo: dados.periodo,
+        valor: dados.valor,
+      });
+    }
+
+    // Ordenar consolidado por período (sempre mês a mês) - Janeiro primeiro
+    consolidado.sort((a, b) => {
+      const [mesA, anoA] = a.periodo.split('/').map(Number);
+      const [mesB, anoB] = b.periodo.split('/').map(Number);
+      if (anoA !== anoB) return anoA - anoB; // Ano crescente
+      return mesA - mesB; // Mês crescente (Janeiro primeiro)
+    });
+
+    // Ordenar porEmpresa por período
+    if (mostrarMensalPorEmpresa) {
+      porEmpresa.sort((a, b) => {
+        const [mesA, anoA] = a.periodo.split('/').map(Number);
+        const [mesB, anoB] = b.periodo.split('/').map(Number);
+        if (anoA !== anoB) return anoA - anoB; // Ano crescente
+        return mesA - mesB; // Mês crescente (Janeiro primeiro)
+      });
+    } else {
+      porEmpresa.sort((a, b) => {
+        return Number(b.periodo) - Number(a.periodo);
+      });
+    }
+
+    return {
+      consolidado,
+      porEmpresa,
+    };
+  }
+
   async getProgress(uploadId: string) {
     try {
       const job = await this.uploadQueue.getJob(uploadId);

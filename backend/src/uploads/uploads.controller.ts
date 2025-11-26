@@ -111,6 +111,16 @@ export class UploadsController {
     return this.uploadsService.remove(id, userId);
   }
 
+  @Get('dashboard/conta-745')
+  async getConta745(
+    @Query('ano') ano?: string,
+    @Query('mes') mes?: string,
+  ) {
+    const anoNum = ano ? parseInt(ano, 10) : undefined;
+    const mesNum = mes ? parseInt(mes, 10) : undefined;
+    return this.uploadsService.getConta745(anoNum, mesNum);
+  }
+
   @Post()
   @UseInterceptors(
     FileInterceptor('file', {

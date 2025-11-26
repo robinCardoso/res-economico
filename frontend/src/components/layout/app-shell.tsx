@@ -13,8 +13,10 @@ import {
   Building,
   FileText,
   LogOut,
+  Menu,
+  X,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 
 type NavItem = {
@@ -43,17 +45,54 @@ export const AppShell = ({ children }: AppShellProps) => {
   const pathname = usePathname();
   const router = useRouter();
   const { clearAuth, user } = useAuthStore();
+  
+  // Estado para controlar visibilidade do sidebar
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-open');
+      return saved !== null ? saved === 'true' : true; // Padrão: aberto
+    }
+    return true;
+  });
+
+  // Salvar preferência no localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar-open', String(sidebarOpen));
+    }
+  }, [sidebarOpen]);
+
+  // Fechar sidebar ao navegar (sempre)
+  const handleNavClick = () => {
+    setSidebarOpen(false);
+  };
 
   const handleLogout = () => {
     clearAuth();
     router.push('/login');
   };
 
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <aside className="fixed inset-y-0 hidden w-64 border-r border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70 lg:block">
+      {/* Overlay para mobile */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
+      <aside
+        className={`fixed inset-y-0 z-50 w-64 border-r border-slate-200 bg-white/80 backdrop-blur transition-transform duration-300 dark:border-slate-800 dark:bg-slate-900/70 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         <div className="flex h-full flex-col">
-          <div className="flex items-center gap-3 px-6 py-6">
+          <div className="flex items-center justify-between gap-3 px-6 py-6">
             <Link href="/dashboard" className="flex items-center gap-3">
               <Image
                 src="/minha-logo.png"
@@ -67,6 +106,13 @@ export const AppShell = ({ children }: AppShellProps) => {
                 Resultado Econômico
               </span>
             </Link>
+            <button
+              onClick={toggleSidebar}
+              className="lg:hidden rounded-md p-1.5 text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800/80"
+              aria-label="Fechar menu"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
           <nav className="flex-1 space-y-1 px-3">
             {navItems.map((item) => {
@@ -79,6 +125,7 @@ export const AppShell = ({ children }: AppShellProps) => {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={handleNavClick}
                   className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition ${
                     isActive
                       ? 'bg-sky-500/10 text-sky-600 dark:bg-sky-500/20 dark:text-sky-200'
@@ -97,13 +144,24 @@ export const AppShell = ({ children }: AppShellProps) => {
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col lg:pl-64 max-w-full overflow-x-hidden">
+      <div
+        className={`flex flex-1 flex-col max-w-full overflow-x-hidden transition-all duration-300 ${
+          sidebarOpen ? 'lg:pl-64' : 'lg:pl-0'
+        }`}
+      >
         <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
           <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-3 lg:hidden">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleSidebar}
+                className="rounded-md p-1.5 text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800/80 lg:block"
+                aria-label="Abrir menu"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
               <Link
                 href="/dashboard"
-                className="flex items-center gap-3 text-base font-semibold"
+                className="flex items-center gap-3 text-base font-semibold lg:hidden"
               >
                 <Image
                   src="/minha-logo.png"

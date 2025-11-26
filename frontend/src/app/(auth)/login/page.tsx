@@ -70,7 +70,6 @@ const LoginPage = () => {
               priority
             />
           </div>
-          <div className="text-xs uppercase tracking-[0.3em] text-sky-600">ResEco</div>
           <h1 className="text-xl font-semibold text-slate-900">Acesse sua conta</h1>
           <p className="text-xs text-slate-600">
             Sistema de resultado econômico integrado à contabilidade.

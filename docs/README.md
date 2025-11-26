@@ -26,7 +26,9 @@ Documentação técnica do sistema:
 
 ### 🏗️ `/infraestrutura/`
 Documentação sobre infraestrutura e configuração:
-- **`acesso-rede-local.md`** - Documentação sobre acesso à rede local
+- **`hostinger-guia-completo.md`** ⭐ - **Guia completo de hospedagem na Hostinger Brasil**
+- **`configuracao-subdominio.md`** - **Guia para configurar subdomínio (ex: painel.redeuniaonacional.com.br)**
+- **`frontend-vercel-vs-vps.md`** - Comparação: Frontend na Vercel vs VPS (Hostinger)
 
 ### 📄 Arquivos na Raiz
 - **`README.md`** - Este arquivo (índice geral da documentação)

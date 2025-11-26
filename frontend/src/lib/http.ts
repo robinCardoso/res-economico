@@ -76,26 +76,21 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    
     if (error.response) {
+      const status = error.response.status;
+      const isAuthError = status === 401 || status === 403;
+      const isOnLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
+      
       // Se receber 401, limpar autenticação
-      if (error.response.status === 401 && typeof window !== 'undefined') {
+      if (status === 401 && typeof window !== 'undefined') {
         localStorage.removeItem('auth-storage');
         // Não redirecionar se já estiver na página de login
-        if (window.location.pathname !== '/login') {
+        if (!isOnLoginPage) {
           window.location.href = '/login';
         }
       }
-      const errorDetails = {
-        status: error.response.status,
-        statusText: error.response.statusText,
-        url: error.config?.url,
-        baseURL: error.config?.baseURL,
-        fullURL: error.config?.baseURL ? `${error.config.baseURL}${error.config.url}` : error.config?.url,
-        data: error.response.data,
-        message: error.message,
-        headers: error.response.headers,
-      };
-      console.error("API error:", errorDetails);
       
       // Tentar extrair mensagem de erro mais detalhada
       const errorData = error.response.data as unknown;
@@ -104,22 +99,51 @@ api.interceptors.response.use(
       if (errorData) {
         if (typeof errorData === 'string') {
           errorMessage = errorData;
-          console.error("Error message:", errorData);
         } else if (typeof errorData === 'object' && errorData !== null) {
           const errorObj = errorData as { message?: string | string[] };
           if (errorObj.message) {
             if (Array.isArray(errorObj.message)) {
               errorMessage = errorObj.message.join(', ');
-              console.error("Validation errors:", errorObj.message);
             } else {
               errorMessage = errorObj.message;
-              console.error("Error message:", errorObj.message);
+            }
+          }
+        }
+      }
+      
+      // Logar erros apenas em desenvolvimento ou se não for erro de autenticação esperado
+      // Erros de autenticação na página de login são esperados (usuário digitou senha errada)
+      const shouldLogError = isDevelopment || (!isAuthError || !isOnLoginPage);
+      
+      if (shouldLogError) {
+        const errorDetails = {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          url: error.config?.url,
+          baseURL: error.config?.baseURL,
+          fullURL: error.config?.baseURL ? `${error.config.baseURL}${error.config.url}` : error.config?.url,
+          data: error.response.data,
+          message: error.message,
+        };
+        console.error("API error:", errorDetails);
+        
+        if (errorData) {
+          if (typeof errorData === 'string') {
+            console.error("Error message:", errorData);
+          } else if (typeof errorData === 'object' && errorData !== null) {
+            const errorObj = errorData as { message?: string | string[] };
+            if (errorObj.message) {
+              if (Array.isArray(errorObj.message)) {
+                console.error("Validation errors:", errorObj.message);
+              } else {
+                console.error("Error message:", errorObj.message);
+              }
+            } else {
+              console.error("Error response data:", JSON.stringify(errorData, null, 2));
             }
           } else {
             console.error("Error response data:", JSON.stringify(errorData, null, 2));
           }
-        } else {
-          console.error("Error response data:", JSON.stringify(errorData, null, 2));
         }
       }
       
