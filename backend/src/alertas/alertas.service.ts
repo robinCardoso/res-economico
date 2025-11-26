@@ -284,12 +284,11 @@ export class AlertasService {
               conta: linhaAlerta.conta,
               // Tratar subConta: buscar exatamente a mesma subConta
               // Se subConta for fornecido (não null e não vazio), buscar exato
-              // Se for null ou vazio, buscar null ou string vazia
+              // Se for null ou vazio, buscar null (subConta vazio no Excel é salvo como null)
+              // subConta vazio é comportamento normal e não deve gerar alerta
               ...(linhaAlerta.subConta && linhaAlerta.subConta.trim() !== ''
                 ? { subConta: linhaAlerta.subConta }
-                : {
-                    OR: [{ subConta: null }, { subConta: '' }],
-                  }),
+                : { subConta: null }),
             },
             take: 1,
           },
@@ -300,9 +299,7 @@ export class AlertasService {
                 conta: linhaAlerta.conta,
                 ...(linhaAlerta.subConta && linhaAlerta.subConta.trim() !== ''
                   ? { subConta: linhaAlerta.subConta }
-                  : {
-                      OR: [{ subConta: null }, { subConta: '' }],
-                    }),
+                  : { subConta: null }),
               },
             },
             select: { id: true },
@@ -332,13 +329,8 @@ export class AlertasService {
           return 0;
         };
 
-        // Log temporário para debug (remover depois)
-        if (!linha) {
-          console.warn(
-            `[AlertasService] Linha não encontrada para upload ${upload.id} (${upload.mes}/${upload.ano}). ` +
-            `Buscando: classificacao=${linhaAlerta.classificacao}, conta=${linhaAlerta.conta}, subConta=${linhaAlerta.subConta || 'null/empty'}`,
-          );
-        }
+        // Não logar quando linha não é encontrada - subConta vazio é comportamento normal
+        // Linhas podem não existir em todos os períodos, isso é esperado
 
         return {
           mes: upload.mes,

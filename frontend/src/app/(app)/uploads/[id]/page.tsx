@@ -8,7 +8,7 @@ import { useUploadProgress } from '@/hooks/use-upload-progress';
 import { useContagemPorTipoConta } from '@/hooks/use-alertas';
 import { formatPeriodo, getStatusLabel } from '@/lib/format';
 import { uploadsService } from '@/services/uploads.service';
-import { Trash2, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { Trash2, AlertTriangle, X, Loader2, Upload } from 'lucide-react';
 
 type UploadDetalheProps = {
   params: Promise<{ id: string }>;
@@ -94,6 +94,13 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
           </p>
         </div>
         <div className="flex gap-3">
+          <Link
+            href="/uploads/novo"
+            className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors"
+          >
+            <Upload className="h-4 w-4" />
+            Novo Upload
+          </Link>
           <button
             onClick={handleReprocessar}
             disabled={isReprocessing || isProcessing}

@@ -103,18 +103,18 @@ const UploadsPage = () => {
               WebkitOverflowScrolling: 'touch'
             }}
           >
-            <table className="divide-y divide-slate-200 text-[10px] dark:divide-slate-800" style={{ minWidth: '1000px', width: 'max-content' }}>
+            <table className="w-full divide-y divide-slate-200 text-[10px] dark:divide-slate-800">
               <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm dark:bg-slate-900/95 shadow-sm">
                 <tr>
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-slate-700 dark:text-slate-300 min-w-[240px]">
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-slate-700 dark:text-slate-300 w-[25%]">
                     Empresa
                   </th>
-                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500">Período</th>
-                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500 min-w-[200px]">Arquivo</th>
-                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500">Status</th>
-                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500">Alertas</th>
-                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500">Linhas</th>
-                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500">Atualizado</th>
+                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500 w-[10%]">Período</th>
+                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500 w-[25%]">Arquivo</th>
+                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500 w-[10%]">Status</th>
+                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500 w-[8%]">Alertas</th>
+                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500 w-[7%]">Linhas</th>
+                  <th className="px-2 py-2 text-left text-[10px] font-medium text-slate-500 w-[15%]">Atualizado</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">

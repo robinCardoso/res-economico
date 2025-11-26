@@ -28,6 +28,7 @@ Documentação técnica do sistema:
 Documentação sobre infraestrutura e configuração:
 - **`hostinger-guia-completo.md`** ⭐ - **Guia completo de hospedagem na Hostinger Brasil**
 - **`configuracao-subdominio.md`** - **Guia para configurar subdomínio (ex: painel.redeuniaonacional.com.br)**
+- **`migracao-banco-local-para-vps.md`** - **Guia para migrar banco de dados do ambiente local para VPS**
 - **`frontend-vercel-vs-vps.md`** - Comparação: Frontend na Vercel vs VPS (Hostinger)
 
 ### 📄 Arquivos na Raiz
