@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { ArrowLeft } from 'lucide-react';
 import { authService, type LoginDto } from '@/services/auth.service';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -134,6 +135,16 @@ const LoginPage = () => {
             {isLoading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
+        {/* Botão Voltar - Centralizado abaixo do botão Entrar */}
+        <div className="flex justify-center">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Voltar à página principal
+          </Link>
+        </div>
         <div className="text-center text-[10px] text-slate-500">
           Precisa de acesso?{' '}
           <Link href="mailto:contato@redeuniaonacional.com.br" className="text-sky-600 hover:text-sky-500">

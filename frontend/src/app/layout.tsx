@@ -4,6 +4,7 @@ import './globals.css';
 import { AppProviders } from './providers';
 import { OfflineBanner } from '@/components/system/offline-banner';
 import { PwaUpdater } from '@/components/pwa/pwa-updater';
+import { Toaster } from '@/components/ui/toaster';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -45,6 +46,7 @@ export default function RootLayout({
           {children}
           <OfflineBanner />
           <PwaUpdater />
+          <Toaster />
         </AppProviders>
       </body>
     </html>

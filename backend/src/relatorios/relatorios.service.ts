@@ -335,8 +335,54 @@ export class RelatoriosService {
 
         const valoresPorMes = dadosPorMesEChaveComposta.get(chaveComposta)!;
         const valorAtual = valoresPorMes.get(mes) || 0;
-        // Usar saldoAtual como valor principal
-        const valorLinha = Number(linha.saldoAtual) || 0;
+        
+        // Aplicar filtro de descrição se fornecido
+        if (descricao && descricao.trim().length > 0) {
+          const nomeConta = (linha.nomeConta || '').toLowerCase();
+          const busca = descricao.trim().toLowerCase();
+          if (!nomeConta.includes(busca)) {
+            continue; // Pular linha se não corresponder ao filtro
+          }
+        }
+        
+        // Calcular valor do período (movimentação do mês)
+        // Para DRE: valor do período = crédito + débito
+        // IMPORTANTE: No Excel, o débito já vem com sinal (negativo para redução, positivo para aumento)
+        // Então devemos SOMAR (não subtrair) para obter o valor correto do período
+        // Exemplo: Crédito: 2.540,67, Débito: -320,78 → Resultado: 2.540,67 + (-320,78) = 2.219,89
+        const debito = Number(linha.debito) || 0;
+        const credito = Number(linha.credito) || 0;
+        let valorLinha = credito + debito;
+        
+        // Verificar se a conta é uma despesa/custo/dedução pelo nome
+        // Contas com prefixo "(-)" ou palavras-chave devem ser negativas
+        const nomeConta = (linha.nomeConta || '').toUpperCase();
+        const isDespesaCusto = 
+          nomeConta.includes('(-)') ||
+          nomeConta.includes('DEDUÇÃO') ||
+          nomeConta.includes('DEDUÇÕES') ||
+          nomeConta.includes('CUSTO') ||
+          nomeConta.includes('DESPESA') ||
+          nomeConta.startsWith('(-');
+        
+        // Usar o saldoAtual como referência para determinar o sinal correto
+        // Se o saldoAtual tem sinal diferente do valor calculado, usar o sinal do saldoAtual
+        const saldoAtual = Number(linha.saldoAtual) || 0;
+        if (saldoAtual !== 0 && valorLinha !== 0) {
+          const saldoAtualNegativo = saldoAtual < 0;
+          const valorCalculadoNegativo = valorLinha < 0;
+          
+          // Se os sinais são diferentes, usar o sinal do saldoAtual como referência
+          // Isso preserva a lógica contábil correta do Excel
+          if (saldoAtualNegativo !== valorCalculadoNegativo) {
+            valorLinha = saldoAtualNegativo ? -Math.abs(valorLinha) : Math.abs(valorLinha);
+          }
+        } else if (isDespesaCusto && valorLinha > 0) {
+          // Se não temos saldoAtual como referência, mas a conta é claramente uma despesa,
+          // inverter o sinal para garantir que apareça como negativa
+          valorLinha = -valorLinha;
+        }
+        
         valoresPorMes.set(mes, valorAtual + valorLinha);
       }
     }
@@ -558,6 +604,15 @@ export class RelatoriosService {
         }
       }
 
+      // Aplicar filtro de descrição se fornecido (ao construir hierarquia)
+      if (descricao && descricao.trim().length > 0) {
+        const nomeContaLower = (nomeConta || '').toLowerCase();
+        const busca = descricao.trim().toLowerCase();
+        if (!nomeContaLower.includes(busca)) {
+          continue; // Pular conta se não corresponder ao filtro
+        }
+      }
+
       // Calcular valores
       const valores: { [mes: number]: number; total: number } = {
         total: 0,
@@ -652,6 +707,37 @@ export class RelatoriosService {
           if (linhaEncontrada) {
             nomeConta = linhaEncontrada.nomeConta || classificacaoPai;
             nivel = linhaEncontrada.nivel || nivel;
+          }
+        }
+
+        // Aplicar filtro de descrição se fornecido (ao criar contas pai)
+        // Se o filtro está ativo, só criar contas pai se:
+        // 1. A conta pai corresponde ao filtro, OU
+        // 2. Algum filho (que já está no contasMap) corresponde ao filtro
+        if (descricao && descricao.trim().length > 0) {
+          const nomeContaLower = (nomeConta || '').toLowerCase();
+          const busca = descricao.trim().toLowerCase();
+          const contaPaiCorresponde = nomeContaLower.includes(busca);
+          
+          // Verificar se algum filho que já está no contasMap corresponde ao filtro
+          const temFilhoComFiltro = Array.from(contasMap.keys()).some((chave) => {
+            // Verificar se a chave começa com a classificação do pai
+            if (!chave.startsWith(classificacaoPaiNormalizada + '|')) {
+              return false;
+            }
+            
+            // Buscar a conta no mapa para obter o nome
+            const contaFilho = contasMap.get(chave);
+            if (contaFilho) {
+              const nomeFilho = (contaFilho.nomeConta || '').toLowerCase();
+              return nomeFilho.includes(busca);
+            }
+            return false;
+          });
+          
+          // Se a conta pai não corresponde e nenhum filho corresponde, pular
+          if (!contaPaiCorresponde && !temFilhoComFiltro) {
+            continue;
           }
         }
 

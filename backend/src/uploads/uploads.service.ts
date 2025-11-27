@@ -453,7 +453,7 @@ export class UploadsService {
    * Retorna dados consolidados e por empresa
    * Se mês não estiver selecionado, retorna valor acumulado do ano
    */
-  async getConta745(ano?: number, mes?: number) {
+  async getConta745(ano?: number, mes?: number, empresaId?: string) {
     const where: Record<string, unknown> = {
       status: {
         in: ['CONCLUIDO', 'COM_ALERTAS'],
@@ -466,6 +466,10 @@ export class UploadsService {
 
     if (mes) {
       where.mes = mes;
+    }
+
+    if (empresaId) {
+      where.empresaId = empresaId;
     }
 
     // Buscar uploads do período
@@ -493,8 +497,9 @@ export class UploadsService {
     });
 
     // Consolidado sempre mostra mês a mês
-    // Por empresa: se mês está selecionado, mostra mês a mês; senão, mostra acumulado do ano
-    const mostrarMensalPorEmpresa = !!mes;
+    // Por empresa: se mês está selecionado OU empresa está filtrada, mostra mês a mês; senão, mostra acumulado do ano
+    // Quando empresa está filtrada, sempre mostrar mensal para permitir visualização mês a mês
+    const mostrarMensalPorEmpresa = !!mes || !!empresaId;
 
     // Consolidar dados
     const consolidado: Array<{ periodo: string; valor: number }> = [];

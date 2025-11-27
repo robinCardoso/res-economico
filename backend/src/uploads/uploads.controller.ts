@@ -115,10 +115,11 @@ export class UploadsController {
   async getConta745(
     @Query('ano') ano?: string,
     @Query('mes') mes?: string,
+    @Query('empresaId') empresaId?: string,
   ) {
     const anoNum = ano ? parseInt(ano, 10) : undefined;
     const mesNum = mes ? parseInt(mes, 10) : undefined;
-    return this.uploadsService.getConta745(anoNum, mesNum);
+    return this.uploadsService.getConta745(anoNum, mesNum, empresaId);
   }
 
   @Post()
