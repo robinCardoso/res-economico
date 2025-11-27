@@ -36,6 +36,7 @@ Documentação sobre infraestrutura e configuração:
 - **`ESTRUTURA.md`** - Explicação detalhada da organização da documentação
 - **`plano-resumo-economico.md`** - Plano de implementação de resumo econômico
 - **`plano-implementacao.html`** - Plano geral de implementação (HTML)
+- **`plano-mobile-responsivo.md`** - **NOVO:** Plano completo para implementação de versão mobile responsiva
 - **`MELHORIAS-SUGERIDAS.md`** - Análise completa do projeto e sugestões de melhorias organizadas por prioridade
 - **`PLANO-DETALHES-ALERTA.md`** - Plano completo para visualização detalhada e analítica de alertas
 

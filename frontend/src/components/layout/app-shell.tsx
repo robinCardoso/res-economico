@@ -18,13 +18,15 @@ import {
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
+import { MobileNav } from './mobile-nav';
 
-type NavItem = {
+export type NavItem = {
   label: string;
   href: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 };
 
+// Todos os menus (desktop)
 const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Uploads', href: '/uploads', icon: UploadCloud },
@@ -36,6 +38,14 @@ const navItems: NavItem[] = [
   { label: 'Relatórios', href: '/relatorios', icon: FileText },
   { label: 'Configurações', href: '/configuracoes', icon: Settings2 },
 ];
+
+// Menus visíveis em mobile (ocultar: Uploads, Alertas, Configurações)
+const navItemsMobile: NavItem[] = navItems.filter(
+  (item) =>
+    item.href !== '/uploads' &&
+    item.href !== '/alertas' &&
+    item.href !== '/configuracoes'
+);
 
 type AppShellProps = {
   children: ReactNode;
@@ -49,22 +59,46 @@ export const AppShell = ({ children }: AppShellProps) => {
   // Estado para controlar visibilidade do sidebar
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
+      // Em desktop, sempre começar aberto (ignorar localStorage se for mobile)
+      const isDesktop = window.innerWidth >= 1024;
+      if (isDesktop) {
+        return true; // Desktop: sempre aberto por padrão
+      }
+      // Mobile: usar localStorage
       const saved = localStorage.getItem('sidebar-open');
-      return saved !== null ? saved === 'true' : true; // Padrão: aberto
+      return saved !== null ? saved === 'true' : false; // Mobile: fechado por padrão
     }
-    return true;
+    return true; // SSR: assumir desktop
   });
 
-  // Salvar preferência no localStorage
+  // Garantir que sidebar esteja aberto em desktop
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('sidebar-open', String(sidebarOpen));
+      const isDesktop = window.innerWidth >= 1024;
+      if (isDesktop && !sidebarOpen) {
+        // Em desktop, sempre abrir o sidebar
+        setSidebarOpen(true);
+      }
+    }
+  }, []);
+
+  // Salvar preferência no localStorage (apenas para mobile)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isDesktop = window.innerWidth >= 1024;
+      // Só salvar no localStorage se for mobile
+      if (!isDesktop) {
+        localStorage.setItem('sidebar-open', String(sidebarOpen));
+      }
     }
   }, [sidebarOpen]);
 
-  // Fechar sidebar ao navegar (sempre)
+  // Fechar sidebar ao navegar (apenas em mobile)
   const handleNavClick = () => {
-    setSidebarOpen(false);
+    // Em mobile, fechar o drawer ao navegar
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
   };
 
   const handleLogout = () => {
@@ -78,17 +112,17 @@ export const AppShell = ({ children }: AppShellProps) => {
 
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      {/* Overlay para mobile */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-      
+      {/* Mobile Navigation */}
+      <MobileNav
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        navItems={navItemsMobile}
+      />
+
+      {/* Desktop Sidebar */}
       <aside
-        className={`fixed inset-y-0 z-50 w-64 border-r border-slate-200 bg-white/80 backdrop-blur transition-transform duration-300 dark:border-slate-800 dark:bg-slate-900/70 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`hidden lg:block lg:fixed lg:inset-y-0 lg:z-50 lg:w-64 lg:border-r lg:border-slate-200 lg:bg-white/80 lg:backdrop-blur lg:transition-transform lg:duration-300 dark:lg:border-slate-800 dark:lg:bg-slate-900/70 ${
+          sidebarOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'
         }`}
       >
         <div className="flex h-full flex-col">
@@ -108,7 +142,7 @@ export const AppShell = ({ children }: AppShellProps) => {
             </Link>
             <button
               onClick={toggleSidebar}
-              className="lg:hidden rounded-md p-1.5 text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800/80"
+              className="hidden lg:block rounded-md p-1.5 text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800/80"
               aria-label="Fechar menu"
             >
               <X className="h-5 w-5" />
@@ -152,16 +186,26 @@ export const AppShell = ({ children }: AppShellProps) => {
         <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
           <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
+              {/* Botão hamburger - sempre visível em mobile */}
               <button
                 onClick={toggleSidebar}
-                className="rounded-md p-1.5 text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800/80 lg:block"
+                className="rounded-md p-2 text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800/80 lg:hidden"
                 aria-label="Abrir menu"
               >
                 <Menu className="h-5 w-5" />
               </button>
+              {/* Botão para desktop - sempre visível para abrir/fechar sidebar */}
+              <button
+                onClick={toggleSidebar}
+                className="hidden rounded-md p-1.5 text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800/80 lg:block"
+                aria-label={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+              {/* Logo e título - visível em mobile */}
               <Link
                 href="/dashboard"
-                className="flex items-center gap-3 text-base font-semibold lg:hidden"
+                className="flex items-center gap-2 text-base font-semibold lg:hidden"
               >
                 <Image
                   src="/minha-logo.png"
@@ -170,7 +214,7 @@ export const AppShell = ({ children }: AppShellProps) => {
                   height={32}
                   className="h-8 w-8 rounded-md object-contain shadow-sm"
                 />
-                <span>Resultado Econômico</span>
+                <span className="text-slate-900 dark:text-slate-100">Resultado Econômico</span>
               </Link>
             </div>
             {user && (

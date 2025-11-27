@@ -14,6 +14,23 @@
 
 ### 📚 Documentos Complementares
 
+- **`docker-engine-vps.md`** - Como funciona Docker Engine no VPS
+  - Diferença entre Docker Desktop e Docker Engine
+  - Como iniciar por terminal
+  - Inicialização automática
+  - Comandos úteis
+  - **100% gratuito** - sem custos
+
+- **`configuracao-subdominio.md`** - Guia para configurar subdomínio
+  - Exemplo: painel.redeuniaonacional.com.br
+  - Configuração de CNAME
+  - Nginx reverse proxy
+
+- **`migracao-banco-local-para-vps.md`** - Migrar banco de dados
+  - Backup do banco local
+  - Restore no VPS
+  - Preservar todos os dados
+
 - **`frontend-vercel-vs-vps.md`** - Comparação: Frontend na Vercel vs VPS (Hostinger)
   - Quando usar cada opção
   - Como configurar
