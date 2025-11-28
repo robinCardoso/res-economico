@@ -30,7 +30,7 @@ const AuditoriaPage = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-slate-500">Carregando logs de auditoria...</div>
+        <div className="text-sm text-muted-foreground">Carregando logs de auditoria...</div>
       </div>
     );
   }
@@ -54,16 +54,16 @@ const AuditoriaPage = () => {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+        <h1 className="text-2xl font-semibold text-foreground dark:text-slate-50">
           Logs de Auditoria
         </h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Histórico completo de todas as ações realizadas no sistema.
         </p>
       </header>
 
       {/* Filtros e Busca */}
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+      <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="space-y-4">
           {/* Busca */}
           <div className="relative">
@@ -73,7 +73,7 @@ const AuditoriaPage = () => {
               placeholder="Buscar por recurso ou ação..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              className="w-full rounded-md border border-slate-300 bg-white pl-10 pr-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className="w-full rounded-md border border-border bg-input pl-10 pr-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
 
@@ -81,14 +81,14 @@ const AuditoriaPage = () => {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* Filtro por Recurso */}
             <div>
-              <label htmlFor="recurso-filtro" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+              <label htmlFor="recurso-filtro" className="mb-1 block text-xs font-medium text-foreground dark:text-slate-300">
                 Recurso
               </label>
               <select
                 id="recurso-filtro"
                 value={recursoFiltro}
                 onChange={(e) => setRecursoFiltro(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 <option value="">Todos</option>
                 {recursosList.map((recurso) => (
@@ -101,14 +101,14 @@ const AuditoriaPage = () => {
 
             {/* Filtro por Ação */}
             <div>
-              <label htmlFor="acao-filtro" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+              <label htmlFor="acao-filtro" className="mb-1 block text-xs font-medium text-foreground dark:text-slate-300">
                 Ação
               </label>
               <select
                 id="acao-filtro"
                 value={acaoFiltro}
                 onChange={(e) => setAcaoFiltro(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 <option value="">Todas</option>
                 {acoesList.map((acao) => (
@@ -121,7 +121,7 @@ const AuditoriaPage = () => {
 
             {/* Filtro por Data Início */}
             <div>
-              <label htmlFor="data-inicio" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+              <label htmlFor="data-inicio" className="mb-1 block text-xs font-medium text-foreground dark:text-slate-300">
                 Data Início
               </label>
               <div className="relative">
@@ -131,14 +131,14 @@ const AuditoriaPage = () => {
                   id="data-inicio"
                   value={dataInicio}
                   onChange={(e) => setDataInicio(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 bg-white pl-10 pr-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-md border border-border bg-input pl-10 pr-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
             </div>
 
             {/* Filtro por Data Fim */}
             <div>
-              <label htmlFor="data-fim" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+              <label htmlFor="data-fim" className="mb-1 block text-xs font-medium text-foreground dark:text-slate-300">
                 Data Fim
               </label>
               <div className="relative">
@@ -148,7 +148,7 @@ const AuditoriaPage = () => {
                   id="data-fim"
                   value={dataFim}
                   onChange={(e) => setDataFim(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 bg-white pl-10 pr-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-md border border-border bg-input pl-10 pr-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
             </div>
@@ -156,7 +156,7 @@ const AuditoriaPage = () => {
 
           {/* Contador e Limpar Filtros */}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-muted-foreground">
               {logsList.length} log(s) encontrado(s)
             </span>
             {hasActiveFilters && (
@@ -178,9 +178,9 @@ const AuditoriaPage = () => {
       </section>
 
       {/* Tabela de Logs */}
-      <section className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+      <section className="rounded-xl border border-border bg-card shadow-sm">
         {logsList.length === 0 ? (
-          <div className="px-6 py-12 text-center text-sm text-slate-500">
+          <div className="px-6 py-12 text-center text-sm text-muted-foreground">
             {hasActiveFilters
               ? 'Nenhum log encontrado com os filtros aplicados.'
               : 'Nenhum log de auditoria encontrado.'}
@@ -188,26 +188,26 @@ const AuditoriaPage = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-              <thead className="bg-slate-50/60 dark:bg-slate-900/80">
+              <thead className="bg-muted/60">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Data/Hora</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Usuário</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Recurso</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Ação</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Detalhes</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Data/Hora</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Usuário</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Recurso</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Ação</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Detalhes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {logsList.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900">
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                  <tr key={log.id} className="hover:bg-muted/70">
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground dark:text-slate-400">
                       {formatDateTime(log.createdAt)}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-xs text-slate-700 dark:text-slate-300">
+                      <div className="text-xs text-foreground dark:text-slate-300">
                         {log.usuario?.nome || 'N/A'}
                       </div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                      <div className="text-[10px] text-muted-foreground dark:text-slate-400">
                         {log.usuario?.email || ''}
                       </div>
                     </td>
@@ -217,18 +217,18 @@ const AuditoriaPage = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                      <span className="text-xs font-medium text-foreground dark:text-slate-300">
                         {log.acao}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-xs text-slate-600 dark:text-slate-400 max-w-md">
+                      <div className="text-xs text-muted-foreground dark:text-slate-400 max-w-md">
                         {Object.keys(log.dados).length > 0 ? (
                           <details className="cursor-pointer">
                             <summary className="text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300">
                               Ver detalhes
                             </summary>
-                            <pre className="mt-2 text-[10px] bg-slate-50 dark:bg-slate-800 p-2 rounded overflow-auto max-h-32">
+                            <pre className="mt-2 text-[10px] bg-muted p-2 rounded overflow-auto max-h-32">
                               {JSON.stringify(log.dados, null, 2)}
                             </pre>
                           </details>

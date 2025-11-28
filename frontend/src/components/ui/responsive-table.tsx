@@ -30,7 +30,7 @@ export function ResponsiveTable<T>({
 }: ResponsiveTableProps<T>) {
   if (data.length === 0) {
     return (
-      <div className="px-6 py-12 text-center text-sm text-slate-500">{emptyMessage}</div>
+      <div className="px-6 py-12 text-center text-sm text-muted-foreground">{emptyMessage}</div>
     );
   }
 
@@ -43,25 +43,25 @@ export function ResponsiveTable<T>({
     <div className={className}>
       {/* Desktop Table View (md+) */}
       <div className="hidden md:block overflow-x-auto overflow-y-auto max-h-[600px]">
-        <table className="min-w-full divide-y divide-slate-200 text-xs dark:divide-slate-800">
-          <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm dark:bg-slate-900/95 shadow-sm">
+        <table className="min-w-full divide-y divide-border text-xs">
+          <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm shadow-sm">
             <tr>
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className={`px-3 py-2 text-left text-xs font-medium text-slate-500 ${column.className || ''}`}
+                  className={`px-3 py-2 text-left text-xs font-medium text-muted-foreground ${column.className || ''}`}
                 >
                   {column.label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+          <tbody className="divide-y divide-border">
             {data.map((item) => (
               <tr
                 key={keyExtractor(item)}
                 onClick={() => onRowClick?.(item)}
-                className={`${onRowClick ? 'cursor-pointer hover:bg-slate-50/70 dark:hover:bg-slate-900 transition-colors' : ''}`}
+                className={`${onRowClick ? 'cursor-pointer hover:bg-muted/50 transition-colors' : ''}`}
               >
                 {columns.map((column) => (
                   <td key={column.key} className={`px-3 py-2 ${column.className || ''}`}>
@@ -95,7 +95,7 @@ export function ResponsiveTable<T>({
                     <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                       {column.mobileLabel || column.label}
                     </div>
-                    <div className="text-sm text-slate-900 dark:text-slate-100">{content}</div>
+                    <div className="text-sm text-foreground">{content}</div>
                   </div>
                 );
               })}

@@ -160,11 +160,11 @@ export default function ResumosPage() {
       {/* Cabeçalho */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             <FileText className="w-8 h-8" />
             Resumos Econômicos
           </h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-1">
+          <p className="text-muted-foreground mt-1">
             Gerencie e visualize seus resumos de análises
           </p>
         </div>
@@ -178,22 +178,22 @@ export default function ResumosPage() {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+      <div className="bg-card rounded-lg shadow p-6">
         <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Filtros</h2>
+          <Filter className="w-5 h-5 text-muted-foreground" />
+          <h2 className="text-lg font-semibold text-foreground">Filtros</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Empresa */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Empresa
             </label>
             <select
               value={filters.empresaId || ''}
               onChange={(e) => handleFilterChange('empresaId', e.target.value)}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <option value="">Todas</option>
               {empresas?.map((empresa) => (
@@ -206,7 +206,7 @@ export default function ResumosPage() {
 
           {/* Ano */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Ano
             </label>
             <select
@@ -215,7 +215,7 @@ export default function ResumosPage() {
                 handleFilterChange('ano', e.target.value ? parseInt(e.target.value) : undefined);
                 handleFilterChange('mes', undefined); // Limpar mês ao mudar ano
               }}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <option value="">Todos</option>
               {anosDisponiveis.map((ano) => (
@@ -228,14 +228,14 @@ export default function ResumosPage() {
 
           {/* Mês */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Mês
             </label>
             <select
               value={filters.mes?.toString() || ''}
               onChange={(e) => handleFilterChange('mes', e.target.value ? parseInt(e.target.value) : undefined)}
               disabled={!filters.ano || mesesDisponiveis.length === 0}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 disabled:opacity-50"
+              className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
             >
               <option value="">Todos</option>
               {mesesDisponiveis.map((mes) => {
@@ -251,13 +251,13 @@ export default function ResumosPage() {
 
           {/* Status */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Status
             </label>
             <select
               value={filters.status || ''}
               onChange={(e) => handleFilterChange('status', e.target.value || undefined)}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <option value="">Todos</option>
               {Object.entries(statusLabels).map(([value, label]) => (
@@ -270,13 +270,13 @@ export default function ResumosPage() {
 
           {/* Tipo de Análise */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Tipo
             </label>
             <select
               value={filters.tipoAnalise || ''}
               onChange={(e) => handleFilterChange('tipoAnalise', e.target.value || undefined)}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <option value="">Todos</option>
               {Object.entries(tipoAnaliseLabels).map(([value, label]) => (
@@ -299,12 +299,12 @@ export default function ResumosPage() {
           <p className="text-red-800 dark:text-red-400">Erro ao carregar resumos</p>
         </div>
       ) : !resumosData || resumosData.data.length === 0 ? (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-12 text-center">
-          <FileText className="w-16 h-16 mx-auto text-slate-400 mb-4" />
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
+        <div className="bg-card rounded-lg shadow p-12 text-center">
+          <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">
             Nenhum resumo encontrado
           </h3>
-          <p className="text-slate-600 dark:text-slate-400 mb-4">
+          <p className="text-muted-foreground mb-4">
             {Object.keys(filters).length > 2
               ? 'Tente ajustar os filtros ou criar um novo resumo'
               : 'Crie seu primeiro resumo a partir de uma análise'}
@@ -323,15 +323,15 @@ export default function ResumosPage() {
             {resumosData.data.map((resumo) => (
               <div
                 key={resumo.id}
-                className="bg-white dark:bg-slate-800 rounded-lg shadow hover:shadow-lg transition-shadow p-6"
+                className="bg-card rounded-lg shadow hover:shadow-lg transition-shadow p-6"
               >
                 {/* Cabeçalho do Card */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">
+                    <h3 className="text-lg font-semibold text-foreground mb-1">
                       {resumo.titulo}
                     </h3>
-                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="w-4 h-4" />
                       <span>{resumo.periodo}</span>
                     </div>
@@ -346,22 +346,22 @@ export default function ResumosPage() {
                 {/* Informações */}
                 <div className="space-y-2 mb-4">
                   {resumo.empresa && (
-                    <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Building2 className="w-4 h-4" />
                       <span>{resumo.empresa.razaoSocial}</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Tag className="w-4 h-4" />
                     <span>{tipoAnaliseLabels[resumo.tipoAnalise as TipoAnaliseEnum]}</span>
                   </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-500">
+                  <div className="text-xs text-muted-foreground">
                     Criado em {new Date(resumo.createdAt).toLocaleDateString('pt-BR')}
                   </div>
                 </div>
 
                 {/* Ações */}
-                <div className="flex items-center gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-2 pt-4 border-t border-border">
                   <Link
                     href={`/resumos/${resumo.id}`}
                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-sky-600 text-white rounded hover:bg-sky-700 transition-colors text-sm"
@@ -372,7 +372,7 @@ export default function ResumosPage() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleExport(resumo.id, 'pdf')}
-                      className="p-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                      className="p-2 text-muted-foreground hover:bg-muted rounded transition-colors"
                       title="Exportar PDF"
                     >
                       <Download className="w-4 h-4" />
@@ -392,25 +392,25 @@ export default function ResumosPage() {
 
           {/* Paginação */}
           {resumosData.totalPages > 1 && (
-            <div className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-lg shadow p-4">
-              <div className="text-sm text-slate-600 dark:text-slate-400">
+            <div className="flex items-center justify-between bg-card rounded-lg shadow p-4">
+              <div className="text-sm text-muted-foreground">
                 Mostrando {resumosData.data.length} de {resumosData.total} resumos
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleFilterChange('page', (filters.page || 1) - 1)}
                   disabled={filters.page === 1}
-                  className="px-3 py-1 rounded border border-slate-300 dark:border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700"
+                  className="px-3 py-1 rounded border border-border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted"
                 >
                   Anterior
                 </button>
-                <span className="text-sm text-slate-600 dark:text-slate-400">
+                <span className="text-sm text-muted-foreground">
                   Página {filters.page || 1} de {resumosData.totalPages}
                 </span>
                 <button
                   onClick={() => handleFilterChange('page', (filters.page || 1) + 1)}
                   disabled={(filters.page || 1) >= resumosData.totalPages}
-                  className="px-3 py-1 rounded border border-slate-300 dark:border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700"
+                  className="px-3 py-1 rounded border border-border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted"
                 >
                   Próxima
                 </button>

@@ -322,9 +322,9 @@ const RelatorioComparativoPage = () => {
 
       elementos.push(
         <React.Fragment key={chaveUnica}>
-          <tr className="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+          <tr className="border-b border-border hover:bg-muted/50">
             <td
-              className="sticky left-0 z-[51] bg-white border-r border-slate-200 px-2 py-1.5 text-[10px] font-medium text-slate-700 dark:!bg-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border border-b border-slate-200 dark:border-b-slate-800"
+              className="sticky left-0 z-[51] bg-card border-r border-border px-2 py-1.5 text-[10px] font-medium text-foreground shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border border-b border-border"
               style={{ paddingLeft: `${nivel * 12 + 8}px` }}
             >
               <div className="flex items-center gap-1">
@@ -345,7 +345,7 @@ const RelatorioComparativoPage = () => {
                 <span className="font-mono text-[9px]">{conta.classificacao}</span>
               </div>
             </td>
-            <td className="px-2 py-1.5 text-[10px] text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-b-slate-800">
+            <td className="px-2 py-1.5 text-[10px] text-foreground border-b border-border">
               {conta.nomeConta}
             </td>
             <td className="px-2 py-1.5 text-[10px] text-right font-mono border-b border-slate-200 dark:border-b-slate-800">
@@ -374,22 +374,22 @@ const RelatorioComparativoPage = () => {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+        <h1 className="text-2xl font-semibold text-foreground">
           Relatório Comparativo
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Compare períodos para análise de variações e tendências.
         </p>
       </header>
 
       {/* Filtros */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
         <button
           onClick={() => setFiltrosExpandidos(!filtrosExpandidos)}
           className="flex w-full items-center justify-between text-left"
         >
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filtros</h2>
-          <span className="text-xs text-slate-500">
+          <h2 className="text-sm font-semibold text-foreground dark:text-slate-100">Filtros</h2>
+          <span className="text-xs text-muted-foreground">
             {filtrosExpandidos ? 'Ocultar' : 'Mostrar'}
           </span>
         </button>
@@ -399,19 +399,19 @@ const RelatorioComparativoPage = () => {
             {/* 1. Tipo de Comparação */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <label className="mb-2 block text-xs font-semibold text-foreground dark:text-slate-300">
                   1. Tipo de Comparação
                 </label>
                 <select
                   value={tipoComparacaoLocal}
                   onChange={(e) => setTipoComparacaoLocal(e.target.value as TipoComparacao)}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
                   <option value={TipoComparacao.MES_A_MES}>Mês a Mês</option>
                   <option value={TipoComparacao.ANO_A_ANO}>Ano a Ano</option>
                   <option value={TipoComparacao.CUSTOMIZADO}>Customizado</option>
                 </select>
-                <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                <p className="mt-1 text-[10px] text-muted-foreground dark:text-slate-400">
                   {tipoComparacaoLocal === TipoComparacao.MES_A_MES && 'Compara dois meses consecutivos (ex: Janeiro vs Fevereiro)'}
                   {tipoComparacaoLocal === TipoComparacao.ANO_A_ANO && 'Compara o mesmo mês em anos diferentes (ex: Janeiro/2024 vs Janeiro/2025)'}
                   {tipoComparacaoLocal === TipoComparacao.CUSTOMIZADO && 'Compare dois períodos específicos de sua escolha'}
@@ -420,19 +420,19 @@ const RelatorioComparativoPage = () => {
 
               {/* 1.1. Tipo de Valor */}
               <div>
-                <label className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <label className="mb-2 block text-xs font-semibold text-foreground dark:text-slate-300">
                   1.1. Tipo de Valor
                 </label>
                 <select
                   value={tipoValorLocal}
                   onChange={(e) => setTipoValorLocal(e.target.value as TipoValor)}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                   title={tipoValorLocal === TipoValor.ACUMULADO ? 'Saldo acumulado até o mês (saldoAtual)' : 'Movimentação do mês (crédito - débito)'}
                 >
                   <option value={TipoValor.ACUMULADO}>Valor Acumulado</option>
                   <option value={TipoValor.PERIODO}>Valor do Período</option>
                 </select>
-                <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                <p className="mt-1 text-[10px] text-muted-foreground dark:text-slate-400">
                   {tipoValorLocal === TipoValor.ACUMULADO ? 'Saldo acumulado até o mês (saldoAtual)' : 'Movimentação do mês (crédito - débito)'}
                 </p>
               </div>
@@ -440,23 +440,23 @@ const RelatorioComparativoPage = () => {
 
             {/* 2. Períodos */}
             <div className="space-y-4">
-              <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">2. Períodos para Comparação</h3>
+              <h3 className="text-xs font-semibold text-foreground dark:text-slate-300">2. Períodos para Comparação</h3>
               
               <div className="grid gap-4 sm:grid-cols-2">
                 {/* Período 1 */}
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50">
-                  <label className="mb-2 block text-xs font-medium text-slate-700 dark:text-slate-300">
+                <div className="rounded-lg border border-border bg-muted p-3">
+                  <label className="mb-2 block text-xs font-medium text-foreground dark:text-slate-300">
                     Período 1 (Base)
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="mb-1 block text-[10px] font-medium text-slate-600 dark:text-slate-400">
+                      <label className="mb-1 block text-[10px] font-medium text-muted-foreground dark:text-slate-400">
                         Mês
                       </label>
                       <select
                         value={mes1Local}
                         onChange={(e) => setMes1Local(Number(e.target.value))}
-                        className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        className="w-full rounded-md border border-border bg-input px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
                       >
                         {meses.map((mes) => (
                           <option key={mes.value} value={mes.value}>
@@ -466,14 +466,14 @@ const RelatorioComparativoPage = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-[10px] font-medium text-slate-600 dark:text-slate-400">
+                      <label className="mb-1 block text-[10px] font-medium text-muted-foreground dark:text-slate-400">
                         Ano
                       </label>
                       <select
                         value={ano1Local}
                         onChange={(e) => setAno1Local(Number(e.target.value))}
                         disabled={carregandoAnos}
-                        className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        className="w-full rounded-md border border-border bg-input px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-50"
                       >
                         {anosDisponiveis.map((ano) => (
                           <option key={ano} value={ano}>
@@ -486,20 +486,20 @@ const RelatorioComparativoPage = () => {
                 </div>
 
                 {/* Período 2 */}
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50">
-                  <label className="mb-2 block text-xs font-medium text-slate-700 dark:text-slate-300">
+                <div className="rounded-lg border border-border bg-muted p-3">
+                  <label className="mb-2 block text-xs font-medium text-foreground dark:text-slate-300">
                     Período 2 (Comparação)
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="mb-1 block text-[10px] font-medium text-slate-600 dark:text-slate-400">
+                      <label className="mb-1 block text-[10px] font-medium text-muted-foreground dark:text-slate-400">
                         Mês
                       </label>
                       <select
                         value={mes2Local}
                         onChange={(e) => setMes2Local(Number(e.target.value))}
                         disabled={tipoComparacaoLocal !== TipoComparacao.CUSTOMIZADO}
-                        className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        className="w-full rounded-md border border-border bg-input px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-50"
                       >
                         {meses.map((mes) => (
                           <option key={mes.value} value={mes.value}>
@@ -509,14 +509,14 @@ const RelatorioComparativoPage = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-[10px] font-medium text-slate-600 dark:text-slate-400">
+                      <label className="mb-1 block text-[10px] font-medium text-muted-foreground dark:text-slate-400">
                         Ano
                       </label>
                       <select
                         value={ano2Local}
                         onChange={(e) => setAno2Local(Number(e.target.value))}
                         disabled={carregandoAnos || tipoComparacaoLocal !== TipoComparacao.CUSTOMIZADO}
-                        className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        className="w-full rounded-md border border-border bg-input px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-50"
                       >
                         {anosDisponiveis.map((ano) => (
                           <option key={ano} value={ano}>
@@ -527,7 +527,7 @@ const RelatorioComparativoPage = () => {
                     </div>
                   </div>
                   {tipoComparacaoLocal !== TipoComparacao.CUSTOMIZADO && (
-                    <p className="mt-2 text-[10px] text-slate-500 dark:text-slate-400">
+                    <p className="mt-2 text-[10px] text-muted-foreground dark:text-slate-400">
                       Ajustado automaticamente conforme o tipo de comparação
                     </p>
                   )}
@@ -537,17 +537,17 @@ const RelatorioComparativoPage = () => {
 
             {/* 3. Tipo de Relatório e Empresas */}
             <div className="space-y-4">
-              <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">3. Escopo do Relatório</h3>
+              <h3 className="text-xs font-semibold text-foreground dark:text-slate-300">3. Escopo do Relatório</h3>
               
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+                  <label className="mb-1 block text-xs font-medium text-foreground dark:text-slate-300">
                     Tipo de Relatório
                   </label>
                   <select
                     value={tipoLocal}
                     onChange={(e) => setTipoLocal(e.target.value as TipoRelatorio)}
-                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="w-full rounded-md border border-border bg-input px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                   >
                     <option value="CONSOLIDADO">Consolidado</option>
                     <option value="FILIAL">Filial</option>
@@ -556,13 +556,13 @@ const RelatorioComparativoPage = () => {
 
                 {tipoLocal === 'FILIAL' ? (
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+                    <label className="mb-1 block text-xs font-medium text-foreground dark:text-slate-300">
                       Empresa *
                     </label>
                     <select
                       value={empresaIdLocal}
                       onChange={(e) => setEmpresaIdLocal(e.target.value)}
-                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      className="w-full rounded-md border border-border bg-input px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                     >
                       <option value="">Selecione uma empresa</option>
                       {empresasList.map((empresa) => (
@@ -574,12 +574,12 @@ const RelatorioComparativoPage = () => {
                   </div>
                 ) : (
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+                    <label className="mb-1 block text-xs font-medium text-foreground dark:text-slate-300">
                       Empresas (opcional)
                     </label>
-                    <div className="max-h-32 overflow-y-auto rounded-md border border-slate-300 bg-white p-2 text-xs dark:border-slate-700 dark:bg-slate-800">
+                    <div className="max-h-32 overflow-y-auto rounded-md border border-border bg-card p-2 text-xs">
                       {empresasList.length === 0 ? (
-                        <p className="text-[10px] text-slate-500">Nenhuma empresa disponível</p>
+                        <p className="text-[10px] text-muted-foreground">Nenhuma empresa disponível</p>
                       ) : (
                         empresasList.map((empresa) => (
                           <label key={empresa.id} className="flex items-center gap-2 py-1">
@@ -600,7 +600,7 @@ const RelatorioComparativoPage = () => {
                         ))
                       )}
                     </div>
-                    <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                    <p className="mt-1 text-[10px] text-muted-foreground dark:text-slate-400">
                       Deixe vazio para incluir todas as empresas
                     </p>
                   </div>
@@ -610,7 +610,7 @@ const RelatorioComparativoPage = () => {
 
             {/* 4. Filtro por Descrição */}
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <label className="mb-1 block text-xs font-semibold text-foreground dark:text-slate-300">
                 4. Filtro por Descrição (opcional)
               </label>
               <div className="relative">
@@ -627,12 +627,12 @@ const RelatorioComparativoPage = () => {
                     }
                   }}
                   placeholder="Buscar por descrição da conta..."
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-foreground placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 />
                 {mostrarSugestoes && descricoesSugeridas.length > 0 && (
-                  <div className="absolute z-50 mt-1 max-h-40 w-full overflow-auto rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                  <div className="absolute z-50 mt-1 max-h-40 w-full overflow-auto rounded-md border border-border bg-card shadow-lg">
                     {carregandoDescricoes ? (
-                      <div className="px-3 py-2 text-xs text-slate-500">Carregando...</div>
+                      <div className="px-3 py-2 text-xs text-muted-foreground">Carregando...</div>
                     ) : (
                       descricoesSugeridas.map((desc, index) => (
                         <button
@@ -642,7 +642,7 @@ const RelatorioComparativoPage = () => {
                             setDescricaoLocal(desc);
                             setMostrarSugestoes(false);
                           }}
-                          className="w-full px-3 py-2 text-left text-xs hover:bg-slate-100 dark:hover:bg-slate-700"
+                          className="w-full px-3 py-2 text-left text-xs hover:bg-muted"
                         >
                           {desc}
                         </button>
@@ -651,7 +651,7 @@ const RelatorioComparativoPage = () => {
                   </div>
                 )}
               </div>
-              <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-[10px] text-muted-foreground dark:text-slate-400">
                 Digite pelo menos 2 caracteres para ver sugestões
               </p>
             </div>
@@ -659,7 +659,7 @@ const RelatorioComparativoPage = () => {
             <div className="flex justify-end gap-2">
               <button
                 onClick={limparFiltros}
-                className="rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 shadow hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                className="rounded-md border border-border bg-card px-4 py-2 text-xs font-medium text-foreground shadow hover:bg-muted"
               >
                 Limpar
               </button>
@@ -678,7 +678,7 @@ const RelatorioComparativoPage = () => {
       {isLoading && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-          <span className="ml-2 text-sm text-slate-500">Carregando relatório...</span>
+          <span className="ml-2 text-sm text-muted-foreground">Carregando relatório...</span>
         </div>
       )}
 
@@ -691,17 +691,17 @@ const RelatorioComparativoPage = () => {
       {relatorio && !isLoading && (
         <div className="space-y-4">
           {/* Cabeçalho do relatório */}
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                <h2 className="text-lg font-semibold text-foreground dark:text-slate-100">
                   {relatorio.empresaNome}
                   {relatorio.uf && ` - ${relatorio.uf}`}
                 </h2>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   Comparação: {relatorio.periodo1.label} vs {relatorio.periodo2.label}
                 </p>
-                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                <p className="mt-1 text-xs text-slate-400 dark:text-muted-foreground">
                   Tipo de valor: <span className="font-medium">{tipoValor === TipoValor.ACUMULADO ? 'Acumulado' : 'Período'}</span>
                 </p>
               </div>
@@ -713,7 +713,7 @@ const RelatorioComparativoPage = () => {
                     onChange={(e) => setExpandirTodosNiveis(e.target.checked)}
                     className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 focus:ring-offset-0 dark:border-slate-600 dark:bg-slate-800"
                   />
-                  <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                  <span className="text-[10px] font-medium text-foreground dark:text-slate-300">
                     Expandir Níveis
                   </span>
                 </label>
@@ -721,7 +721,7 @@ const RelatorioComparativoPage = () => {
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => exportarComparativoParaExcel(relatorio)}
-                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-300 bg-white px-2 text-[10px] font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    className="inline-flex h-7 items-center gap-1 rounded border border-border bg-card px-2 text-[10px] font-medium text-foreground hover:bg-muted"
                     title="Exportar para Excel"
                   >
                     <FileSpreadsheet className="h-3 w-3" />
@@ -734,7 +734,7 @@ const RelatorioComparativoPage = () => {
                         alert('Erro ao exportar PDF. Tente novamente.');
                       });
                     }}
-                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-300 bg-white px-2 text-[10px] font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    className="inline-flex h-7 items-center gap-1 rounded border border-border bg-card px-2 text-[10px] font-medium text-foreground hover:bg-muted"
                     title="Exportar para PDF"
                   >
                     <FileText className="h-3 w-3" />
@@ -746,28 +746,28 @@ const RelatorioComparativoPage = () => {
           </div>
 
           {/* Totais */}
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <div className="grid grid-cols-4 gap-4 text-center">
               <div>
-                <p className="text-xs text-slate-500">Total {relatorio.periodo1.label}</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                <p className="text-xs text-muted-foreground">Total {relatorio.periodo1.label}</p>
+                <p className="mt-1 text-lg font-semibold text-foreground dark:text-slate-100">
                   {formatarValor(relatorio.totais.periodo1)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Total {relatorio.periodo2.label}</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                <p className="text-xs text-muted-foreground">Total {relatorio.periodo2.label}</p>
+                <p className="mt-1 text-lg font-semibold text-foreground dark:text-slate-100">
                   {formatarValor(relatorio.totais.periodo2)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Diferença</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                <p className="text-xs text-muted-foreground">Diferença</p>
+                <p className="mt-1 text-lg font-semibold text-foreground dark:text-slate-100">
                   {formatarValor(relatorio.totais.diferenca)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Variação %</p>
+                <p className="text-xs text-muted-foreground">Variação %</p>
                 <p
                   className={`mt-1 text-lg font-semibold ${getVariacaoClassName(relatorio.totais.percentual)}`}
                 >
@@ -781,19 +781,19 @@ const RelatorioComparativoPage = () => {
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
             <button
               onClick={() => setMostrarGraficos(!mostrarGraficos)}
-              className="flex w-full items-center justify-between p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50"
+              className="flex w-full items-center justify-between p-4 text-left hover:bg-muted/50"
             >
               <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                <BarChart3 className="h-4 w-4 text-muted-foreground dark:text-slate-400" />
+                <h3 className="text-sm font-semibold text-foreground dark:text-slate-100">
                   Gráficos de Tendências
                 </h3>
-                <span className="text-xs text-slate-500 dark:text-slate-400">(Opcional)</span>
+                <span className="text-xs text-muted-foreground dark:text-slate-400">(Opcional)</span>
               </div>
               {mostrarGraficos ? (
-                <ChevronUp className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                <ChevronUp className="h-4 w-4 text-muted-foreground dark:text-slate-400" />
               ) : (
-                <ChevronDown className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                <ChevronDown className="h-4 w-4 text-muted-foreground dark:text-slate-400" />
               )}
             </button>
 
@@ -802,7 +802,7 @@ const RelatorioComparativoPage = () => {
                 <div className="space-y-6">
                   {/* Gráfico de Barras - Comparação */}
                   <div>
-                    <h4 className="mb-3 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <h4 className="mb-3 text-xs font-semibold text-foreground dark:text-slate-300">
                       Comparação Lado a Lado (Top 10 Contas)
                     </h4>
                     <ResponsiveContainer width="100%" height={300}>
@@ -865,7 +865,7 @@ const RelatorioComparativoPage = () => {
 
                   {/* Gráfico de Linha - Tendência */}
                   <div>
-                    <h4 className="mb-3 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <h4 className="mb-3 text-xs font-semibold text-foreground dark:text-slate-300">
                       Tendência de Variação (Top 10 Contas)
                     </h4>
                     <ResponsiveContainer width="100%" height={300}>
@@ -924,29 +924,29 @@ const RelatorioComparativoPage = () => {
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
             <div className="overflow-x-auto">
               <table className="min-w-full border-collapse divide-y divide-slate-200 text-[10px] dark:divide-slate-800">
-                <thead className="bg-slate-50 dark:bg-slate-800">
+                <thead className="bg-muted">
                   <tr>
-                    <th className="sticky left-0 z-[52] bg-slate-50 border-r border-slate-200 px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+                    <th className="sticky left-0 z-[52] bg-muted border-r border-border px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
                       Classificação
                     </th>
-                    <th className="px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">
+                    <th className="px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-300">
                       Descrição
                     </th>
-                    <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">
+                    <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-300">
                       {relatorio.periodo1.label}
                     </th>
-                    <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">
+                    <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-300">
                       {relatorio.periodo2.label}
                     </th>
-                    <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">
+                    <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-300">
                       Diferença
                     </th>
-                    <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">
+                    <th className="px-2 py-2 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-slate-300">
                       Variação %
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900/70">
+                <tbody className="divide-y divide-border bg-card">
                   {renderizarContas(relatorio.contas)}
                 </tbody>
               </table>

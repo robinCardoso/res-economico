@@ -322,7 +322,7 @@ const ConfiguracaoModelosNegocioPage = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-slate-500">Carregando configurações...</div>
+        <div className="text-sm text-muted-foreground">Carregando configurações...</div>
       </div>
     );
   }
@@ -341,10 +341,10 @@ const ConfiguracaoModelosNegocioPage = () => {
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+          <h1 className="text-2xl font-semibold text-foreground dark:text-slate-50">
             Configuração de Modelos de Negócio
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Configure os modelos de negócio uma vez e aplique a todas as empresas automaticamente.
           </p>
         </div>
@@ -358,39 +358,39 @@ const ConfiguracaoModelosNegocioPage = () => {
       </header>
 
       {configuracoesList.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-          <p className="text-sm text-slate-500">
+        <div className="rounded-xl border border-border bg-card p-12 text-center shadow-sm">
+          <p className="text-sm text-muted-foreground">
             Nenhuma configuração cadastrada. Clique em &quot;Nova configuração&quot; para começar.
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="rounded-xl border border-border bg-card shadow-sm">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-              <thead className="bg-slate-50 dark:bg-slate-800">
+              <thead className="bg-muted">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-300">
+                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground dark:text-slate-300">
                     Modelo de Negócio
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-300">
+                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground dark:text-slate-300">
                     Descrição
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-300">
+                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground dark:text-slate-300">
                     Status
                   </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-300">
+                  <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground dark:text-slate-300">
                     Ações
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900/70">
+              <tbody className="divide-y divide-border bg-card">
                 {configuracoesList.map((config) => (
                   <tr key={config.id}>
-                    <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <td className="whitespace-nowrap px-4 py-2 text-sm font-medium text-foreground dark:text-slate-100">
                       {MODELOS_NEGOCIO.find((m) => m.value === config.modeloNegocio)?.label ||
                         config.modeloNegocio}
                     </td>
-                    <td className="px-4 py-2 text-sm text-slate-500 dark:text-slate-300">
+                    <td className="px-4 py-2 text-sm text-muted-foreground dark:text-slate-300">
                       {config.descricao || '-'}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-sm">
@@ -398,7 +398,7 @@ const ConfiguracaoModelosNegocioPage = () => {
                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                           config.ativo
                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200'
-                            : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+                            : 'bg-muted text-foreground'
                         }`}
                       >
                         {config.ativo ? 'Ativo' : 'Inativo'}
@@ -408,7 +408,7 @@ const ConfiguracaoModelosNegocioPage = () => {
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => openEditModal(config)}
-                          className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                          className="rounded-md p-1.5 text-foreground hover:bg-muted"
                           title="Editar"
                         >
                           <Pencil className="h-4 w-4" />
@@ -433,15 +433,15 @@ const ConfiguracaoModelosNegocioPage = () => {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900">
-            <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card shadow-lg">
+            <div className="sticky top-0 flex items-center justify-between border-b border-border bg-card px-6 py-4">
+              <h2 className="text-lg font-semibold text-foreground dark:text-slate-100">
                 {editingModelo ? 'Editar configuração' : 'Nova configuração'}
               </h2>
               <button
                 onClick={closeModal}
                 disabled={loadingConfig}
-                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -449,7 +449,7 @@ const ConfiguracaoModelosNegocioPage = () => {
 
             {loadingConfig ? (
               <div className="flex items-center justify-center py-12">
-                <div className="text-sm text-slate-500">Carregando dados da configuração...</div>
+                <div className="text-sm text-muted-foreground">Carregando dados da configuração...</div>
               </div>
             ) : (
               <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
@@ -460,14 +460,14 @@ const ConfiguracaoModelosNegocioPage = () => {
                 )}
 
               <div className="space-y-1">
-                <label htmlFor="modeloNegocio" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label htmlFor="modeloNegocio" className="text-sm font-medium text-foreground dark:text-slate-300">
                   Modelo de Negócio *
                 </label>
                 <select
                   id="modeloNegocio"
                   {...register('modeloNegocio')}
                   disabled={!!editingModelo}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 disabled:opacity-50 disabled:cursor-not-allowed dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">Selecione o modelo</option>
                   {MODELOS_NEGOCIO.map((modelo) => (
@@ -482,7 +482,7 @@ const ConfiguracaoModelosNegocioPage = () => {
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="descricao" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label htmlFor="descricao" className="text-sm font-medium text-foreground dark:text-slate-300">
                   Descrição
                 </label>
                 <textarea
@@ -490,17 +490,17 @@ const ConfiguracaoModelosNegocioPage = () => {
                   {...register('descricao')}
                   rows={2}
                   placeholder="Descrição da configuração"
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
 
-              <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
-                <h3 className="mb-4 text-sm font-semibold text-slate-900 dark:text-slate-100">
+              <div className="border-t border-border pt-4">
+                <h3 className="mb-4 text-sm font-semibold text-foreground dark:text-slate-100">
                   Contas de Receita (DRE)
                 </h3>
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                    <label className="text-xs font-medium text-muted-foreground dark:text-slate-400">
                       Mensalidades
                     </label>
                     <ContaDreAutocomplete
@@ -508,11 +508,11 @@ const ConfiguracaoModelosNegocioPage = () => {
                       onChange={(value) => setValue('contasReceitaMensalidades', value)}
                       placeholder="Digite código (ex: 3.1.01.01) ou nome (ex: mensalidade)"
                       tipoConta="receita"
-                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                    <label className="text-xs font-medium text-muted-foreground dark:text-slate-400">
                       Bonificações
                     </label>
                     <ContaDreAutocomplete
@@ -520,7 +520,7 @@ const ConfiguracaoModelosNegocioPage = () => {
                       onChange={(value) => setValue('contasReceitaBonificacoes', value)}
                       placeholder="Digite código (ex: 3.1.02.01) ou nome (ex: bonificação)"
                       tipoConta="receita"
-                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
                   {contasReceitaExtra.map((conta, index) => (
@@ -530,14 +530,14 @@ const ConfiguracaoModelosNegocioPage = () => {
                         value={conta.key}
                         onChange={(e) => updateContaReceita(index, 'key', e.target.value)}
                         placeholder="Nome da conta"
-                        className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-foreground focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                       />
                       <ContaDreAutocomplete
                         value={conta.value}
                         onChange={(value) => updateContaReceita(index, 'value', value)}
                         placeholder="Código (ex: 3.1.01.01) ou nome da conta"
                         tipoConta="receita"
-                        className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-foreground focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                       />
                       <button
                         type="button"
@@ -558,13 +558,13 @@ const ConfiguracaoModelosNegocioPage = () => {
                 </div>
               </div>
 
-              <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
-                <h3 className="mb-4 text-sm font-semibold text-slate-900 dark:text-slate-100">
+              <div className="border-t border-border pt-4">
+                <h3 className="mb-4 text-sm font-semibold text-foreground dark:text-slate-100">
                   Contas de Custos (DRE)
                 </h3>
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                    <label className="text-xs font-medium text-muted-foreground dark:text-slate-400">
                       Funcionários
                     </label>
                     <ContaDreAutocomplete
@@ -572,11 +572,11 @@ const ConfiguracaoModelosNegocioPage = () => {
                       onChange={(value) => setValue('contasCustosFuncionarios', value)}
                       placeholder="Digite código (ex: 4.1.01) ou nome (ex: funcionários)"
                       tipoConta="custo"
-                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                    <label className="text-xs font-medium text-muted-foreground dark:text-slate-400">
                       Sistema
                     </label>
                     <ContaDreAutocomplete
@@ -584,11 +584,11 @@ const ConfiguracaoModelosNegocioPage = () => {
                       onChange={(value) => setValue('contasCustosSistema', value)}
                       placeholder="Digite código (ex: 4.1.02) ou nome (ex: sistema)"
                       tipoConta="custo"
-                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                    <label className="text-xs font-medium text-muted-foreground dark:text-slate-400">
                       Contabilidade
                     </label>
                     <ContaDreAutocomplete
@@ -596,7 +596,7 @@ const ConfiguracaoModelosNegocioPage = () => {
                       onChange={(value) => setValue('contasCustosContabilidade', value)}
                       placeholder="Digite código (ex: 4.1.03) ou nome (ex: contabilidade)"
                       tipoConta="custo"
-                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
                   {contasCustosExtra.map((conta, index) => (
@@ -606,14 +606,14 @@ const ConfiguracaoModelosNegocioPage = () => {
                         value={conta.key}
                         onChange={(e) => updateContaCusto(index, 'key', e.target.value)}
                         placeholder="Nome da conta"
-                        className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-foreground focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                       />
                       <ContaDreAutocomplete
                         value={conta.value}
                         onChange={(value) => updateContaCusto(index, 'value', value)}
                         placeholder="Código (ex: 3.1.01.01) ou nome da conta"
                         tipoConta="custo"
-                        className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-foreground focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                       />
                       <button
                         type="button"
@@ -639,13 +639,13 @@ const ConfiguracaoModelosNegocioPage = () => {
                   <input
                     type="checkbox"
                     {...register('custosCentralizados')}
-                    className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-500"
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                   />
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <span className="text-sm font-medium text-foreground dark:text-slate-300">
                     Custos Centralizados na Matriz
                   </span>
                 </label>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Indica se os custos operacionais estão centralizados na matriz
                 </p>
               </div>
@@ -655,13 +655,13 @@ const ConfiguracaoModelosNegocioPage = () => {
                   <input
                     type="checkbox"
                     {...register('receitasCentralizadas')}
-                    className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-500"
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                   />
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <span className="text-sm font-medium text-foreground dark:text-slate-300">
                     Receitas Centralizadas na Matriz
                   </span>
                 </label>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Indica se receitas (ex: bonificações) estão centralizadas na matriz
                 </p>
               </div>
@@ -678,13 +678,13 @@ const ConfiguracaoModelosNegocioPage = () => {
                   <input
                     type="checkbox"
                     {...register('ativo')}
-                    className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-500"
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                   />
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <span className="text-sm font-medium text-foreground dark:text-slate-300">
                     Ativo
                   </span>
                 </label>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Configurações inativas não serão usadas como fallback
                 </p>
               </div>
@@ -693,7 +693,7 @@ const ConfiguracaoModelosNegocioPage = () => {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow hover:bg-muted"
                 >
                   Cancelar
                 </button>

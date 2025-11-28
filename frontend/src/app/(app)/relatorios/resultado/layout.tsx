@@ -8,20 +8,20 @@ type Props = {
 
 const RelatorioResultadoLayout = ({ children }: Props) => {
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-slate-100 dark:bg-slate-950">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-slate-100 dark:bg-background">
       {/* Header compacto */}
-      <header className="sticky top-0 z-[110] border-b border-slate-200 bg-white/95 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/95">
+      <header className="sticky top-0 z-[110] border-b border-border bg-card/95 backdrop-blur-sm">
         <div className="flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <Link
               href="/relatorios"
-              className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-foreground/80 hover:bg-muted"
             >
               <ArrowLeft className="h-4 w-4" />
               <span>Voltar</span>
             </Link>
-            <div className="h-4 w-px bg-slate-300 dark:bg-slate-700" />
-            <h1 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+            <div className="h-4 w-px bg-border" />
+            <h1 className="text-sm font-semibold text-foreground">
               Relatório de Resultado Econômico
             </h1>
           </div>

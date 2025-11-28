@@ -414,16 +414,16 @@ const NovoUploadPage = () => {
     <div className="space-y-8 max-w-full overflow-x-hidden">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+          <h1 className="text-2xl font-semibold text-foreground dark:text-slate-50">
             Novo upload
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Importe arquivos Excel e configure o período de referência.
           </p>
         </div>
         <Link
           href="/uploads"
-          className="text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          className="text-sm font-medium text-muted-foreground hover:text-foreground dark:text-slate-400 dark:hover:text-slate-200"
         >
           Voltar
         </Link>
@@ -459,15 +459,15 @@ const NovoUploadPage = () => {
         )}
 
         {/* Seleção de Empresa, Mês e Ano */}
-        <section className="grid gap-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 sm:grid-cols-3">
+        <section className="grid gap-4 rounded-xl border border-border bg-card p-6 shadow-sm sm:grid-cols-3">
           <div className="space-y-1">
-            <label htmlFor="empresaId" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label htmlFor="empresaId" className="text-sm font-medium text-foreground dark:text-slate-300">
               Empresa *
             </label>
             <select
               id="empresaId"
               {...register('empresaId')}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
               disabled={isLoadingEmpresas}
             >
               <option value="">Selecione uma empresa</option>
@@ -483,13 +483,13 @@ const NovoUploadPage = () => {
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="mes" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label htmlFor="mes" className="text-sm font-medium text-foreground dark:text-slate-300">
               Mês *
             </label>
             <select
               id="mes"
               {...register('mes', { valueAsNumber: true })}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               {meses.map((mes) => (
                 <option key={mes.value} value={mes.value}>
@@ -503,7 +503,7 @@ const NovoUploadPage = () => {
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="ano" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label htmlFor="ano" className="text-sm font-medium text-foreground dark:text-slate-300">
               Ano *
             </label>
             <input
@@ -512,7 +512,7 @@ const NovoUploadPage = () => {
               {...register('ano', { valueAsNumber: true })}
               min="2020"
               max="2100"
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
             {errors.ano && (
               <p className="text-xs text-rose-600">{errors.ano.message}</p>
@@ -522,14 +522,14 @@ const NovoUploadPage = () => {
 
         {/* Seleção de Template */}
         {empresaId && (
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-            <label htmlFor="templateId" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <label htmlFor="templateId" className="text-sm font-medium text-foreground dark:text-slate-300">
               Template de importação (opcional)
             </label>
             <select
               id="templateId"
               {...register('templateId')}
-              className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-foreground focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
               disabled={isLoadingTemplates}
             >
               <option value="">Nenhum template (usar padrão)</option>
@@ -545,8 +545,8 @@ const NovoUploadPage = () => {
         )}
 
         {/* Upload de Arquivo */}
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 max-w-full overflow-x-hidden">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+        <section className="rounded-xl border border-border bg-card p-6 shadow-sm max-w-full overflow-x-hidden">
+          <h2 className="text-lg font-semibold text-foreground dark:text-slate-100 mb-4">
             Selecionar arquivo Excel
           </h2>
 
@@ -592,14 +592,14 @@ const NovoUploadPage = () => {
               className={`rounded-lg border-2 border-dashed p-8 text-center transition ${
                 isDragging
                   ? 'border-sky-500 bg-sky-50 dark:bg-sky-500/10'
-                  : 'border-slate-300 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-900/60'
+                  : 'border-border bg-muted/60'
               }`}
             >
               <Upload className="mx-auto h-12 w-12 text-slate-400" />
-              <p className="mt-4 text-sm font-medium text-slate-900 dark:text-slate-100">
+              <p className="mt-4 text-sm font-medium text-foreground dark:text-slate-100">
                 Arraste o arquivo aqui ou clique para selecionar
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Formatos aceitos: .xls, .xlsx (máximo 10MB)
               </p>
               <input
@@ -618,14 +618,14 @@ const NovoUploadPage = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+              <div className="flex items-center justify-between rounded-lg border border-border bg-muted p-4">
                 <div className="flex items-center gap-3">
                   <FileSpreadsheet className="h-8 w-8 text-emerald-600" />
                   <div>
-                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                    <p className="text-sm font-medium text-foreground dark:text-slate-100">
                       {file.name}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       {(file.size / 1024 / 1024).toFixed(2)} MB
                     </p>
                   </div>
@@ -651,10 +651,10 @@ const NovoUploadPage = () => {
                 const hasExtras = extraColumns.size > 0;
                 
                 return (
-                  <div className="rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 max-w-full overflow-x-hidden">
-                    <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="rounded-lg border border-border bg-card max-w-full overflow-x-hidden">
+                    <div className="border-b border-border bg-muted px-4 py-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        <p className="text-sm font-medium text-foreground dark:text-slate-100">
                           Pré-visualização (primeiras 10 linhas)
                         </p>
                         {hasExtras && (
@@ -665,7 +665,7 @@ const NovoUploadPage = () => {
                         )}
                       </div>
                       {hasExtras && (
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        <p className="mt-1 text-xs text-muted-foreground dark:text-slate-400">
                           Colunas destacadas em amarelo (Mês, UF, etc.) serão ignoradas no processamento. O sistema já coleta mês/ano via formulário.
                         </p>
                       )}
@@ -682,19 +682,19 @@ const NovoUploadPage = () => {
                           {preview.length > 0 && Array.isArray(preview[0]) && (() => {
                             const { mappedColumns, extraColumns } = detectColumnMapping(preview[0]);
                             return (
-                              <tr className="border-b-2 border-slate-300 bg-slate-100 dark:border-slate-600 dark:bg-slate-800">
+                              <tr className="border-b-2 border-border bg-muted">
                                 {preview[0].map((cell: unknown, cellIndex: number) => {
                                   const isExtra = extraColumns.has(cellIndex);
                                   const isMapped = mappedColumns.has(cellIndex);
                                   return (
                                     <th
                                       key={cellIndex}
-                                      className={`px-3 py-2 text-left text-xs font-semibold bg-slate-100 dark:bg-slate-800 ${
+                                      className={`px-3 py-2 text-left text-xs font-semibold bg-muted ${
                                         isExtra
                                           ? 'text-amber-600 dark:text-amber-400 border-l-2 border-amber-400'
                                           : isMapped
-                                            ? 'text-slate-700 dark:text-slate-300'
-                                            : 'text-slate-500 dark:text-slate-400'
+                                            ? 'text-foreground dark:text-slate-300'
+                                            : 'text-muted-foreground dark:text-slate-400'
                                       }`}
                                       title={
                                         isExtra
@@ -726,7 +726,7 @@ const NovoUploadPage = () => {
                               : { extraColumns: new Set<number>() };
                             
                             return (
-                              <tr key={rowIndex} className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                              <tr key={rowIndex} className="border-b border-border hover:bg-muted/50">
                                 {Array.isArray(row) &&
                                   row.map((cell: unknown, cellIndex: number) => {
                                     const isExtra = extraColumns.has(cellIndex);
@@ -736,7 +736,7 @@ const NovoUploadPage = () => {
                                         className={`px-3 py-2 ${
                                           isExtra
                                             ? 'text-amber-600 dark:text-amber-400 bg-amber-50/30 dark:bg-amber-900/10'
-                                            : 'text-slate-700 dark:text-slate-300'
+                                            : 'text-foreground dark:text-slate-300'
                                         }`}
                                       >
                                         {cell?.toString() || ''}
@@ -756,10 +756,10 @@ const NovoUploadPage = () => {
 
               {/* Alertas de Validação */}
               {showValidation && validationAlerts.length > 0 && (
-                <div className="mt-4 rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-                  <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
+                <div className="mt-4 rounded-lg border border-border bg-card">
+                  <div className="border-b border-border bg-muted px-4 py-2">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      <p className="text-sm font-medium text-foreground dark:text-slate-100">
                         Alertas de Validação ({validationAlerts.length})
                       </p>
                       <button
@@ -827,7 +827,7 @@ const NovoUploadPage = () => {
         <div className="flex justify-end gap-3">
           <Link
             href="/uploads"
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow hover:bg-muted"
           >
             Cancelar
           </Link>

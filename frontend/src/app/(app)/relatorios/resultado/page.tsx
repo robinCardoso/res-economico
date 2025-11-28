@@ -347,21 +347,21 @@ const RelatorioResultadoPage = () => {
       return (
         <React.Fragment key={chaveUnica}>
           <tr
-            className={`border-b border-slate-200 hover:bg-slate-50/50 dark:border-slate-800 dark:hover:bg-slate-900/50 ${
-              isRaiz ? 'bg-slate-50/30 dark:bg-slate-900/30' : ''
+            className={`border-b border-border hover:bg-muted/50 ${
+              isRaiz ? 'bg-muted/30' : ''
             } ${
               isContaConfig ? 'bg-purple-50/50 dark:bg-purple-900/20 border-l-2 border-l-purple-400 dark:border-l-purple-600' : ''
             }`}
           >
             <td 
-              className="sticky left-0 z-[51] bg-white !bg-white border-r border-slate-200 px-2 py-1.5 text-[10px] font-medium text-slate-700 dark:!bg-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border border-b border-slate-200 dark:border-b-slate-800"
+              className="sticky left-0 z-[51] bg-card !bg-card border-r border-border px-2 py-1.5 text-[10px] font-medium text-foreground shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border border-b border-border"
               style={{ minWidth: `${larguraClassi}px`, width: `${larguraClassi}px` }}
             >
               <div className="flex items-center gap-1" style={{ paddingLeft: `${indentacao}px` }}>
                 {temFilhos && (
                   <button
                     onClick={() => toggleExpandir(conta.classificacao)}
-                    className="flex h-4 w-4 items-center justify-center rounded hover:bg-slate-200 dark:hover:bg-slate-700 flex-shrink-0"
+                    className="flex h-4 w-4 items-center justify-center rounded hover:bg-muted flex-shrink-0"
                     title={estaExpandida ? 'Recolher' : 'Expandir'}
                   >
                     <span className="text-[10px]">{estaExpandida ? '−' : '+'}</span>
@@ -372,7 +372,7 @@ const RelatorioResultadoPage = () => {
               </div>
             </td>
             <td 
-              className={`sticky z-[51] bg-white !bg-white border-r border-slate-200 px-2 py-1.5 text-[10px] text-slate-600 dark:!bg-slate-900 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 min-w-[200px] shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border border-b border-slate-200 dark:border-b-slate-800 ${
+              className={`sticky z-[51] bg-card !bg-card border-r border-border px-2 py-1.5 text-[10px] text-muted-foreground min-w-[200px] shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border border-b border-border ${
                 isContaConfig ? '!bg-purple-50/50 dark:!bg-purple-900/20' : ''
               }`}
               style={{ left: `${larguraClassi}px` }}
@@ -391,14 +391,14 @@ const RelatorioResultadoPage = () => {
               return (
                 <td
                   key={periodo.mes}
-                  className={`px-2 py-1.5 text-right text-[10px] font-mono whitespace-nowrap min-w-[90px] border-b border-slate-200 dark:border-b-slate-800 ${getValorClassName(valor)}`}
+                  className={`px-2 py-1.5 text-right text-[10px] font-mono whitespace-nowrap min-w-[90px] border-b border-border ${getValorClassName(valor)}`}
                   title={formatarValor(valor)}
                 >
                   {formatarValor(valor)}
                 </td>
               );
             })}
-            <td className={`sticky right-0 z-[40] bg-white border-l border-slate-200 border-b border-slate-200 px-2 py-1.5 text-right text-[10px] font-mono font-semibold dark:bg-slate-900 dark:border-slate-800 dark:border-b-slate-800 whitespace-nowrap min-w-[90px] shadow-[-2px_0_4px_rgba(0,0,0,0.05)] ${getValorClassName(conta.valores?.total || 0)}`}>
+            <td className={`sticky right-0 z-[40] bg-card border-l border-border border-b border-border px-2 py-1.5 text-right text-[10px] font-mono font-semibold whitespace-nowrap min-w-[90px] shadow-[-2px_0_4px_rgba(0,0,0,0.05)] ${getValorClassName(conta.valores?.total || 0)}`}>
               {formatarValor(conta.valores?.total || 0)}
             </td>
           </tr>
@@ -411,13 +411,13 @@ const RelatorioResultadoPage = () => {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Filtros compactos */}
-      <div className="flex-shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex-shrink-0 border-b border-border bg-card">
         {filtrosExpandidos ? (
           <div className="px-3 py-2">
             <div className="flex flex-wrap items-start gap-2.5">
               {/* Ano */}
               <div className="min-w-[100px]">
-                <label htmlFor="ano" className="mb-0.5 block text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                <label htmlFor="ano" className="mb-0.5 block text-[10px] font-medium text-foreground">
                   Ano
                 </label>
                 <select
@@ -425,7 +425,7 @@ const RelatorioResultadoPage = () => {
                   value={anoLocal || ''}
                   onChange={(e) => setAnoLocal(parseInt(e.target.value) || new Date().getFullYear())}
                   disabled={carregandoAnos}
-                  className="h-7 w-full rounded border border-slate-300 bg-white px-2 text-[10px] text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="h-7 w-full rounded border border-border bg-input px-2 text-[10px] text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-50"
                 >
                   {carregandoAnos ? (
                     <option value="">Carregando...</option>
@@ -443,7 +443,7 @@ const RelatorioResultadoPage = () => {
 
               {/* Tipo */}
               <div className="min-w-[120px]">
-                <label htmlFor="tipo" className="mb-0.5 block text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                <label htmlFor="tipo" className="mb-0.5 block text-[10px] font-medium text-foreground">
                   Tipo
                 </label>
                 <select
@@ -454,7 +454,7 @@ const RelatorioResultadoPage = () => {
                     setEmpresaIdLocal('');
                     setEmpresaIdsLocal([]);
                   }}
-                  className="h-7 w-full rounded border border-slate-300 bg-white px-2 text-[10px] text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="h-7 w-full rounded border border-border bg-input px-2 text-[10px] text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
                 >
                   <option value={TipoRelatorio.CONSOLIDADO}>Consolidado</option>
                   <option value={TipoRelatorio.FILIAL}>Filial</option>
@@ -466,7 +466,7 @@ const RelatorioResultadoPage = () => {
                 <div className="min-w-[250px]">
                   <label
                     htmlFor="empresa-filial"
-                    className="mb-0.5 block text-[10px] font-medium text-slate-700 dark:text-slate-300"
+                    className="mb-0.5 block text-[10px] font-medium text-foreground"
                   >
                     Empresa
                   </label>
@@ -474,7 +474,7 @@ const RelatorioResultadoPage = () => {
                     id="empresa-filial"
                     value={empresaIdLocal}
                     onChange={(e) => setEmpresaIdLocal(e.target.value)}
-                    className="h-7 w-full rounded border border-slate-300 bg-white px-2 text-[10px] text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="h-7 w-full rounded border border-border bg-input px-2 text-[10px] text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
                   >
                     <option value="">Selecione uma empresa</option>
                     {empresasList.map((empresa) => (
@@ -491,7 +491,7 @@ const RelatorioResultadoPage = () => {
                 <div className="min-w-[250px]">
                   <label
                     htmlFor="empresas-consolidado"
-                    className="mb-0.5 block text-[10px] font-medium text-slate-700 dark:text-slate-300"
+                    className="mb-0.5 block text-[10px] font-medium text-foreground"
                   >
                     Empresas (opcional)
                   </label>
@@ -503,7 +503,7 @@ const RelatorioResultadoPage = () => {
                       const selected = Array.from(e.target.selectedOptions, (option) => option.value);
                       setEmpresaIdsLocal(selected);
                     }}
-                    className="h-12 w-full rounded border border-slate-300 bg-white px-2 text-[10px] text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="h-12 w-full rounded border border-border bg-input px-2 text-[10px] text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
                   >
                     {empresasList.map((empresa) => (
                       <option key={empresa.id} value={empresa.id}>
@@ -523,7 +523,7 @@ const RelatorioResultadoPage = () => {
               <div className="min-w-[250px] relative z-[10000]">
                 <label
                   htmlFor="descricao"
-                  className="mb-0.5 block text-[10px] font-medium text-slate-700 dark:text-slate-300"
+                  className="mb-0.5 block text-[10px] font-medium text-foreground"
                 >
                   Descrição (opcional)
                 </label>
@@ -546,7 +546,7 @@ const RelatorioResultadoPage = () => {
                       setTimeout(() => setMostrarSugestoes(false), 200);
                     }}
                     placeholder="Ex: Venda de Mercadorias"
-                    className="h-7 w-full rounded border border-slate-300 bg-white px-2 text-[10px] text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="h-7 w-full rounded border border-border bg-input px-2 text-[10px] text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
                   />
                   {carregandoDescricoes && (
                     <div className="absolute right-2 top-1/2 -translate-y-1/2">
@@ -555,7 +555,7 @@ const RelatorioResultadoPage = () => {
                   )}
                   {/* Dropdown de sugestões */}
                   {mostrarSugestoes && descricoesSugeridas.length > 0 && (
-                    <div className="absolute z-[9999] mt-1 max-h-48 w-full overflow-auto rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                    <div className="absolute z-[9999] mt-1 max-h-48 w-full overflow-auto rounded-md border border-border bg-card shadow-lg">
                       {descricoesSugeridas.map((desc, index) => (
                         <button
                           key={index}
@@ -564,7 +564,7 @@ const RelatorioResultadoPage = () => {
                             setDescricaoLocal(desc);
                             setMostrarSugestoes(false);
                           }}
-                          className="w-full px-3 py-1.5 text-left text-[10px] text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                          className="w-full px-3 py-1.5 text-left text-[10px] text-foreground hover:bg-muted"
                         >
                           {desc}
                         </button>
@@ -591,7 +591,7 @@ const RelatorioResultadoPage = () => {
                 </button>
                 <button
                   onClick={limparFiltros}
-                  className="inline-flex h-7 items-center gap-1.5 rounded border border-slate-300 bg-white px-3 text-[10px] font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                  className="inline-flex h-7 items-center gap-1.5 rounded border border-border bg-card px-3 text-[10px] font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1"
                 >
                   Limpar Filtros
                 </button>
@@ -602,7 +602,7 @@ const RelatorioResultadoPage = () => {
                 <div className="flex items-start gap-1.5 pt-[18px]">
                   <button
                     onClick={() => exportarParaExcel(relatorio)}
-                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-300 bg-white px-2 text-[10px] font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    className="inline-flex h-7 items-center gap-1 rounded border border-border bg-card px-2 text-[10px] font-medium text-muted-foreground hover:bg-muted"
                   >
                     <FileSpreadsheet className="h-3 w-3" />
                     Excel
@@ -614,7 +614,7 @@ const RelatorioResultadoPage = () => {
                         alert('Erro ao exportar PDF. Tente novamente.');
                       });
                     }}
-                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-300 bg-white px-2 text-[10px] font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    className="inline-flex h-7 items-center gap-1 rounded border border-border bg-card px-2 text-[10px] font-medium text-muted-foreground hover:bg-muted"
                   >
                     <FileText className="h-3 w-3" />
                     PDF
@@ -632,7 +632,7 @@ const RelatorioResultadoPage = () => {
           </div>
         ) : (
           <div className="flex items-center justify-between px-3 py-1.5">
-            <div className="flex items-center gap-2 text-[10px] text-slate-600 dark:text-slate-400">
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
               <span className="font-medium">Filtros aplicados:</span>
               <span>Ano: {ano}</span>
               <span>•</span>
@@ -655,7 +655,7 @@ const RelatorioResultadoPage = () => {
             </div>
             <button
               onClick={() => setFiltrosExpandidos(true)}
-              className="inline-flex h-6 items-center gap-1 rounded border border-slate-300 bg-white px-2 text-[10px] font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              className="inline-flex h-6 items-center gap-1 rounded border border-border bg-card px-2 text-[10px] font-medium text-foreground hover:bg-muted"
             >
               Editar Filtros
             </button>
@@ -690,10 +690,10 @@ const RelatorioResultadoPage = () => {
         {relatorio && !isLoading && (
           <div className="h-full">
             {/* Cabeçalho do Relatório - fixo no topo do container de scroll */}
-            <div className="sticky top-0 z-[105] border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900">
+            <div className="sticky top-0 z-[105] border-b border-border bg-card px-4 py-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  <h2 className="text-sm font-semibold text-foreground">
                     RESULTADO ECONÔMICO {relatorio.empresaNome.toUpperCase()}
                     {relatorio.uf ? ` - ${relatorio.uf}` : ''} {relatorio.ano}
                   </h2>
@@ -707,9 +707,9 @@ const RelatorioResultadoPage = () => {
                       type="checkbox"
                       checked={expandirTodosNiveis}
                       onChange={(e) => setExpandirTodosNiveis(e.target.checked)}
-                      className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 focus:ring-offset-0 dark:border-slate-600 dark:bg-slate-800"
+                      className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary focus:ring-offset-0"
                     />
-                    <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                    <span className="text-[10px] font-medium text-foreground">
                       Expandir Níveis
                     </span>
                   </label>
@@ -718,9 +718,9 @@ const RelatorioResultadoPage = () => {
                       type="checkbox"
                       checked={exibirSubContas}
                       onChange={(e) => setExibirSubContas(e.target.checked)}
-                      className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 focus:ring-offset-0 dark:border-slate-600 dark:bg-slate-800"
+                      className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary focus:ring-offset-0"
                     />
-                    <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300">
+                    <span className="text-[10px] font-medium text-foreground">
                       Exibir SubContas
                     </span>
                   </label>
@@ -772,17 +772,17 @@ const RelatorioResultadoPage = () => {
 
             {/* Tabela com scroll horizontal e vertical */}
             <div className="h-[calc(100%-60px)] overflow-auto overscroll-contain">
-              <table className="min-w-full border-collapse divide-y divide-slate-200 text-[10px] dark:divide-slate-800">
-                <thead className="sticky top-0 z-[100] bg-slate-50/95 backdrop-blur-sm dark:bg-slate-900/95 shadow-sm">
+              <table className="min-w-full border-collapse divide-y divide-border text-[10px]">
+                <thead className="sticky top-0 z-[100] bg-muted/95 backdrop-blur-sm shadow-sm">
                   <tr>
                     <th 
-                      className="sticky left-0 z-[102] bg-slate-50/95 !bg-slate-50/95 border-r border-slate-200 px-2 py-1.5 text-left text-[10px] font-medium text-slate-500 dark:!bg-slate-900/95 dark:bg-slate-900/95 dark:border-slate-800 shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border"
+                      className="sticky left-0 z-[102] bg-muted/95 !bg-muted/95 border-r border-border px-2 py-1.5 text-left text-[10px] font-medium text-muted-foreground shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border"
                       style={{ minWidth: `${larguraClassi}px`, width: `${larguraClassi}px` }}
                     >
                       CLASSI
                     </th>
                     <th 
-                      className="sticky z-[101] bg-slate-50/95 !bg-slate-50/95 border-r border-slate-200 px-2 py-1.5 text-left text-[10px] font-medium text-slate-500 dark:!bg-slate-900/95 dark:bg-slate-900/95 dark:border-slate-800 min-w-[200px] shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border"
+                      className="sticky z-[101] bg-muted/95 !bg-muted/95 border-r border-border px-2 py-1.5 text-left text-[10px] font-medium text-muted-foreground min-w-[200px] shadow-[2px_0_4px_rgba(0,0,0,0.05)] box-border"
                       style={{ left: `${larguraClassi}px` }}
                     >
                       DESCRI
@@ -790,23 +790,23 @@ const RelatorioResultadoPage = () => {
                     {relatorio.periodo.map((periodo) => (
                       <th
                         key={periodo.mes}
-                        className="px-2 py-1.5 text-right text-[10px] font-medium text-slate-500 whitespace-nowrap min-w-[90px]"
+                        className="px-2 py-1.5 text-right text-[10px] font-medium text-muted-foreground whitespace-nowrap min-w-[90px]"
                       >
                         {periodo.nome}
                       </th>
                     ))}
-                    <th className="sticky right-0 z-[100] bg-slate-50/95 border-l border-slate-200 px-2 py-1.5 text-right text-[10px] font-medium text-slate-500 dark:bg-slate-900/95 dark:border-slate-800 whitespace-nowrap min-w-[90px] shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">
+                    <th className="sticky right-0 z-[100] bg-muted/95 border-l border-border px-2 py-1.5 text-right text-[10px] font-medium text-muted-foreground whitespace-nowrap min-w-[90px] shadow-[-2px_0_4px_rgba(0,0,0,0.05)]">
                       Total
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-900">
+                <tbody className="divide-y divide-border bg-card">
                   {renderizarContas(relatorio.contas)}
                 </tbody>
               </table>
 
               {relatorio.contas.length === 0 && (
-                <div className="flex h-64 items-center justify-center text-sm text-slate-500">
+                <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
                   Nenhum dado encontrado para o período selecionado.
                 </div>
               )}

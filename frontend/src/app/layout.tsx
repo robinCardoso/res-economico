@@ -5,6 +5,7 @@ import { AppProviders } from './providers';
 import { OfflineBanner } from '@/components/system/offline-banner';
 import { PwaUpdater } from '@/components/pwa/pwa-updater';
 import { Toaster } from '@/components/ui/toaster';
+import { ThemeProvider } from '@/components/layout/theme-provider';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -40,14 +41,21 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}
       >
-        <AppProviders>
-          {children}
-          <OfflineBanner />
-          <PwaUpdater />
-          <Toaster />
-        </AppProviders>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          <AppProviders>
+            {children}
+            <OfflineBanner />
+            <PwaUpdater />
+            <Toaster />
+          </AppProviders>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -19,6 +19,7 @@ import {
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 import { MobileNav } from './mobile-nav';
+import { ThemeToggle } from './theme-toggle';
 
 export type NavItem = {
   label: string;
@@ -111,7 +112,7 @@ export const AppShell = ({ children }: AppShellProps) => {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="flex min-h-screen bg-background text-foreground">
       {/* Mobile Navigation */}
       <MobileNav
         isOpen={sidebarOpen}
@@ -121,28 +122,30 @@ export const AppShell = ({ children }: AppShellProps) => {
 
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden lg:block lg:fixed lg:inset-y-0 lg:z-50 lg:w-64 lg:border-r lg:border-slate-200 lg:bg-white/80 lg:backdrop-blur lg:transition-transform lg:duration-300 dark:lg:border-slate-800 dark:lg:bg-slate-900/70 ${
+        className={`hidden lg:block lg:fixed lg:inset-y-0 lg:z-50 lg:w-64 lg:border-r lg:border-border lg:bg-background lg:transition-transform lg:duration-300 ${
           sidebarOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'
         }`}
       >
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between gap-3 px-6 py-6">
             <Link href="/dashboard" className="flex items-center gap-3">
-              <Image
-                src="/minha-logo.png"
-                alt="Logo da empresa"
-                width={52}
-                height={52}
-                className="h-[52px] w-[52px] rounded-md object-contain shadow-sm"
-                priority
-              />
-              <span className="text-sm font-semibold leading-tight">
+              <div className="relative h-[52px] w-[52px] rounded-lg bg-card p-1.5 shadow-sm ring-1 ring-border">
+                <Image
+                  src="/minha-logo.png"
+                  alt="Logo da empresa"
+                  width={52}
+                  height={52}
+                  className="h-full w-full object-contain"
+                  priority
+                />
+              </div>
+              <span className="text-sm font-semibold leading-tight text-foreground">
                 Resultado Econômico
               </span>
             </Link>
             <button
               onClick={toggleSidebar}
-              className="hidden lg:block rounded-md p-1.5 text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800/80"
+              className="hidden lg:block rounded-md p-1.5 text-foreground/80 hover:bg-secondary"
               aria-label="Fechar menu"
             >
               <X className="h-5 w-5" />
@@ -160,10 +163,10 @@ export const AppShell = ({ children }: AppShellProps) => {
                   key={item.href}
                   href={item.href}
                   onClick={handleNavClick}
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition ${
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
                     isActive
-                      ? 'bg-sky-500/10 text-sky-600 dark:bg-sky-500/20 dark:text-sky-200'
-                      : 'text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800/80'
+                      ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                      : 'text-foreground/90 hover:bg-secondary'
                   }`}
                 >
                   <Icon className="h-5 w-5" aria-hidden />
@@ -172,7 +175,7 @@ export const AppShell = ({ children }: AppShellProps) => {
               );
             })}
           </nav>
-          <div className="border-t border-slate-200 px-6 py-4 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+          <div className="border-t border-border px-6 py-4 text-xs text-muted-foreground">
             © {new Date().getFullYear()} Resultado Econômico
           </div>
         </div>
@@ -183,13 +186,13 @@ export const AppShell = ({ children }: AppShellProps) => {
           sidebarOpen ? 'lg:pl-64' : 'lg:pl-0'
         }`}
       >
-        <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
+        <header className="sticky top-0 z-40 border-b border-border bg-background">
           <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
               {/* Botão hamburger - sempre visível em mobile */}
               <button
                 onClick={toggleSidebar}
-                className="rounded-md p-2 text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800/80 lg:hidden"
+                className="rounded-md p-2 text-foreground/90 hover:bg-secondary lg:hidden"
                 aria-label="Abrir menu"
               >
                 <Menu className="h-5 w-5" />
@@ -197,7 +200,7 @@ export const AppShell = ({ children }: AppShellProps) => {
               {/* Botão para desktop - sempre visível para abrir/fechar sidebar */}
               <button
                 onClick={toggleSidebar}
-                className="hidden rounded-md p-1.5 text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800/80 lg:block"
+                className="hidden rounded-md p-1.5 text-foreground/90 hover:bg-secondary lg:block"
                 aria-label={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}
               >
                 <Menu className="h-5 w-5" />
@@ -207,29 +210,32 @@ export const AppShell = ({ children }: AppShellProps) => {
                 href="/dashboard"
                 className="flex items-center gap-2 text-base font-semibold lg:hidden"
               >
-                <Image
-                  src="/minha-logo.png"
-                  alt="Logo da empresa"
-                  width={32}
-                  height={32}
-                  className="h-8 w-8 rounded-md object-contain shadow-sm"
-                />
-                <span className="text-slate-900 dark:text-slate-100">Resultado Econômico</span>
+                <div className="relative h-8 w-8 rounded-lg bg-card p-1 shadow-sm ring-1 ring-border">
+                  <Image
+                    src="/minha-logo.png"
+                    alt="Logo da empresa"
+                    width={32}
+                    height={32}
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+                <span className="text-foreground">Resultado Econômico</span>
               </Link>
             </div>
             {user && (
               <div className="ml-auto flex items-center gap-4">
                 <div className="hidden text-right lg:block">
-                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <p className="text-sm font-medium text-foreground">
                     {user.nome}
                   </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-muted-foreground">
                     {user.email}
                   </p>
                 </div>
+                <ThemeToggle />
                 <button
                   onClick={handleLogout}
-                  className="flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:border-slate-600"
+                  className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-muted hover:border-border"
                   title="Sair"
                 >
                   <LogOut className="h-4 w-4" />

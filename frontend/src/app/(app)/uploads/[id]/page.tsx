@@ -30,7 +30,7 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-slate-500">Carregando detalhes do upload...</div>
+        <div className="text-sm text-muted-foreground">Carregando detalhes do upload...</div>
       </div>
     );
   }
@@ -86,17 +86,17 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+          <h1 className="text-2xl font-semibold text-foreground">
             Upload {id.slice(0, 8)}
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Resumo do processamento, alertas detectados e histórico de alterações.
           </p>
         </div>
         <div className="flex gap-3">
           <Link
             href="/uploads/novo"
-            className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors"
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
           >
             <Upload className="h-4 w-4" />
             Novo Upload
@@ -129,7 +129,7 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
       {isProcessing && (
         <section className="rounded-xl border border-sky-200 bg-sky-50/50 p-6 shadow-sm dark:border-sky-800 dark:bg-sky-900/20">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+            <h2 className="text-sm font-semibold text-foreground">
               Processamento em andamento
             </h2>
             <span className="text-xs font-medium text-sky-600 dark:text-sky-400">
@@ -142,47 +142,47 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
               style={{ width: `${progress?.progress || 0}%` }}
             />
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="h-3 w-3 animate-spin text-sky-500" />
             <span>{progress?.etapa || 'Iniciando processamento...'}</span>
           </div>
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          <p className="mt-2 text-xs text-muted-foreground">
             O processamento está sendo executado em background. Esta página será atualizada automaticamente.
           </p>
         </section>
       )}
 
       <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-          <h2 className="text-xs font-semibold text-slate-900 dark:text-slate-100 mb-2">
+        <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
+          <h2 className="text-xs font-semibold text-foreground mb-2">
             Informações gerais
           </h2>
           <dl className="space-y-1.5 text-xs">
             <div className="flex justify-between items-start gap-2">
-              <dt className="text-slate-500 font-medium min-w-[60px]">Empresa</dt>
-              <dd className="text-slate-900 dark:text-slate-100 text-right truncate" title={upload.empresa?.razaoSocial || undefined}>
+              <dt className="text-muted-foreground font-medium min-w-[60px]">Empresa</dt>
+              <dd className="text-foreground text-right truncate" title={upload.empresa?.razaoSocial || undefined}>
                 {upload.empresa?.razaoSocial || 'N/A'}
               </dd>
             </div>
             <div className="flex justify-between items-center gap-2">
-              <dt className="text-slate-500 font-medium min-w-[60px]">Período</dt>
-              <dd className="text-slate-900 dark:text-slate-100 text-right">
+              <dt className="text-muted-foreground font-medium min-w-[60px]">Período</dt>
+              <dd className="text-foreground  text-right">
                 {formatPeriodo(upload.mes, upload.ano)}
               </dd>
             </div>
             <div className="flex justify-between items-start gap-2">
-              <dt className="text-slate-500 font-medium min-w-[60px]">Arquivo</dt>
-              <dd className="text-slate-900 dark:text-slate-100 text-right truncate max-w-[220px]" title={upload.nomeArquivo || undefined}>
+              <dt className="text-muted-foreground font-medium min-w-[60px]">Arquivo</dt>
+              <dd className="text-foreground  text-right truncate max-w-[220px]" title={upload.nomeArquivo || undefined}>
                 {upload.nomeArquivo || 'N/A'}
               </dd>
             </div>
             <div className="flex justify-between items-center gap-2">
-              <dt className="text-slate-500 font-medium min-w-[60px]">Linhas</dt>
-              <dd className="text-slate-900 dark:text-slate-100 text-right">{upload.totalLinhas}</dd>
+              <dt className="text-muted-foreground font-medium min-w-[60px]">Linhas</dt>
+              <dd className="text-foreground  text-right">{upload.totalLinhas}</dd>
             </div>
             <div className="flex justify-between items-center gap-2">
-              <dt className="text-slate-500 font-medium min-w-[60px]">Alertas</dt>
-              <dd className={`text-right ${alertasPendentes.length > 0 ? 'text-amber-500 font-medium' : 'text-slate-900 dark:text-slate-100'}`}>
+              <dt className="text-muted-foreground font-medium min-w-[60px]">Alertas</dt>
+              <dd className={`text-right ${alertasPendentes.length > 0 ? 'text-amber-500 font-medium' : 'text-foreground '}`}>
                 {alertasPendentes.length} pendentes
               </dd>
             </div>
@@ -191,22 +191,22 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
           {/* Contagem por Tipo de Conta */}
           {upload && (
             <div className="mt-3 border-t border-slate-200 pt-2 dark:border-slate-800">
-              <h3 className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              <h3 className="text-[10px] font-semibold text-foreground  mb-1.5">
                 Alertas por Tipo de Conta
               </h3>
               {(isLoadingContagem || isFetchingContagem) ? (
                 <div className="flex items-center justify-center py-2">
                   <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
-                  <span className="ml-2 text-[10px] text-slate-500 dark:text-slate-400">Carregando...</span>
+                  <span className="ml-2 text-[10px] text-muted-foreground ">Carregando...</span>
                 </div>
               ) : contagemPorTipoConta && contagemPorTipoConta.length > 0 ? (
                 <div className="space-y-1">
                   {contagemPorTipoConta.map((item) => (
                     <div
                       key={item.tipoConta}
-                      className="flex items-center justify-between rounded bg-slate-50 px-2 py-1 dark:bg-slate-800/50"
+                      className="flex items-center justify-between rounded bg-muted px-2 py-1"
                     >
-                      <span className="text-[10px] text-slate-600 dark:text-slate-400 truncate">{item.tipoConta}</span>
+                      <span className="text-[10px] text-muted-foreground  truncate">{item.tipoConta}</span>
                       <span className="inline-flex items-center justify-center rounded-full bg-sky-500 px-1.5 py-0.5 text-[9px] font-semibold text-white dark:bg-sky-600 ml-2 flex-shrink-0">
                         {item.quantidade}
                       </span>
@@ -214,7 +214,7 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
                   ))}
                 </div>
               ) : (
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 py-2 text-center">
+                <div className="text-[10px] text-muted-foreground  py-2 text-center">
                   Nenhum alerta por tipo de conta
                 </div>
               )}
@@ -222,14 +222,14 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
           )}
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70 lg:col-span-2">
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm lg:col-span-2">
+          <h2 className="text-sm font-semibold text-foreground ">
             Alertas detectados
           </h2>
           {!upload.alertas || upload.alertas.length === 0 ? (
-            <div className="mt-4 text-sm text-slate-500">Nenhum alerta encontrado.</div>
+            <div className="mt-4 text-sm text-muted-foreground">Nenhum alerta encontrado.</div>
           ) : (
-            <ul className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300 max-h-[500px] overflow-y-auto pr-2">
+            <ul className="mt-4 space-y-3 text-sm text-muted-foreground  max-h-[500px] overflow-y-auto pr-2">
               {upload.alertas.map((alerta) => (
                 <li
                   key={alerta.id}
@@ -269,9 +269,9 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+      <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <h2 className="text-sm font-semibold text-foreground ">
             Histórico do upload
           </h2>
           <Link
@@ -281,7 +281,7 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
             Voltar para lista
           </Link>
         </div>
-        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+        <div className="mt-4 rounded-lg border border-border bg-muted/60 p-4 text-sm text-muted-foreground">
           {upload.linhas && upload.linhas.length > 0 ? (
             <div>
               Total de linhas: {upload.linhas.length}. Visualização detalhada em
@@ -296,19 +296,19 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
       {/* Modal de Confirmação de Exclusão */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card shadow-lg">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="rounded-full bg-rose-100 p-2 dark:bg-rose-900/20">
                   <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                <h3 className="text-lg font-semibold text-foreground ">
                   Confirmar exclusão
                 </h3>
               </div>
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                className="text-slate-400 hover:text-muted-foreground dark:hover:text-slate-300"
                 disabled={isDeleting}
               >
                 <X className="h-5 w-5" />
@@ -316,7 +316,7 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
             </div>
 
             <div className="px-6 py-4">
-              <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+              <p className="text-sm text-muted-foreground  mb-4">
                 Tem certeza que deseja remover este upload? Esta ação não pode ser desfeita.
               </p>
 
@@ -348,7 +348,7 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
               <button
                 onClick={() => setShowDeleteModal(false)}
                 disabled={isDeleting}
-                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
               >
                 Cancelar
               </button>

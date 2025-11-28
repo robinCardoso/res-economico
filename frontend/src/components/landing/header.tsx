@@ -3,16 +3,19 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 const Logo = () => (
     <Link href="/" className="flex items-center gap-2" aria-label="Página Inicial">
-      <Image
-        src="/minha-logo.png"
-        alt="Logo"
-        width={56}
-        height={56}
-        className="h-14 w-14 object-contain"
-      />
+      <div className="relative h-14 w-14 rounded-lg bg-white p-2 shadow-sm ring-1 ring-slate-200/50 dark:bg-slate-800/60 dark:ring-1 dark:ring-slate-700/50">
+        <Image
+          src="/minha-logo.png"
+          alt="Logo"
+          width={56}
+          height={56}
+          className="h-full w-full object-contain"
+        />
+      </div>
       <span className="font-bold text-xl text-primary font-headline">Rede União</span>
     </Link>
 );
@@ -37,6 +40,8 @@ export function Header() {
           ))}
         </nav>
         <div className="flex items-center gap-2 md:gap-4">
+          {/* Theme Toggle - visível em todas as telas */}
+          <ThemeToggle />
           {/* Botão Login - visível em todas as telas */}
           <Button variant="outline" size="sm" asChild className="md:size-default">
             <Link href="/login">Login</Link>

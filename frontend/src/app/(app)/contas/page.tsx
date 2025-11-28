@@ -239,7 +239,7 @@ const ContasPage = () => {
   return (
     <div className="space-y-3">
       <header>
-        <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+        <h1 className="text-lg font-semibold text-foreground">
           Catálogo de contas
         </h1>
         <p className="text-xs text-slate-500">
@@ -248,7 +248,7 @@ const ContasPage = () => {
       </header>
 
       {/* Filtros e Busca */}
-      <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+      <section className="rounded-xl border border-border bg-card p-3 shadow-sm">
         <div className="space-y-2.5">
           {/* Busca com Autocomplete */}
           <div className="relative">
@@ -271,23 +271,23 @@ const ContasPage = () => {
                       setShowAutocomplete(true);
                     }
                   }}
-                  className="w-full rounded-md border border-slate-300 bg-white pl-8 pr-2 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-md border border-border bg-input pl-8 pr-2 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
                 />
                 {/* Autocomplete Dropdown */}
                 {showAutocomplete && autocompleteSuggestions.length > 0 && (
                   <div
                     ref={autocompleteRef}
-                    className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800"
+                    className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-card shadow-lg"
                   >
                     {autocompleteSuggestions.map((sugestao, index) => (
                       <button
                         key={`${sugestao.classificacao}-${index}`}
                         type="button"
                         onClick={() => selecionarSugestao(sugestao)}
-                        className={`w-full px-3 py-2 text-left text-xs hover:bg-slate-100 dark:hover:bg-slate-700 ${
+                        className={`w-full px-3 py-2 text-left text-xs hover:bg-muted ${
                           index === selectedSuggestionIndex
                             ? 'bg-sky-50 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200'
-                            : 'text-slate-900 dark:text-slate-100'
+                            : 'text-foreground'
                         }`}
                       >
                         <div className="font-medium text-[10px]">{sugestao.nomeConta}</div>
@@ -319,7 +319,7 @@ const ContasPage = () => {
                 id="status-filtro"
                 value={statusFiltro}
                 onChange={(e) => setStatusFiltro(e.target.value as ContaStatus | '')}
-                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-md border border-border bg-input px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
               >
                 <option value="">Todos</option>
                 <option value="ATIVA">Regular</option>
@@ -337,7 +337,7 @@ const ContasPage = () => {
                 id="tipo-conta-filtro"
                 value={tipoContaFiltro}
                 onChange={(e) => setTipoContaFiltro(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-md border border-border bg-input px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
               >
                 <option value="">Todos</option>
                 {tiposConta.map((tipo) => (
@@ -357,7 +357,7 @@ const ContasPage = () => {
                 id="nivel-filtro"
                 value={nivelFiltro}
                 onChange={(e) => setNivelFiltro(e.target.value ? parseInt(e.target.value) : '')}
-                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-md border border-border bg-input px-2 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
               >
                 <option value="">Todos</option>
                 {niveis.map((nivel) => (
@@ -379,7 +379,7 @@ const ContasPage = () => {
                 placeholder="Ex: 1. (Ativos)"
                 value={classificacaoPrefix}
                 onChange={(e) => setClassificacaoPrefix(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-md border border-border bg-input px-2 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
               />
             </div>
           </div>
@@ -410,7 +410,7 @@ const ContasPage = () => {
       </section>
 
       {/* Tabela de Contas */}
-      <section className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+      <section className="rounded-xl border border-border bg-card shadow-sm">
         {contasList.length === 0 ? (
           <div className="px-4 py-8 text-center text-xs text-slate-500">
             {hasActiveFilters

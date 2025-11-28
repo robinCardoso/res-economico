@@ -172,15 +172,15 @@ export default function ResumoDetalhePage({ params }: ResumoDetalheProps) {
         <div className="flex-1">
           <Link
             href="/resumos"
-            className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 mb-4"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground dark:text-slate-400 hover:text-foreground dark:hover:text-slate-100 mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
             Voltar para Resumos
           </Link>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+          <h1 className="text-3xl font-bold text-foreground dark:text-slate-100 mb-2">
             {resumo.titulo}
           </h1>
-          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground dark:text-slate-400">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
               <span>{resumo.periodo || (resumo.mes ? `${resumo.mes}/${resumo.ano}` : resumo.ano.toString())}</span>
@@ -256,30 +256,30 @@ export default function ResumoDetalhePage({ params }: ResumoDetalheProps) {
       </div>
 
       {/* Metadados */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+      <div className="bg-card rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold text-foreground dark:text-slate-100 mb-4">
           Informações
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Modelo IA</label>
-            <p className="text-slate-900 dark:text-slate-100">{resumo.modeloIA}</p>
+            <label className="text-sm font-medium text-muted-foreground dark:text-slate-400">Modelo IA</label>
+            <p className="text-foreground dark:text-slate-100">{resumo.modeloIA}</p>
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Criado em</label>
-            <p className="text-slate-900 dark:text-slate-100">
+            <label className="text-sm font-medium text-muted-foreground dark:text-slate-400">Criado em</label>
+            <p className="text-foreground dark:text-slate-100">
               {new Date(resumo.createdAt).toLocaleString('pt-BR')}
             </p>
           </div>
           {resumo.criadoPor && (
             <div>
-              <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Criado por</label>
-              <p className="text-slate-900 dark:text-slate-100">{resumo.criadoPor}</p>
+              <label className="text-sm font-medium text-muted-foreground dark:text-slate-400">Criado por</label>
+              <p className="text-foreground dark:text-slate-100">{resumo.criadoPor}</p>
             </div>
           )}
           {resumo.empresa?.modeloNegocio && (
             <div>
-              <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Modelo de Negócio</label>
+              <label className="text-sm font-medium text-muted-foreground dark:text-slate-400">Modelo de Negócio</label>
               <div className="mt-1">
                 <ModeloNegocioBadge modelo={resumo.empresa.modeloNegocio} />
               </div>
@@ -312,15 +312,15 @@ export default function ResumoDetalhePage({ params }: ResumoDetalheProps) {
 
       {/* Resumo da Análise */}
       {resultado?.resumo && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
+        <div className="bg-card rounded-lg shadow p-6">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="w-5 h-5 text-sky-600" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <h2 className="text-lg font-semibold text-foreground dark:text-slate-100">
               Resumo da Análise
             </h2>
           </div>
           <div
-            className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap break-words"
+            className="text-foreground dark:text-slate-300 whitespace-pre-wrap break-words"
             style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
           >
             {resultado.resumo}
@@ -330,8 +330,8 @@ export default function ResumoDetalhePage({ params }: ResumoDetalheProps) {
 
       {/* Insights */}
       {resultado?.insights && resultado.insights.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+        <div className="bg-card rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-foreground dark:text-slate-100 mb-4">
             Insights ({resultado.insights.length})
           </h2>
           <div className="space-y-4">
@@ -346,20 +346,20 @@ export default function ResumoDetalhePage({ params }: ResumoDetalheProps) {
                     <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                        <h3 className="font-semibold text-foreground dark:text-slate-100">
                           {insight.titulo}
                         </h3>
-                        <span className="text-xs text-slate-600 dark:text-slate-400">
+                        <span className="text-xs text-muted-foreground dark:text-slate-400">
                           Confiança: {insight.confianca}%
                         </span>
                       </div>
-                      <p className="text-slate-700 dark:text-slate-300 mb-2">{insight.descricao}</p>
+                      <p className="text-foreground dark:text-slate-300 mb-2">{insight.descricao}</p>
                       {insight.recomendacao && (
-                        <div className="mt-2 p-2 bg-white/50 dark:bg-slate-900/50 rounded">
-                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        <div className="mt-2 p-2 bg-muted/50 rounded">
+                          <p className="text-sm font-medium text-foreground dark:text-slate-100">
                             Recomendação:
                           </p>
-                          <p className="text-sm text-slate-700 dark:text-slate-300">
+                          <p className="text-sm text-foreground dark:text-slate-300">
                             {insight.recomendacao}
                           </p>
                         </div>
@@ -375,23 +375,23 @@ export default function ResumoDetalhePage({ params }: ResumoDetalheProps) {
 
       {/* Padrões Anômalos */}
       {resultado?.padroesAnomalos && resultado.padroesAnomalos.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+        <div className="bg-card rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-foreground dark:text-slate-100 mb-4">
             Padrões Anômalos ({resultado.padroesAnomalos.length})
           </h2>
           <div className="space-y-3">
             {resultado.padroesAnomalos.map((padrao, index) => (
               <div
                 key={index}
-                className="rounded-lg border border-slate-200 dark:border-slate-700 p-4"
+                className="rounded-lg border border-border p-4"
               >
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">{padrao.tipo}</h3>
+                  <h3 className="font-semibold text-foreground dark:text-slate-100">{padrao.tipo}</h3>
                   <span className={`px-2 py-1 rounded text-xs font-medium ${severidadeColors[padrao.severidade]}`}>
                     {padrao.severidade}
                   </span>
                 </div>
-                <p className="text-slate-700 dark:text-slate-300">{padrao.descricao}</p>
+                <p className="text-foreground dark:text-slate-300">{padrao.descricao}</p>
               </div>
             ))}
           </div>
@@ -400,26 +400,26 @@ export default function ResumoDetalhePage({ params }: ResumoDetalheProps) {
 
       {/* Sugestões de Correção */}
       {resultado?.sugestoesCorrecao && resultado.sugestoesCorrecao.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+        <div className="bg-card rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-foreground dark:text-slate-100 mb-4">
             Sugestões de Correção ({resultado.sugestoesCorrecao.length})
           </h2>
           <div className="space-y-3">
             {resultado.sugestoesCorrecao.map((sugestao, index) => (
               <div
                 key={index}
-                className="rounded-lg border border-slate-200 dark:border-slate-700 p-4"
+                className="rounded-lg border border-border p-4"
               >
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">Problema</h3>
-                  <span className="text-xs text-slate-600 dark:text-slate-400">
+                  <h3 className="font-semibold text-foreground dark:text-slate-100">Problema</h3>
+                  <span className="text-xs text-muted-foreground dark:text-slate-400">
                     Confiança: {sugestao.confianca}%
                   </span>
                 </div>
-                <p className="text-slate-700 dark:text-slate-300 mb-3">{sugestao.problema}</p>
+                <p className="text-foreground dark:text-slate-300 mb-3">{sugestao.problema}</p>
                 <div>
-                  <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">Solução</h4>
-                  <p className="text-slate-700 dark:text-slate-300">{sugestao.solucao}</p>
+                  <h4 className="font-medium text-foreground dark:text-slate-100 mb-1">Solução</h4>
+                  <p className="text-foreground dark:text-slate-300">{sugestao.solucao}</p>
                 </div>
               </div>
             ))}
@@ -434,10 +434,10 @@ export default function ResumoDetalhePage({ params }: ResumoDetalheProps) {
         (!resultado?.sugestoesCorrecao || resultado.sugestoesCorrecao.length === 0)) && (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-12 text-center">
           <FileText className="w-16 h-16 mx-auto text-slate-400 mb-4" />
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
+          <h3 className="text-lg font-semibold text-foreground dark:text-slate-100 mb-2">
             Nenhum dado de análise disponível
           </h3>
-          <p className="text-slate-600 dark:text-slate-400">
+          <p className="text-muted-foreground dark:text-slate-400">
             Este resumo não contém dados de análise.
           </p>
         </div>

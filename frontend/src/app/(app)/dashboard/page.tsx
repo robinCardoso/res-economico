@@ -177,25 +177,25 @@ const DashboardPage = () => {
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+        <h1 className="text-2xl font-semibold text-foreground">
           Resultado do Exercício - Período do Balanço (Conta 745)
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Análise consolidada e por empresa da conta 745 - Resultado do Exercício-Período do Balanço
         </p>
       </section>
 
       {/* Filtros */}
-      <section className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4 rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/30 p-5 shadow-md dark:border-slate-800 dark:from-slate-900/70 dark:to-slate-900/50">
+      <section className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4 rounded-xl border border-border bg-card p-5 shadow-md">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-          <label htmlFor="ano" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label htmlFor="ano" className="text-sm font-medium text-foreground">
             Ano:
           </label>
           <select
             id="ano"
             value={anoFiltro || ''}
             onChange={(e) => setAnoFiltro(e.target.value ? parseInt(e.target.value, 10) : undefined)}
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className="rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           >
             <option value="">Todos</option>
             {anosDisponiveis.map((ano) => (
@@ -207,14 +207,14 @@ const DashboardPage = () => {
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-          <label htmlFor="mes" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label htmlFor="mes" className="text-sm font-medium text-foreground">
             Mês:
           </label>
           <select
             id="mes"
             value={mesFiltro || ''}
             onChange={(e) => setMesFiltro(e.target.value ? parseInt(e.target.value, 10) : undefined)}
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className="rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           >
             <option value="">Todos</option>
             {meses.map((mes) => (
@@ -226,14 +226,14 @@ const DashboardPage = () => {
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-          <label htmlFor="empresa" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label htmlFor="empresa" className="text-sm font-medium text-foreground">
             Empresa:
           </label>
           <select
             id="empresa"
             value={empresaFiltro || ''}
             onChange={(e) => setEmpresaFiltro(e.target.value || undefined)}
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className="rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           >
             <option value="">Todas</option>
             {empresas?.map((empresa) => (
@@ -246,8 +246,8 @@ const DashboardPage = () => {
 
         {/* Indicadores de Filtros Ativos */}
         {(anoFiltro || mesFiltro || empresaFiltro) && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Filtros ativos:</span>
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border">
+            <span className="text-xs font-medium text-muted-foreground">Filtros ativos:</span>
             {anoFiltro && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
                 Ano: {anoFiltro}
@@ -296,14 +296,14 @@ const DashboardPage = () => {
 
       {/* Card Acumulado do Ano */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="group relative w-full sm:w-auto overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-sky-50 to-blue-50 p-6 shadow-lg transition-all duration-300 hover:border-sky-300 hover:shadow-xl dark:border-slate-700 dark:from-sky-900/20 dark:to-blue-900/20">
+        <div className="group relative w-full sm:w-auto overflow-hidden rounded-xl border border-border bg-card p-6 shadow-lg transition-all duration-300 hover:border-primary/50 hover:shadow-xl">
           <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
           <div className="relative flex items-start justify-between">
             <div className="flex-1">
               <p className="text-sm font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-400">
                 Acumulado do Ano
               </p>
-              <p className="mt-3 text-3xl font-bold text-slate-900 dark:text-slate-100">
+              <p className="mt-3 text-3xl font-bold text-foreground">
                 {formatarValor(acumuladoAno)}
               </p>
               <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
@@ -333,13 +333,13 @@ const DashboardPage = () => {
       </section>
 
       {/* Gráfico Consolidado */}
-      <section className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 p-4 shadow-lg dark:border-slate-800 dark:from-slate-900/70 dark:to-slate-900/50">
+      <section className="rounded-xl border border-border bg-card p-4 shadow-lg">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+            <h2 className="text-xl font-bold text-foreground">
               Visão Consolidada
           </h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-sm text-muted-foreground">
               {empresaFiltro 
                 ? empresas?.find(e => e.id === empresaFiltro)?.razaoSocial || 'Empresa Selecionada'
                 : 'Todas as Empresas'}
@@ -520,19 +520,19 @@ const DashboardPage = () => {
           </ResponsiveContainer>
         ) : (
           <div className="flex h-[200px] sm:h-96 items-center justify-center">
-            <p className="text-sm text-slate-500">Nenhum dado disponível para o período selecionado.</p>
+            <p className="text-sm text-muted-foreground">Nenhum dado disponível para o período selecionado.</p>
           </div>
         )}
       </section>
 
       {/* Gráfico por Empresa */}
-      <section className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 p-4 shadow-lg dark:border-slate-800 dark:from-slate-900/70 dark:to-slate-900/50">
+      <section className="rounded-xl border border-border bg-card p-4 shadow-lg">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+            <h2 className="text-xl font-bold text-foreground">
               Visão Individual por Empresa
           </h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-sm text-muted-foreground">
               {isAcumulado ? 'Valores acumulados do ano' : 'Comparação mensal por empresa'}
             </p>
                     </div>
@@ -803,7 +803,7 @@ const DashboardPage = () => {
         </div>
         ) : (
           <div className="flex h-[200px] sm:h-96 items-center justify-center">
-            <p className="text-sm text-slate-500">Nenhum dado disponível para o período selecionado.</p>
+            <p className="text-sm text-muted-foreground">Nenhum dado disponível para o período selecionado.</p>
             </div>
           )}
       </section>

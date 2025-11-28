@@ -257,7 +257,7 @@ const EmpresasPage = () => {
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+          <h1 className="text-2xl font-semibold text-foreground">
             Empresas
           </h1>
           <p className="text-sm text-slate-500">
@@ -274,16 +274,16 @@ const EmpresasPage = () => {
       </header>
 
       {empresasList.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="rounded-xl border border-border bg-card p-12 text-center shadow-sm">
           <p className="text-sm text-slate-500">
             Nenhuma empresa cadastrada. Clique em &quot;Nova empresa&quot; para começar.
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="rounded-xl border border-border bg-card shadow-sm">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-              <thead className="bg-slate-50 dark:bg-slate-800">
+              <thead className="bg-muted">
                 <tr>
                   <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-300">
                     CNPJ
@@ -305,13 +305,13 @@ const EmpresasPage = () => {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900/70">
+              <tbody className="divide-y divide-border bg-card">
                 {empresasList.map((empresa) => (
                   <tr key={empresa.id}>
-                    <td className="whitespace-nowrap px-4 py-2 text-sm text-slate-900 dark:text-slate-100">
+                    <td className="whitespace-nowrap px-4 py-2 text-sm text-foreground">
                       {maskCNPJ(empresa.cnpj)}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-sm text-slate-900 dark:text-slate-100">
+                    <td className="whitespace-nowrap px-4 py-2 text-sm text-foreground">
                       {empresa.razaoSocial}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-sm text-slate-500 dark:text-slate-300">
@@ -359,8 +359,8 @@ const EmpresasPage = () => {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <h2 className="text-lg font-semibold text-foreground">
                 {editingEmpresa ? 'Editar empresa' : 'Nova empresa'}
               </h2>
               <button
@@ -390,7 +390,7 @@ const EmpresasPage = () => {
                   maxLength={18}
                   placeholder="00.000.000/0000-00"
                   disabled={!!editingEmpresa}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 disabled:opacity-50 disabled:cursor-not-allowed dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 {errors.cnpj && (
                   <p className="text-xs text-rose-600">{errors.cnpj.message}</p>
@@ -405,7 +405,7 @@ const EmpresasPage = () => {
                   id="razaoSocial"
                   type="text"
                   {...register('razaoSocial')}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
                 {errors.razaoSocial && (
                   <p className="text-xs text-rose-600">{errors.razaoSocial.message}</p>
@@ -420,7 +420,7 @@ const EmpresasPage = () => {
                   id="nomeFantasia"
                   type="text"
                   {...register('nomeFantasia')}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
                 {errors.nomeFantasia && (
                   <p className="text-xs text-rose-600">{errors.nomeFantasia.message}</p>
@@ -434,7 +434,7 @@ const EmpresasPage = () => {
                 <select
                   id="tipo"
                   {...register('tipo')}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
                   <option value="MATRIZ">Matriz</option>
                   <option value="FILIAL">Filial</option>
@@ -451,7 +451,7 @@ const EmpresasPage = () => {
                 <select
                   id="uf"
                   {...register('uf')}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
                   <option value="">Selecione uma UF</option>
                   {UFS_BRASIL.map((uf) => (
@@ -469,7 +469,7 @@ const EmpresasPage = () => {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow hover:bg-muted"
                 >
                   Cancelar
                 </button>

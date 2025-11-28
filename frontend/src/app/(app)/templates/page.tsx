@@ -150,7 +150,7 @@ const TemplatesPage = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-slate-500">Carregando templates...</div>
+        <div className="text-sm text-muted-foreground">Carregando templates...</div>
       </div>
     );
   }
@@ -169,16 +169,16 @@ const TemplatesPage = () => {
     <div className="space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+          <h1 className="text-2xl font-semibold text-foreground dark:text-slate-50">
             Templates de importação
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Defina o mapeamento de colunas para cada empresa ou tipo de planilha.
           </p>
         </div>
         <button
           onClick={openCreateModal}
-          className="flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900"
+          className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" />
           Criar template
@@ -187,7 +187,7 @@ const TemplatesPage = () => {
 
       <section className="grid gap-4 md:grid-cols-2">
         {templatesList.length === 0 ? (
-          <div className="col-span-2 px-6 py-12 text-center text-sm text-slate-500">
+          <div className="col-span-2 px-6 py-12 text-center text-sm text-muted-foreground">
             Nenhum template encontrado. Crie um novo template para começar.
           </div>
         ) : (
@@ -199,18 +199,18 @@ const TemplatesPage = () => {
             return (
               <article
                 key={template.id}
-                className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/70"
+                className="rounded-xl border border-border bg-card p-6 shadow-sm"
               >
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                <h2 className="text-lg font-semibold text-foreground dark:text-slate-100">
                   {template.nome}
                 </h2>
-                <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">
+                <p className="mt-2 text-sm text-muted-foreground dark:text-slate-300">
                   {template.descricao || 'Sem descrição'}
                 </p>
-                <dl className="mt-4 flex flex-wrap gap-6 text-xs text-slate-500 dark:text-slate-400">
+                <dl className="mt-4 flex flex-wrap gap-6 text-xs text-muted-foreground dark:text-slate-400">
                   <div>
                     <dt>Empresa</dt>
-                    <dd className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <dd className="text-sm font-semibold text-foreground dark:text-slate-100">
                       {template.empresa ? (
                         <>
                           {template.empresa.razaoSocial}
@@ -223,13 +223,13 @@ const TemplatesPage = () => {
                   </div>
                   <div>
                     <dt>Colunas mapeadas</dt>
-                    <dd className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <dd className="text-sm font-semibold text-foreground dark:text-slate-100">
                       {colunasCount}
                     </dd>
                   </div>
                   <div>
                     <dt>Última atualização</dt>
-                    <dd className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <dd className="text-sm font-semibold text-foreground dark:text-slate-100">
                       {formatDate(template.updatedAt)}
                     </dd>
                   </div>
@@ -237,7 +237,7 @@ const TemplatesPage = () => {
                 <div className="mt-6 flex gap-3 text-sm">
                   <button
                     onClick={() => openEditModal(template)}
-                    className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-foreground hover:bg-muted"
                   >
                     <Pencil className="h-4 w-4" />
                     Editar
@@ -259,14 +259,14 @@ const TemplatesPage = () => {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
-            <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card shadow-xl">
+            <div className="sticky top-0 flex items-center justify-between border-b border-border bg-card px-6 py-4">
+              <h2 className="text-xl font-semibold text-foreground dark:text-slate-100">
                 {editingTemplate ? 'Editar template' : 'Criar template'}
               </h2>
               <button
                 onClick={closeModal}
-                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -280,12 +280,12 @@ const TemplatesPage = () => {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label className="block text-sm font-medium text-foreground dark:text-slate-300">
                   Empresa
                 </label>
                 <select
                   {...register('empresaId')}
-                  className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="mt-2 w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
                   <option value="">🌐 Template Global (Todas as empresas)</option>
                   {empresasList.map((empresa) => (
@@ -294,7 +294,7 @@ const TemplatesPage = () => {
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Deixe vazio para criar um template global disponível para todas as empresas
                 </p>
                 {errors.empresaId && (
@@ -303,13 +303,13 @@ const TemplatesPage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label className="block text-sm font-medium text-foreground dark:text-slate-300">
                   Nome <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   {...register('nome')}
-                  className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="mt-2 w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
                 {errors.nome && (
                   <p className="mt-1 text-xs text-rose-500">{errors.nome.message}</p>
@@ -317,24 +317,24 @@ const TemplatesPage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label className="block text-sm font-medium text-foreground dark:text-slate-300">
                   Descrição
                 </label>
                 <textarea
                   {...register('descricao')}
                   rows={3}
-                  className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="mt-2 w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                <label className="block text-sm font-medium text-foreground dark:text-slate-300 mb-3">
                   Mapeamento de Colunas
                 </label>
-                <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                <div className="space-y-3 rounded-lg border border-border bg-muted p-4">
                   {COLUMN_FIELDS.map((field) => (
                     <div key={field.key}>
-                      <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground dark:text-slate-400 mb-1">
                         {field.label}
                         {field.required && <span className="text-rose-500 ml-1">*</span>}
                       </label>
@@ -342,12 +342,12 @@ const TemplatesPage = () => {
                         type="text"
                         {...register(`columnMapping.${field.key}`)}
                         placeholder={`Nome da coluna no Excel (ex: "${field.label}")`}
-                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        className="w-full rounded-md border border-border bg-input px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                       />
                     </div>
                   ))}
                 </div>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Informe o nome exato da coluna no arquivo Excel. Deixe em branco se a coluna não existir.
                 </p>
               </div>
@@ -356,14 +356,14 @@ const TemplatesPage = () => {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={createTemplate.isPending || updateTemplate.isPending}
-                  className="flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900"
+                  className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
                 >
                   <Check className="h-4 w-4" />
                   {editingTemplate ? 'Salvar alterações' : 'Criar template'}

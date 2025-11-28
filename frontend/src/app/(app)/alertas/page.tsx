@@ -74,7 +74,7 @@ const AlertasPage = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-slate-500">Carregando alertas...</div>
+        <div className="text-sm text-muted-foreground">Carregando alertas...</div>
       </div>
     );
   }
@@ -101,10 +101,10 @@ const AlertasPage = () => {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+        <h1 className="text-2xl font-semibold text-foreground">
           Alertas
         </h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Acompanhe divergências de saldo e contas inéditas detectadas nas importações.
         </p>
       </header>
@@ -155,8 +155,8 @@ const AlertasPage = () => {
 
       {/* Contadores por Tipo de Conta */}
       {contagemPorTipoConta && contagemPorTipoConta.length > 0 && (
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-          <h2 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
+        <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <h2 className="mb-3 text-sm font-semibold text-foreground">
             Alertas por Tipo de Conta
           </h2>
           <div className="flex flex-wrap gap-2">
@@ -167,7 +167,7 @@ const AlertasPage = () => {
                 className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                   tipoContaFiltro === item.tipoConta
                     ? 'bg-sky-500 text-white shadow-sm hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-700'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                    : 'bg-muted text-foreground hover:bg-muted/80'
                 }`}
                 title={`Clique para ${tipoContaFiltro === item.tipoConta ? 'remover' : 'aplicar'} filtro por ${item.tipoConta}`}
               >
@@ -186,8 +186,8 @@ const AlertasPage = () => {
           </div>
           {tipoContaFiltro && (
             <div className="mt-3 flex items-center gap-2">
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                Filtrado por: <strong className="text-slate-700 dark:text-slate-300">{tipoContaFiltro}</strong>
+              <span className="text-xs text-muted-foreground dark:text-muted-foreground">
+                Filtrado por: <strong className="text-foreground ">{tipoContaFiltro}</strong>
               </span>
               <button
                 onClick={() => setTipoContaFiltro('')}
@@ -201,17 +201,17 @@ const AlertasPage = () => {
       )}
 
       {/* Filtros e Busca */}
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+      <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="space-y-4">
           {/* Busca */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               placeholder="Buscar por mensagem, classificação ou nome da conta..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              className="w-full rounded-md border border-slate-300 bg-white pl-10 pr-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              className="w-full rounded-md border border-border bg-input pl-10 pr-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
 
@@ -219,14 +219,14 @@ const AlertasPage = () => {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* Filtro por Empresa */}
             <div>
-              <label htmlFor="empresa-filtro" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+              <label htmlFor="empresa-filtro" className="mb-1 block text-xs font-medium text-foreground">
                 Empresa
               </label>
               <select
                 id="empresa-filtro"
                 value={empresaFiltro}
                 onChange={(e) => setEmpresaFiltro(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 <option value="">Todas</option>
                 {empresasList.map((empresa) => (
@@ -239,14 +239,14 @@ const AlertasPage = () => {
 
             {/* Filtro por Status */}
             <div>
-              <label htmlFor="status-filtro" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+              <label htmlFor="status-filtro" className="mb-1 block text-xs font-medium text-foreground ">
                 Status
               </label>
               <select
                 id="status-filtro"
                 value={statusFiltro}
                 onChange={(e) => setStatusFiltro(e.target.value as AlertaStatus | '')}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 <option value="">Todos</option>
                 <option value="ABERTO">Aberto</option>
@@ -257,14 +257,14 @@ const AlertasPage = () => {
 
             {/* Filtro por Tipo */}
             <div>
-              <label htmlFor="tipo-filtro" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+              <label htmlFor="tipo-filtro" className="mb-1 block text-xs font-medium text-foreground ">
                 Tipo
               </label>
               <select
                 id="tipo-filtro"
                 value={tipoFiltro}
                 onChange={(e) => setTipoFiltro(e.target.value as AlertaTipo | '')}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 <option value="">Todos</option>
                 <option value="SALDO_DIVERGENTE">Saldo divergente</option>
@@ -276,14 +276,14 @@ const AlertasPage = () => {
 
             {/* Filtro por Severidade */}
             <div>
-              <label htmlFor="severidade-filtro" className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
+              <label htmlFor="severidade-filtro" className="mb-1 block text-xs font-medium text-foreground ">
                 Severidade
               </label>
               <select
                 id="severidade-filtro"
                 value={severidadeFiltro}
                 onChange={(e) => setSeveridadeFiltro(e.target.value as AlertaSeveridade | '')}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 <option value="">Todas</option>
                 <option value="BAIXA">Baixa</option>
@@ -295,7 +295,7 @@ const AlertasPage = () => {
 
           {/* Contador e Limpar Filtros */}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-muted-foreground">
               {alertasList.length} alerta(s) encontrado(s)
             </span>
             {hasActiveFilters && (
@@ -311,34 +311,34 @@ const AlertasPage = () => {
       </section>
 
       {/* Tabela de Alertas */}
-      <section className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+      <section className="rounded-xl border border-border bg-card shadow-sm">
         {alertasList.length === 0 ? (
-          <div className="px-6 py-12 text-center text-sm text-slate-500">
+          <div className="px-6 py-12 text-center text-sm text-muted-foreground">
             {hasActiveFilters
               ? 'Nenhum alerta encontrado com os filtros aplicados.'
               : 'Nenhum alerta encontrado.'}
           </div>
         ) : (
           <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-xs dark:divide-slate-800">
-              <thead className="bg-slate-50/60 dark:bg-slate-900/80">
+            <table className="min-w-full divide-y divide-border text-xs">
+              <thead className="bg-muted/60">
                 <tr>
-                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 w-20">ID</th>
-                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 w-32">Tipo</th>
-                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 w-28">Tipo Conta</th>
-                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 min-w-[200px] max-w-[300px]">
+                  <th className="px-3 py-1 text-left text-xs font-medium text-muted-foreground w-20">ID</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-muted-foreground w-32">Tipo</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-muted-foreground w-28">Tipo Conta</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-muted-foreground min-w-[200px] max-w-[300px]">
                     Detalhe
                   </th>
-                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 min-w-[180px] max-w-[250px]">Empresa</th>
-                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 w-24">Severidade</th>
-                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 w-28">Status</th>
-                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 min-w-[140px]">
+                  <th className="px-3 py-1 text-left text-xs font-medium text-muted-foreground min-w-[180px] max-w-[250px]">Empresa</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-muted-foreground w-24">Severidade</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-muted-foreground w-28">Status</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-muted-foreground min-w-[140px]">
                     Criado em
                   </th>
-                  <th className="px-3 py-1 text-left text-xs font-medium text-slate-500 min-w-[180px]">Ações</th>
+                  <th className="px-3 py-1 text-left text-xs font-medium text-muted-foreground min-w-[180px]">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              <tbody className="divide-y divide-border">
                 {alertasList.map((alerta) => {
                   const detalheTexto = alerta.linha
                     ? `${alerta.linha.classificacao} - ${alerta.linha.nomeConta}`
@@ -352,13 +352,13 @@ const AlertasPage = () => {
                     <tr
                       key={alerta.id}
                       onClick={() => router.push(`/alertas/${alerta.id}`)}
-                      className="cursor-pointer hover:bg-slate-50/70 dark:hover:bg-slate-900 transition-colors"
+                      className="cursor-pointer hover:bg-muted/70 transition-colors"
                     >
-                      <td className="px-3 py-1 font-mono text-xs font-medium text-slate-600 dark:text-slate-400">
+                      <td className="px-3 py-1 font-mono text-xs font-medium text-muted-foreground dark:text-muted-foreground">
                         {alerta.id.slice(0, 8)}
                       </td>
                       <td className="px-3 py-1">
-                        <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                        <span className="text-xs font-medium text-foreground ">
                           {getStatusLabel(alerta.tipo)}
                         </span>
                       </td>
@@ -374,21 +374,21 @@ const AlertasPage = () => {
                             className={`text-xs font-medium transition-colors ${
                                 tipoContaFiltro === alerta.linha?.tipoConta
                                 ? 'text-sky-600 underline dark:text-sky-400'
-                                : 'text-slate-600 hover:text-sky-600 dark:text-slate-400 dark:hover:text-sky-400'
+                                : 'text-muted-foreground hover:text-sky-600 dark:text-muted-foreground dark:hover:text-sky-400'
                             }`}
                             title={`Clique para filtrar por ${alerta.linha!.tipoConta}`}
                           >
                             {alerta.linha.tipoConta}
                           </button>
                         ) : (
-                          <span className="text-xs text-slate-400 dark:text-slate-500">N/A</span>
+                          <span className="text-xs text-muted-foreground dark:text-muted-foreground">N/A</span>
                         )}
                       </td>
                       <td 
                         className="px-3 py-1 max-w-[300px]"
                         title={detalheTexto}
                       >
-                        <div className="truncate text-xs text-slate-700 dark:text-slate-300">
+                        <div className="truncate text-xs text-foreground ">
                           {detalheTexto}
                         </div>
                       </td>
@@ -396,7 +396,7 @@ const AlertasPage = () => {
                         className="px-3 py-1 max-w-[250px]"
                         title={empresaCompleto}
                       >
-                        <div className="truncate text-xs text-slate-700 dark:text-slate-300">
+                        <div className="truncate text-xs text-foreground ">
                           {empresaTexto}
                         </div>
                       </td>
@@ -426,7 +426,7 @@ const AlertasPage = () => {
                           {getStatusLabel(alerta.status)}
                         </span>
                       </td>
-                      <td className="px-3 py-1 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                      <td className="px-3 py-1 whitespace-nowrap text-xs text-muted-foreground dark:text-muted-foreground">
                         {formatDateTime(alerta.createdAt)}
                       </td>
                     <td className="px-3 py-1">
@@ -467,7 +467,7 @@ const AlertasPage = () => {
                                 handleUpdateStatus(alerta.id, 'ABERTO');
                               }}
                               disabled={updateStatusMutation.isPending}
-                              className="inline-flex items-center gap-1.5 rounded-md bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 whitespace-nowrap"
+                              className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/80 disabled:opacity-50 whitespace-nowrap"
                               title="Reabrir alerta"
                             >
                               <X className="h-3.5 w-3.5" />
@@ -494,7 +494,7 @@ const AlertasPage = () => {
                               handleUpdateStatus(alerta.id, 'ABERTO');
                             }}
                             disabled={updateStatusMutation.isPending}
-                            className="inline-flex items-center gap-1.5 rounded-md bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 whitespace-nowrap"
+                            className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted/80 disabled:opacity-50 whitespace-nowrap"
                             title="Reabrir alerta"
                           >
                             <X className="h-3.5 w-3.5" />
