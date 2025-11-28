@@ -1,4 +1,4 @@
-version: '3.9'
+name: painel-rede-uniao
 
 services:
   postgres:
@@ -35,5 +35,9 @@ services:
 
 volumes:
   postgres_data:
+    external: true
+    name: painel-rede-uniao_postgres_data
   redis_data:
+    external: true
+    name: painel-rede-uniao_redis_data
 
