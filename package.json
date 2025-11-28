@@ -1,8 +1,8 @@
 {
-  "name": "res-economico",
+  "name": "painel-rede-uniao",
   "version": "0.1.0",
   "private": true,
-  "description": "Sistema de resultado econômico - Monorepo",
+  "description": "Sistema de gestão da Rede União Nacional - Monorepo",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run start:dev",

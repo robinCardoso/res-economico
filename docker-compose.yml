@@ -3,25 +3,25 @@ version: '3.9'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: res_economico_postgres
+    container_name: painel_rede_uniao_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: reseco
-      POSTGRES_PASSWORD: reseco_pwd
-      POSTGRES_DB: reseco_db
+      POSTGRES_USER: painel_uniao
+      POSTGRES_PASSWORD: painel_uniao_pwd
+      POSTGRES_DB: painel_rede_uniao_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U reseco']
+      test: ['CMD-SHELL', 'pg_isready -U painel_uniao']
       interval: 10s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: res_economico_redis
+    container_name: painel_rede_uniao_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
