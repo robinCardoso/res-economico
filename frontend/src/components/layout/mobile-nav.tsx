@@ -36,12 +36,12 @@ export const MobileNav = ({ isOpen, onClose, navItems }: MobileNavProps) => {
           {/* Header */}
           <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-4">
             <Link href="/dashboard" className="flex items-center gap-3" onClick={onClose}>
-              <div className="relative h-10 w-10 rounded-lg bg-card p-1.5 shadow-sm ring-1 ring-border">
+              <div className="relative h-8 w-12 rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-border">
                 <Image
                   src="/minha-logo.png"
                   alt="Logo da empresa"
-                  width={40}
-                  height={40}
+                  width={48}
+                  height={32}
                   className="h-full w-full object-contain"
                   priority
                 />

@@ -7,12 +7,12 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 const Logo = () => (
     <Link href="/" className="flex items-center gap-2" aria-label="Página Inicial">
-      <div className="relative h-14 w-14 rounded-lg bg-white p-2 shadow-sm ring-1 ring-slate-200/50 dark:bg-slate-800/60 dark:ring-1 dark:ring-slate-700/50">
+      <div className="relative h-12 w-16 rounded-lg bg-white p-2 shadow-sm ring-1 ring-slate-200/50 dark:bg-white dark:ring-1 dark:ring-border">
         <Image
           src="/minha-logo.png"
           alt="Logo"
-          width={56}
-          height={56}
+          width={64}
+          height={48}
           className="h-full w-full object-contain"
         />
       </div>

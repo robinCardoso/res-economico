@@ -129,12 +129,12 @@ export const AppShell = ({ children }: AppShellProps) => {
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between gap-3 px-6 py-6">
             <Link href="/dashboard" className="flex items-center gap-3">
-              <div className="relative h-[52px] w-[52px] rounded-lg bg-card p-1.5 shadow-sm ring-1 ring-border">
+              <div className="relative h-10 w-16 rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-border">
                 <Image
                   src="/minha-logo.png"
                   alt="Logo da empresa"
-                  width={52}
-                  height={52}
+                  width={64}
+                  height={40}
                   className="h-full w-full object-contain"
                   priority
                 />
@@ -210,12 +210,12 @@ export const AppShell = ({ children }: AppShellProps) => {
                 href="/dashboard"
                 className="flex items-center gap-2 text-base font-semibold lg:hidden"
               >
-                <div className="relative h-8 w-8 rounded-lg bg-card p-1 shadow-sm ring-1 ring-border">
+                <div className="relative h-6 w-10 rounded-lg bg-white p-1 shadow-sm ring-1 ring-border">
                   <Image
                     src="/minha-logo.png"
                     alt="Logo da empresa"
-                    width={32}
-                    height={32}
+                    width={40}
+                    height={24}
                     className="h-full w-full object-contain"
                   />
                 </div>
