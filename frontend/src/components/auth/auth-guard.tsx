@@ -70,7 +70,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated && !isPublicRoute) {
       router.push('/login');
     } else if (isAuthenticated && pathname === '/login') {
-      router.push('/dashboard');
+      router.push('/admin/resultado-economico/dashboard');
     }
   }, [isAuthenticated, pathname, router, isChecking]);
 

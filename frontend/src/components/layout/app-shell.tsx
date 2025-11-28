@@ -27,17 +27,17 @@ export type NavItem = {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 };
 
-// Todos os menus (desktop)
+// Todos os menus (desktop) - Atualizado para nova estrutura /admin/resultado-economico/*
 const navItems: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Uploads', href: '/uploads', icon: UploadCloud },
-  { label: 'Alertas', href: '/alertas', icon: BellRing },
-  { label: 'Templates', href: '/templates', icon: ClipboardList },
-  { label: 'Contas', href: '/contas', icon: Layers3 },
-  { label: 'Empresas', href: '/empresas', icon: Building },
-  { label: 'Auditoria', href: '/auditoria', icon: FileText },
-  { label: 'Relatórios', href: '/relatorios', icon: FileText },
-  { label: 'Configurações', href: '/configuracoes', icon: Settings2 },
+  { label: 'Dashboard', href: '/admin/resultado-economico/dashboard', icon: LayoutDashboard },
+  { label: 'Uploads', href: '/admin/resultado-economico/uploads', icon: UploadCloud },
+  { label: 'Alertas', href: '/admin/resultado-economico/alertas', icon: BellRing },
+  { label: 'Templates', href: '/admin/resultado-economico/templates', icon: ClipboardList },
+  { label: 'Contas', href: '/admin/resultado-economico/contas', icon: Layers3 },
+  { label: 'Empresas', href: '/admin/resultado-economico/empresas', icon: Building },
+  { label: 'Auditoria', href: '/admin/resultado-economico/auditoria', icon: FileText },
+  { label: 'Relatórios', href: '/admin/resultado-economico/relatorios', icon: FileText },
+  { label: 'Configurações', href: '/admin/resultado-economico/configuracoes', icon: Settings2 },
 ];
 
 // Menus visíveis em mobile (ocultar: Uploads, Alertas, Configurações)
@@ -128,7 +128,7 @@ export const AppShell = ({ children }: AppShellProps) => {
       >
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between gap-3 px-6 py-6">
-            <Link href="/dashboard" className="flex items-center gap-3">
+            <Link href="/admin/resultado-economico/dashboard" className="flex items-center gap-3">
               <div className="relative h-10 w-16 rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-border">
                 <Image
                   src="/minha-logo.png"
@@ -207,7 +207,7 @@ export const AppShell = ({ children }: AppShellProps) => {
               </button>
               {/* Logo e título - visível em mobile */}
               <Link
-                href="/dashboard"
+                href="/admin/resultado-economico/dashboard"
                 className="flex items-center gap-2 text-base font-semibold lg:hidden"
               >
                 <div className="relative h-6 w-10 rounded-lg bg-white p-1 shadow-sm ring-1 ring-border">

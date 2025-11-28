@@ -35,7 +35,7 @@ export const MobileNav = ({ isOpen, onClose, navItems }: MobileNavProps) => {
         <div className="flex h-full flex-col">
           {/* Header */}
           <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-4">
-            <Link href="/dashboard" className="flex items-center gap-3" onClick={onClose}>
+            <Link href="/admin/resultado-economico/dashboard" className="flex items-center gap-3" onClick={onClose}>
               <div className="relative h-8 w-12 rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-border">
                 <Image
                   src="/minha-logo.png"
