@@ -388,7 +388,7 @@ export default function AlertaDetalhePage({ params }: AlertaDetalheProps) {
                         if (alerta.linha.subConta) {
                           params.append('subConta', alerta.linha.subConta);
                         }
-                        return `/contas?${params.toString()}`;
+                        return `/admin/resultado-economico/contas?${params.toString()}`;
                       })()}
                       className="text-sm font-mono text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300 underline inline-block transition-colors"
                       title="Clique para ver detalhes desta conta no catálogo"

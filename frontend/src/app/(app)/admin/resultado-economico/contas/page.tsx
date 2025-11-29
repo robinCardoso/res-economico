@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useContas } from '@/hooks/use-contas';
 import { getStatusLabel } from '@/lib/format';
 import type { ContaStatus } from '@/types/api';
-import { Search } from 'lucide-react';
+import { Search, ArrowLeft } from 'lucide-react';
 
 const ContasPage = () => {
+  const router = useRouter();
   const searchParams = useSearchParams();
   
   // Ler query params da URL
@@ -239,9 +240,19 @@ const ContasPage = () => {
   return (
     <div className="space-y-3">
       <header>
-        <h1 className="text-lg font-semibold text-foreground">
-          Catálogo de contas
-        </h1>
+        <div className="flex items-center gap-3 mb-2">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+            title="Voltar para a página anterior"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Voltar
+          </button>
+          <h1 className="text-lg font-semibold text-foreground">
+            Catálogo de contas
+          </h1>
+        </div>
         <p className="text-xs text-slate-500">
           Catálogo unificado de todas as contas importadas. Cada classificação aparece apenas uma vez, independente da empresa.
         </p>

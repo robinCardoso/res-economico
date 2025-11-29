@@ -2,10 +2,16 @@ import { useQuery } from '@tanstack/react-query';
 import { uploadsService } from '@/services/uploads.service';
 import type { UploadWithRelations } from '@/types/api';
 
-export function useUploads() {
+export interface UploadsFilter {
+  empresaId?: string;
+  ano?: number;
+  mes?: number;
+}
+
+export function useUploads(filters?: UploadsFilter) {
   return useQuery<UploadWithRelations[]>({
-    queryKey: ['uploads'],
-    queryFn: () => uploadsService.list(),
+    queryKey: ['uploads', filters ?? {}],
+    queryFn: () => uploadsService.list(filters),
     // Atualizar automaticamente a cada 5 segundos se houver uploads em processamento
     refetchInterval: (query) => {
       const data = query.state.data;

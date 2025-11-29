@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AuditoriaService {
+  private readonly logger = new Logger(AuditoriaService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async registrar(
@@ -12,6 +14,25 @@ export class AuditoriaService {
     dados?: Record<string, any>,
   ) {
     try {
+      // Verificar se o usuário existe (exceto para 'system' que é usado em scripts)
+      if (usuarioId === 'system') {
+        this.logger.debug(`Auditoria ignorada para usuário 'system': ${recurso} - ${acao}`);
+        return; // Não registrar auditoria para scripts automáticos
+      }
+
+      // Verificar se o usuário existe no banco
+      const usuarioExiste = await this.prisma.usuario.findUnique({
+        where: { id: usuarioId },
+        select: { id: true },
+      });
+
+      if (!usuarioExiste) {
+        this.logger.warn(
+          `Usuário não encontrado para auditoria: ${usuarioId}. Ação: ${recurso} - ${acao}`,
+        );
+        return; // Não registrar se o usuário não existir
+      }
+
       await this.prisma.logAuditoria.create({
         data: {
           usuarioId,
@@ -22,7 +43,7 @@ export class AuditoriaService {
       });
     } catch (error) {
       // Não falhar se não conseguir registrar auditoria
-      console.error('Erro ao registrar auditoria:', error);
+      this.logger.error('Erro ao registrar auditoria:', error);
     }
   }
 

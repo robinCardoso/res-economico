@@ -4,49 +4,14 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  BellRing,
-  ClipboardList,
-  LayoutDashboard,
-  Layers3,
-  Settings2,
-  UploadCloud,
-  Building,
-  FileText,
   LogOut,
   Menu,
-  X,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
 import { MobileNav } from './mobile-nav';
 import { ThemeToggle } from './theme-toggle';
-
-export type NavItem = {
-  label: string;
-  href: string;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-};
-
-// Todos os menus (desktop) - Atualizado para nova estrutura /admin/resultado-economico/*
-const navItems: NavItem[] = [
-  { label: 'Dashboard', href: '/admin/resultado-economico/dashboard', icon: LayoutDashboard },
-  { label: 'Uploads', href: '/admin/resultado-economico/uploads', icon: UploadCloud },
-  { label: 'Alertas', href: '/admin/resultado-economico/alertas', icon: BellRing },
-  { label: 'Templates', href: '/admin/resultado-economico/templates', icon: ClipboardList },
-  { label: 'Contas', href: '/admin/resultado-economico/contas', icon: Layers3 },
-  { label: 'Empresas', href: '/admin/resultado-economico/empresas', icon: Building },
-  { label: 'Auditoria', href: '/admin/resultado-economico/auditoria', icon: FileText },
-  { label: 'Relatórios', href: '/admin/resultado-economico/relatorios', icon: FileText },
-  { label: 'Configurações', href: '/admin/resultado-economico/configuracoes', icon: Settings2 },
-];
-
-// Menus visíveis em mobile (ocultar: Uploads, Alertas, Configurações)
-const navItemsMobile: NavItem[] = navItems.filter(
-  (item) =>
-    item.href !== '/uploads' &&
-    item.href !== '/alertas' &&
-    item.href !== '/configuracoes'
-);
+import { AdminSidebar } from './admin-sidebar';
 
 type AppShellProps = {
   children: ReactNode;
@@ -117,69 +82,10 @@ export const AppShell = ({ children }: AppShellProps) => {
       <MobileNav
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        navItems={navItemsMobile}
       />
 
       {/* Desktop Sidebar */}
-      <aside
-        className={`hidden lg:block lg:fixed lg:inset-y-0 lg:z-50 lg:w-64 lg:border-r lg:border-border lg:bg-background lg:transition-transform lg:duration-300 ${
-          sidebarOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'
-        }`}
-      >
-        <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between gap-3 px-6 py-6">
-            <Link href="/admin/resultado-economico/dashboard" className="flex items-center gap-3">
-              <div className="relative h-10 w-16 rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-border">
-                <Image
-                  src="/minha-logo.png"
-                  alt="Logo da empresa"
-                  width={64}
-                  height={40}
-                  className="h-full w-full object-contain"
-                  priority
-                />
-              </div>
-              <span className="text-sm font-semibold leading-tight text-foreground">
-                Resultado Econômico
-              </span>
-            </Link>
-            <button
-              onClick={toggleSidebar}
-              className="hidden lg:block rounded-md p-1.5 text-foreground/80 hover:bg-secondary"
-              aria-label="Fechar menu"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <nav className="flex-1 space-y-1 px-3">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                pathname === item.href ||
-                (item.href !== '/dashboard' && pathname?.startsWith(item.href));
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={handleNavClick}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                    isActive
-                      ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
-                      : 'text-foreground/90 hover:bg-secondary'
-                  }`}
-                >
-                  <Icon className="h-5 w-5" aria-hidden />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="border-t border-border px-6 py-4 text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Resultado Econômico
-          </div>
-        </div>
-      </aside>
+      <AdminSidebar sidebarOpen={sidebarOpen} onNavClick={handleNavClick} />
 
       <div
         className={`flex flex-1 flex-col max-w-full overflow-x-hidden transition-all duration-300 ${
@@ -207,7 +113,7 @@ export const AppShell = ({ children }: AppShellProps) => {
               </button>
               {/* Logo e título - visível em mobile */}
               <Link
-                href="/admin/resultado-economico/dashboard"
+                href="/admin"
                 className="flex items-center gap-2 text-base font-semibold lg:hidden"
               >
                 <div className="relative h-6 w-10 rounded-lg bg-white p-1 shadow-sm ring-1 ring-border">
@@ -219,7 +125,7 @@ export const AppShell = ({ children }: AppShellProps) => {
                     className="h-full w-full object-contain"
                   />
                 </div>
-                <span className="text-foreground">Resultado Econômico</span>
+                <span className="text-foreground">Rede União</span>
               </Link>
             </div>
             {user && (

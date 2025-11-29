@@ -1,19 +1,49 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUploads } from '@/hooks/use-uploads';
 import { useEmpresas } from '@/hooks/use-empresas';
+import { relatoriosService } from '@/services/relatorios.service';
 import { formatPeriodo, formatDateTime, getStatusLabel } from '@/lib/format';
 import { maskCNPJ } from '@/lib/masks';
 import { Building2, AlertCircle, FileText, Calendar, Clock, Loader2 } from 'lucide-react';
 
 const UploadsPage = () => {
   const router = useRouter();
-  const { data: uploads, isLoading, error } = useUploads();
-  const { data: empresas } = useEmpresas();
   const [empresaFiltro, setEmpresaFiltro] = useState<string>('');
+  const [anoFiltro, setAnoFiltro] = useState<number | undefined>(undefined);
+  const [mesFiltro, setMesFiltro] = useState<number | undefined>(undefined);
+  const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([]);
+  const [carregandoAnos, setCarregandoAnos] = useState<boolean>(true);
+  const { data: uploads, isLoading, error } = useUploads({
+    empresaId: empresaFiltro || undefined,
+    ano: anoFiltro,
+    mes: mesFiltro,
+  });
+  const { data: empresas } = useEmpresas();
+
+  // Buscar anos disponíveis a partir do banco (tabela Upload)
+  useEffect(() => {
+    const buscarAnos = async () => {
+      try {
+        const anos = await relatoriosService.getAnosDisponiveis();
+        setAnosDisponiveis(anos);
+
+        // Se ainda não houver ano selecionado, usar o mais recente
+        if (!anoFiltro && anos.length > 0) {
+          setAnoFiltro(anos[0]);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar anos disponíveis para uploads:', err);
+      } finally {
+        setCarregandoAnos(false);
+      }
+    };
+
+    void buscarAnos();
+  }, [anoFiltro]);
 
   if (isLoading) {
     return (
@@ -37,10 +67,8 @@ const UploadsPage = () => {
   const uploadsList = Array.isArray(uploads) ? uploads : [];
   const empresasList = Array.isArray(empresas) ? empresas : [];
 
-  // Filtrar uploads por empresa se filtro estiver selecionado
-  const uploadsFiltrados = empresaFiltro
-    ? uploadsList.filter((upload) => upload.empresaId === empresaFiltro)
-    : uploadsList;
+  // Como já usamos filtros na consulta (empresa/ano/mês), aqui só usamos a lista retornada
+  const uploadsFiltrados = uploadsList;
 
   return (
     <div className="space-y-6">
@@ -61,9 +89,9 @@ const UploadsPage = () => {
         </Link>
       </header>
 
-      {/* Filtro por empresa */}
+      {/* Filtro por empresa / período */}
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <label htmlFor="empresa-filtro" className="text-sm font-medium text-foreground">
             Filtrar por empresa:
           </label>
@@ -80,7 +108,60 @@ const UploadsPage = () => {
               </option>
             ))}
           </select>
-          {empresaFiltro && (
+
+          {/* Filtro de ano (usando anos disponíveis do banco) */}
+          <label htmlFor="ano-filtro" className="text-sm font-medium text-foreground">
+            Ano:
+          </label>
+          <select
+            id="ano-filtro"
+            value={anoFiltro ?? ''}
+            onChange={(e) => {
+              const value = e.target.value;
+              setAnoFiltro(value ? Number(value) : undefined);
+            }}
+            disabled={carregandoAnos}
+            className="w-28 rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+          >
+            <option value="">
+              {carregandoAnos ? 'Carregando...' : 'Todos os anos'}
+            </option>
+            {anosDisponiveis.map((ano) => (
+              <option key={ano} value={ano}>
+                {ano}
+              </option>
+            ))}
+          </select>
+
+          {/* Filtro de mês */}
+          <label htmlFor="mes-filtro" className="text-sm font-medium text-foreground">
+            Mês:
+          </label>
+          <select
+            id="mes-filtro"
+            value={mesFiltro ?? ''}
+            onChange={(e) => {
+              const value = e.target.value;
+              setMesFiltro(value ? Number(value) : undefined);
+            }}
+            className="w-32 rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+          >
+            <option value="">Todos</option>
+            <option value="1">Janeiro</option>
+            <option value="2">Fevereiro</option>
+            <option value="3">Março</option>
+            <option value="4">Abril</option>
+            <option value="5">Maio</option>
+            <option value="6">Junho</option>
+            <option value="7">Julho</option>
+            <option value="8">Agosto</option>
+            <option value="9">Setembro</option>
+            <option value="10">Outubro</option>
+            <option value="11">Novembro</option>
+            <option value="12">Dezembro</option>
+          </select>
+
+          {(empresaFiltro || anoFiltro || mesFiltro) && (
             <span className="text-xs text-slate-500">
               {uploadsFiltrados.length} upload(s) encontrado(s)
             </span>

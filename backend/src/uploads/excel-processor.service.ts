@@ -196,32 +196,10 @@ export class ExcelProcessorService {
           return String(safeValue).trim();
         }
 
-        // Tentar corrigir encoding: se contém sequências comuns de encoding incorreto
-        // (UTF-8 sendo interpretado como Latin-1)
-        try {
-          // Padrões comuns de encoding incorreto:
-          // "UniÃ£o" → "União"
-          // "SÃ£o" → "São"
-          // "AÃ§Ã£o" → "Ação"
-          const trimmed = str.trim();
-          if (
-            trimmed.includes('Ã') ||
-            trimmed.includes('Â') ||
-            trimmed.includes('Õ') ||
-            trimmed.includes('Ç')
-          ) {
-            // Tentar corrigir: converter de Latin-1 para UTF-8
-            const corrected = Buffer.from(trimmed, 'latin1').toString('utf8');
-            // Se a correção produz resultado diferente e válido (não contém caracteres de substituição Unicode), usar
-            if (corrected !== trimmed && !corrected.includes('\uFFFD')) {
-              return corrected;
-            }
-          }
-          return trimmed;
-        } catch {
-          // Se houver erro, manter original
-          return str.trim();
-        }
+        // Retornar string normalizada (trim) sem tentar corrigir encoding
+        // O PostgreSQL já está configurado com UTF-8, então não precisamos fazer conversão
+        // A conversão de encoding estava causando problemas com caracteres acentuados
+        return str.trim();
       };
 
       const cleanHeaders = (headers as unknown[]).map(
@@ -549,64 +527,42 @@ export class ExcelProcessorService {
     mapping: TemplateMapping,
   ): ExcelRow[] {
     // Função auxiliar para normalizar strings e garantir UTF-8
-    const normalizeString = (value: unknown): string => {
-      if (value === null || value === undefined || value === '') {
-        return '';
-      }
+      const normalizeString = (value: unknown): string => {
+        if (value === null || value === undefined || value === '') {
+          return '';
+        }
 
-      let str: string;
-      if (typeof value === 'string') {
-        str = value;
-      } else if (typeof value === 'number' || typeof value === 'boolean') {
-        return String(value).trim();
-      } else if (typeof value === 'object') {
-        // Para objetos, usar JSON.stringify
-        return JSON.stringify(value).trim();
-      } else if (typeof value === 'symbol' || typeof value === 'function') {
-        // Para symbol e function, converter para string explicitamente
-        return String(value).trim();
-      } else {
-        // Para outros tipos desconhecidos, tentar converter
-        // Mas evitar objetos que possam ter passado pela verificação
-        if (value !== null && typeof value === 'object') {
+        let str: string;
+        if (typeof value === 'string') {
+          str = value;
+        } else if (typeof value === 'number' || typeof value === 'boolean') {
+          return String(value).trim();
+        } else if (typeof value === 'object') {
+          // Para objetos, usar JSON.stringify
           return JSON.stringify(value).trim();
-        }
-        // Type guard: se não é objeto, null, undefined, string, number, boolean, symbol ou function,
-        // então é um tipo desconhecido - usar conversão segura
-        const safeValue: string | number | boolean = value as
-          | string
-          | number
-          | boolean;
-        return String(safeValue).trim();
-      }
-
-      // Tentar corrigir encoding: se contém sequências comuns de encoding incorreto
-      // (UTF-8 sendo interpretado como Latin-1)
-      try {
-        // Padrões comuns de encoding incorreto:
-        // "UniÃ£o" → "União"
-        // "SÃ£o" → "São"
-        // "AÃ§Ã£o" → "Ação"
-        const trimmed = str.trim();
-        if (
-          trimmed.includes('Ã') ||
-          trimmed.includes('Â') ||
-          trimmed.includes('Õ') ||
-          trimmed.includes('Ç')
-        ) {
-          // Tentar corrigir: converter de Latin-1 para UTF-8
-          const corrected = Buffer.from(trimmed, 'latin1').toString('utf8');
-          // Se a correção produz resultado diferente e válido (não contém caracteres de substituição Unicode), usar
-          if (corrected !== trimmed && !corrected.includes('\uFFFD')) {
-            return corrected;
+        } else if (typeof value === 'symbol' || typeof value === 'function') {
+          // Para symbol e function, converter para string explicitamente
+          return String(value).trim();
+        } else {
+          // Para outros tipos desconhecidos, tentar converter
+          // Mas evitar objetos que possam ter passado pela verificação
+          if (value !== null && typeof value === 'object') {
+            return JSON.stringify(value).trim();
           }
+          // Type guard: se não é objeto, null, undefined, string, number, boolean, symbol ou function,
+          // então é um tipo desconhecido - usar conversão segura
+          const safeValue: string | number | boolean = value as
+            | string
+            | number
+            | boolean;
+          return String(safeValue).trim();
         }
-        return trimmed;
-      } catch {
-        // Se houver erro, manter original
+
+        // Retornar string normalizada (trim) sem tentar corrigir encoding
+        // O PostgreSQL já está configurado com UTF-8, então não precisamos fazer conversão
+        // A conversão de encoding estava causando problemas com caracteres acentuados
         return str.trim();
-      }
-    };
+      };
 
     return rawData.map((row: Record<string, unknown>, index: number) => {
       const parsed: ExcelRow = {};

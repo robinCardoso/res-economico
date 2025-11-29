@@ -3,17 +3,54 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { X } from 'lucide-react';
-import type { NavItem } from './app-shell';
+import { X, Home, LayoutDashboard, UploadCloud, BellRing, ClipboardList, Layers3, Building, FileText, Settings2, ChevronDown, ChevronRight, BarChart3 } from 'lucide-react';
+import { useState } from 'react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useAuthStore } from '@/stores/auth.store';
+import { USER_ROLES } from '@/lib/core/roles';
 
 type MobileNavProps = {
   isOpen: boolean;
   onClose: () => void;
-  navItems: NavItem[];
 };
 
-export const MobileNav = ({ isOpen, onClose, navItems }: MobileNavProps) => {
+export const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
   const pathname = usePathname();
+  const { user } = useAuthStore();
+  const isAdmin = user?.roles?.includes(USER_ROLES.ADMIN) ?? false;
+
+  // Estado para controlar quais menus estão abertos
+  const [openMenus, setOpenMenus] = useState<string[]>(() => {
+    if (pathname?.startsWith('/admin/resultado-economico')) {
+      return ['resultado-economico'];
+    }
+    return [];
+  });
+
+  const toggleMenu = (menuKey: string) => {
+    setOpenMenus((prev) =>
+      prev.includes(menuKey) ? prev.filter((key) => key !== menuKey) : [...prev, menuKey]
+    );
+  };
+
+  const isActive = (href: string) => {
+    if (href === '/admin') {
+      return pathname === '/admin';
+    }
+    return pathname === href || (href !== '/admin' && pathname?.startsWith(href));
+  };
+
+  const resultadoEconomicoItems = [
+    { label: 'Dashboard', href: '/admin/resultado-economico/dashboard', icon: LayoutDashboard },
+    { label: 'Uploads', href: '/admin/resultado-economico/uploads', icon: UploadCloud },
+    { label: 'Alertas', href: '/admin/resultado-economico/alertas', icon: BellRing },
+    { label: 'Templates', href: '/admin/resultado-economico/templates', icon: ClipboardList },
+    { label: 'Contas', href: '/admin/resultado-economico/contas', icon: Layers3 },
+    { label: 'Empresas', href: '/admin/resultado-economico/empresas', icon: Building },
+    { label: 'Auditoria', href: '/admin/resultado-economico/auditoria', icon: FileText },
+    { label: 'Relatórios', href: '/admin/resultado-economico/relatorios', icon: FileText },
+    { label: 'Configurações', href: '/admin/resultado-economico/configuracoes', icon: Settings2 },
+  ];
 
   if (!isOpen) return null;
 
@@ -35,7 +72,7 @@ export const MobileNav = ({ isOpen, onClose, navItems }: MobileNavProps) => {
         <div className="flex h-full flex-col">
           {/* Header */}
           <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-4">
-            <Link href="/admin/resultado-economico/dashboard" className="flex items-center gap-3" onClick={onClose}>
+            <Link href="/admin" className="flex items-center gap-3" onClick={onClose}>
               <div className="relative h-8 w-12 rounded-lg bg-white p-1.5 shadow-sm ring-1 ring-border">
                 <Image
                   src="/minha-logo.png"
@@ -47,7 +84,7 @@ export const MobileNav = ({ isOpen, onClose, navItems }: MobileNavProps) => {
                 />
               </div>
               <span className="text-sm font-semibold leading-tight text-foreground">
-                Resultado Econômico
+                Rede União
               </span>
             </Link>
             <button
@@ -61,33 +98,67 @@ export const MobileNav = ({ isOpen, onClose, navItems }: MobileNavProps) => {
 
           {/* Navigation */}
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                pathname === item.href ||
-                (item.href !== '/dashboard' && pathname?.startsWith(item.href));
+            {/* Dashboard */}
+            <Link
+              href="/admin"
+              onClick={onClose}
+              className={`flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium transition ${
+                isActive('/admin')
+                  ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                  : 'text-foreground/90 hover:bg-secondary'
+              }`}
+            >
+              <Home className="h-5 w-5 flex-shrink-0" aria-hidden />
+              <span>Dashboard</span>
+            </Link>
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onClose}
-                  className={`flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium transition ${
-                    isActive
-                      ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
-                      : 'text-foreground/90 hover:bg-secondary'
-                  }`}
-                >
-                  <Icon className="h-5 w-5 flex-shrink-0" aria-hidden />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
+            {/* Resultado Econômico (colapsável) */}
+            <Collapsible
+              open={openMenus.includes('resultado-economico')}
+              onOpenChange={() => toggleMenu('resultado-economico')}
+            >
+              <CollapsibleTrigger
+                className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium transition ${
+                  resultadoEconomicoItems.some((item) => isActive(item.href))
+                    ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                    : 'text-foreground/90 hover:bg-secondary'
+                }`}
+              >
+                <BarChart3 className="h-5 w-5 flex-shrink-0" aria-hidden />
+                <span className="flex-1 text-left">Resultado Econômico</span>
+                {openMenus.includes('resultado-economico') ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-1 space-y-1 pl-8">
+                {resultadoEconomicoItems.map((item) => {
+                  const Icon = item.icon;
+                  const itemIsActive = isActive(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onClose}
+                      className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition ${
+                        itemIsActive
+                          ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                          : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 flex-shrink-0" aria-hidden />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </CollapsibleContent>
+            </Collapsible>
           </nav>
 
           {/* Footer */}
           <div className="border-t border-border px-6 py-4 text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Resultado Econômico
+            © {new Date().getFullYear()} Rede União Nacional
           </div>
         </div>
       </aside>

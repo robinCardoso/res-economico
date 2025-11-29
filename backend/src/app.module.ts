@@ -15,6 +15,7 @@ import { RelatoriosModule } from './relatorios/relatorios.module';
 import { AiModule } from './ai/ai.module';
 import { ResumosModule } from './resumos/resumos.module';
 import { ConfiguracaoModeloNegocioModule } from './configuracao-modelo-negocio/configuracao-modelo-negocio.module';
+import { ProcessosModule } from './processos/processos.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ConfiguracaoModeloNegocioModule } from './configuracao-modelo-negocio/c
     AiModule,
     ResumosModule,
     ConfiguracaoModeloNegocioModule,
+    ProcessosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

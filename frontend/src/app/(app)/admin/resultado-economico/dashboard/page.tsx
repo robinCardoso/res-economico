@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { uploadsService } from '@/services/uploads.service';
+import { relatoriosService } from '@/services/relatorios.service';
 import { useResponsiveChart } from '@/hooks/use-responsive-chart';
 import { useEmpresas } from '@/hooks/use-empresas';
 import {
@@ -57,8 +58,29 @@ const DashboardPage = () => {
     queryFn: () => uploadsService.getConta745(anoFiltro, mesFiltro, empresaFiltro),
   });
 
-  // Gerar anos disponíveis (últimos 5 anos)
-  const anosDisponiveis = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  // Buscar anos disponíveis do banco de dados
+  const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([]);
+  const [carregandoAnos, setCarregandoAnos] = useState<boolean>(true);
+
+  useEffect(() => {
+    const buscarAnos = async () => {
+      try {
+        const anos = await relatoriosService.getAnosDisponiveis();
+        setAnosDisponiveis(anos);
+        // Se não houver ano selecionado e houver anos disponíveis, usar o mais recente
+        if (!anoFiltro && anos.length > 0) {
+          setAnoFiltro(anos[0]);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar anos disponíveis:', error);
+        // Fallback: usar últimos 5 anos se a busca falhar
+        setAnosDisponiveis(Array.from({ length: 5 }, (_, i) => currentYear - i));
+      } finally {
+        setCarregandoAnos(false);
+      }
+    };
+    buscarAnos();
+  }, []);
 
   const formatarValor = (valor: number) => {
     // Formatar valores grandes com separador de milhar
@@ -196,8 +218,9 @@ const DashboardPage = () => {
             value={anoFiltro || ''}
             onChange={(e) => setAnoFiltro(e.target.value ? parseInt(e.target.value, 10) : undefined)}
             className="rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            disabled={carregandoAnos}
           >
-            <option value="">Todos</option>
+            <option value="">{carregandoAnos ? 'Carregando...' : 'Todos os anos'}</option>
             {anosDisponiveis.map((ano) => (
               <option key={ano} value={ano}>
                 {ano}

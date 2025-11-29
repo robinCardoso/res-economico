@@ -486,10 +486,26 @@ export class UploadsService {
         linhas: {
           where: {
             conta: '745',
-            nomeConta: {
-              contains: 'Resultado do Exercício',
-              mode: 'insensitive',
-            },
+            OR: [
+              {
+                nomeConta: {
+                  contains: 'Resultado do Exercício',
+                  mode: 'insensitive',
+                },
+              },
+              {
+                nomeConta: {
+                  contains: 'Resultado',
+                  mode: 'insensitive',
+                },
+              },
+              {
+                nomeConta: {
+                  contains: 'Exerc',
+                  mode: 'insensitive',
+                },
+              },
+            ],
           },
         },
       },
