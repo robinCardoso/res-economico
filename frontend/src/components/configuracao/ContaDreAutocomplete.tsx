@@ -19,12 +19,22 @@ export const ContaDreAutocomplete = ({
   placeholder = 'Digite o código (ex: 3.1.01.01) ou nome da conta',
   className = '',
 }: ContaDreAutocompleteProps) => {
-  const [inputValue, setInputValue] = useState(value);
+  const [inputValue, setInputValue] = useState(value || '');
   const [isEditing, setIsEditing] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Sincronizar inputValue quando value externo mudar (importante para quando o campo é resetado ou preenchido externamente)
+  // Mas apenas quando não está editando, para não interferir com a digitação do usuário
+  useEffect(() => {
+    if (!isEditing) {
+      const newValue = value || '';
+      setInputValue(newValue);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, isEditing]); // isEditing é necessário para saber quando não sincronizar
 
   // Buscar todas as contas DRE (sem filtro de busca no backend para permitir busca flexível no frontend)
   const { data: contas, isLoading } = useQuery({
@@ -197,7 +207,14 @@ export const ContaDreAutocomplete = ({
   }, [value, encontrarContaPorIdentificador]);
 
   // Usar valor calculado quando não estiver editando, senão usar inputValue
-  const currentInputValue = isEditing ? inputValue : displayValueFromProps;
+  // Quando está editando, sempre usar inputValue (o que o usuário está digitando)
+  // Quando não está editando e value está vazio, usar inputValue (que deve ser vazio também)
+  // Quando não está editando e value tem valor, usar displayValueFromProps (formato legível)
+  const currentInputValue = isEditing 
+    ? inputValue 
+    : (!value || value === '') 
+      ? inputValue 
+      : displayValueFromProps;
 
   // Fechar sugestões ao clicar fora
   useEffect(() => {
@@ -223,7 +240,12 @@ export const ContaDreAutocomplete = ({
     setIsEditing(true);
     setInputValue(newValue);
     onChange(newValue);
-    setShowSuggestions(newValue.trim().length >= 2);
+    // Mostrar sugestões quando tiver pelo menos 2 caracteres
+    if (newValue.trim().length >= 2) {
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
     setSelectedIndex(-1);
   };
 
@@ -283,7 +305,16 @@ export const ContaDreAutocomplete = ({
             }}
             onFocus={() => {
               setIsEditing(true);
-              if (currentInputValue.trim().length >= 2) {
+              // Garantir que inputValue está sincronizado ao focar
+              const currentVal = value || '';
+              // Só atualizar se for diferente (evita resetar o que o usuário já digitou)
+              const valToUse = currentVal !== inputValue ? currentVal : inputValue;
+              if (currentVal !== inputValue) {
+                setInputValue(currentVal);
+              }
+              // Mostrar sugestões se já tiver pelo menos 2 caracteres
+              const checkValue = valToUse || inputValue || currentVal;
+              if (checkValue.trim().length >= 2) {
                 setShowSuggestions(true);
               }
             }}

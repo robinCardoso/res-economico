@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Plus, Pencil, Trash2, X, Check } from 'lucide-react';
 import { configuracaoModeloNegocioService, type UpdateConfiguracaoModeloNegocioDto } from '@/services/configuracao-modelo-negocio.service';
+import { contasService } from '@/services/contas.service';
 import type { ConfiguracaoModeloNegocio, ModeloNegocio } from '@/types/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ModeloNegocioDetalhesForm } from '@/components/configuracao/ModeloNegocioDetalhesForm';
@@ -123,12 +124,33 @@ const ConfiguracaoModelosNegocioPage = () => {
       // Buscar dados atualizados do banco para garantir que temos os dados mais recentes
       const configAtualizada = await configuracaoModeloNegocioService.getByModelo(config.modeloNegocio);
       
+      // Buscar todas as contas para poder encontrar os nomes baseados nos códigos
+      const todasContas = await contasService.list({ tipoConta: '3-DRE' });
+      
+      // Função auxiliar para encontrar nome da conta pelo código
+      const encontrarNomeConta = (codigo: string): string => {
+        if (!codigo) return '';
+        // O código pode estar no formato "classificacao.conta" ou "classificacao.conta.subConta"
+        const partes = codigo.split('.');
+        const conta = todasContas.find((c) => {
+          if (partes.length === 2) {
+            return c.classificacao === partes[0] && c.conta === partes[1] && (!c.subConta || c.subConta.trim() === '');
+          } else if (partes.length === 3) {
+            return c.classificacao === partes[0] && c.conta === partes[1] && c.subConta === partes[2];
+          }
+          return false;
+        });
+        return conta?.nomeConta || '';
+      };
+      
       // Extrair contas de receita
       const receitaKeys = Object.keys(configAtualizada.contasReceita || {});
       const receitaExtra: Array<{ key: string; value: string }> = [];
       receitaKeys.forEach((key) => {
         if (key !== 'mensalidades' && key !== 'bonificacoes') {
-          receitaExtra.push({ key, value: configAtualizada.contasReceita[key] as string });
+          const codigoConta = configAtualizada.contasReceita[key] as string;
+          const nomeConta = encontrarNomeConta(codigoConta) || key; // Usar nome do banco ou fallback para a chave
+          receitaExtra.push({ key: nomeConta, value: codigoConta });
         }
       });
       setContasReceitaExtra(receitaExtra);
@@ -138,7 +160,9 @@ const ConfiguracaoModelosNegocioPage = () => {
       const custosExtra: Array<{ key: string; value: string }> = [];
       custosKeys.forEach((key) => {
         if (key !== 'funcionarios' && key !== 'sistema' && key !== 'contabilidade') {
-          custosExtra.push({ key, value: configAtualizada.contasCustos[key] as string });
+          const codigoConta = configAtualizada.contasCustos[key] as string;
+          const nomeConta = encontrarNomeConta(codigoConta) || key; // Usar nome do banco ou fallback para a chave
+          custosExtra.push({ key: nomeConta, value: codigoConta });
         }
       });
       setContasCustosExtra(custosExtra);
@@ -163,11 +187,35 @@ const ConfiguracaoModelosNegocioPage = () => {
       console.error('Erro ao buscar configuração:', error);
       setErrorMessage('Erro ao carregar configuração para edição. Tente novamente.');
       // Ainda assim, abrir o modal com os dados da lista (fallback)
+      // Tentar buscar contas para encontrar nomes
+      let todasContas: any[] = [];
+      try {
+        todasContas = await contasService.list({ tipoConta: '3-DRE' });
+      } catch {
+        // Ignorar erro ao buscar contas no fallback
+      }
+      
+      const encontrarNomeConta = (codigo: string): string => {
+        if (!codigo || todasContas.length === 0) return '';
+        const partes = codigo.split('.');
+        const conta = todasContas.find((c) => {
+          if (partes.length === 2) {
+            return c.classificacao === partes[0] && c.conta === partes[1] && (!c.subConta || c.subConta.trim() === '');
+          } else if (partes.length === 3) {
+            return c.classificacao === partes[0] && c.conta === partes[1] && c.subConta === partes[2];
+          }
+          return false;
+        });
+        return conta?.nomeConta || '';
+      };
+      
       const receitaKeys = Object.keys(config.contasReceita || {});
       const receitaExtra: Array<{ key: string; value: string }> = [];
       receitaKeys.forEach((key) => {
         if (key !== 'mensalidades' && key !== 'bonificacoes') {
-          receitaExtra.push({ key, value: config.contasReceita[key] as string });
+          const codigoConta = config.contasReceita[key] as string;
+          const nomeConta = encontrarNomeConta(codigoConta) || key;
+          receitaExtra.push({ key: nomeConta, value: codigoConta });
         }
       });
       setContasReceitaExtra(receitaExtra);
@@ -176,7 +224,9 @@ const ConfiguracaoModelosNegocioPage = () => {
       const custosExtra: Array<{ key: string; value: string }> = [];
       custosKeys.forEach((key) => {
         if (key !== 'funcionarios' && key !== 'sistema' && key !== 'contabilidade') {
-          custosExtra.push({ key, value: config.contasCustos[key] as string });
+          const codigoConta = config.contasCustos[key] as string;
+          const nomeConta = encontrarNomeConta(codigoConta) || key;
+          custosExtra.push({ key: nomeConta, value: codigoConta });
         }
       });
       setContasCustosExtra(custosExtra);
@@ -185,6 +235,7 @@ const ConfiguracaoModelosNegocioPage = () => {
         modeloNegocio: config.modeloNegocio,
         descricao: config.descricao || '',
         custosCentralizados: config.custosCentralizados,
+        receitasCentralizadas: config.receitasCentralizadas ?? false,
         ativo: config.ativo,
         contasReceitaMensalidades: (config.contasReceita?.mensalidades as string) || '',
         contasReceitaBonificacoes: (config.contasReceita?.bonificacoes as string) || '',
@@ -524,7 +575,7 @@ const ConfiguracaoModelosNegocioPage = () => {
                     />
                   </div>
                   {contasReceitaExtra.map((conta, index) => (
-                    <div key={index} className="flex gap-2">
+                    <div key={`receita-extra-${index}-${conta.value || 'empty'}`} className="flex gap-2">
                       <input
                         type="text"
                         value={conta.key}
@@ -600,7 +651,7 @@ const ConfiguracaoModelosNegocioPage = () => {
                     />
                   </div>
                   {contasCustosExtra.map((conta, index) => (
-                    <div key={index} className="flex gap-2">
+                    <div key={`custo-extra-${index}-${conta.value || 'empty'}`} className="flex gap-2">
                       <input
                         type="text"
                         value={conta.key}
