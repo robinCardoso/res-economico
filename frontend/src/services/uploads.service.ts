@@ -80,6 +80,18 @@ export const uploadsService = {
     return data;
   },
 
+  async getProximoMes(empresaId: string, ano?: number): Promise<number> {
+    const anoAtual = ano || new Date().getFullYear();
+    const params = new URLSearchParams();
+    params.append('empresaId', empresaId);
+    params.append('ano', anoAtual.toString());
+    
+    const { data } = await api.get<{ mes: number }>(
+      `/uploads/proximo-mes?${params.toString()}`
+    );
+    return data.mes;
+  },
+
   async getConta745(ano?: number, mes?: number, empresaId?: string) {
     const params = new URLSearchParams();
     if (ano) params.append('ano', ano.toString());

@@ -119,6 +119,40 @@ export class UploadsService {
     return uploadExistente;
   }
 
+  /**
+   * Encontra o próximo mês que falta ser importado para uma empresa em um ano específico
+   * @param empresaId ID da empresa
+   * @param ano Ano para verificar (geralmente o ano atual)
+   * @returns Número do mês (1-12) que deve ser importado
+   */
+  async findProximoMesParaUpload(empresaId: string, ano: number): Promise<number> {
+    // 1. Buscar todos os uploads da empresa no ano (independente do status)
+    const uploads = await this.prisma.upload.findMany({
+      where: {
+        empresaId,
+        ano,
+      },
+      select: {
+        mes: true,
+      },
+    });
+
+    // 2. Extrair lista de meses que já possuem uploads cadastrados
+    const mesesComUpload = new Set(uploads.map(u => u.mes));
+
+    // 3. Encontrar o primeiro mês que falta (de 1 a 12)
+    for (let mes = 1; mes <= 12; mes++) {
+      if (!mesesComUpload.has(mes)) {
+        return mes;
+      }
+    }
+
+    // 4. Se todos os meses já possuem uploads, retornar o próximo mês
+    const mesAtual = new Date().getMonth() + 1; // getMonth() retorna 0-11
+    const proximoMes = mesAtual === 12 ? 1 : mesAtual + 1;
+    return proximoMes;
+  }
+
   async create(
     file: Express.Multer.File,
     dto: CreateUploadDto,

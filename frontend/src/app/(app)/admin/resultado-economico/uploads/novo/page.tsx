@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -56,12 +56,15 @@ const NovoUploadPage = () => {
   const [showValidation, setShowValidation] = useState(false);
   const [duplicataPeriodo, setDuplicataPeriodo] = useState<{ existe: boolean; upload?: UploadWithRelations } | null>(null);
   const [duplicataNome, setDuplicataNome] = useState<{ existe: boolean; upload?: UploadWithRelations } | null>(null);
+  const [mesSugerido, setMesSugerido] = useState(false);
+  const mesSugeridoRef = useRef<number | null>(null);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     watch,
+    setValue,
   } = useForm<UploadFormData>({
     resolver: zodResolver(uploadSchema),
     defaultValues: {
@@ -73,6 +76,35 @@ const NovoUploadPage = () => {
   const empresaId = watch('empresaId');
   const mes = watch('mes');
   const ano = watch('ano');
+
+  // Buscar próximo mês quando empresa for selecionada
+  useEffect(() => {
+    if (empresaId && ano) {
+      uploadsService
+        .getProximoMes(empresaId, ano)
+        .then((proximoMes) => {
+          setValue('mes', proximoMes);
+          mesSugeridoRef.current = proximoMes;
+          setMesSugerido(true);
+        })
+        .catch((err) => {
+          console.error('Erro ao buscar próximo mês:', err);
+          mesSugeridoRef.current = null;
+          setMesSugerido(false);
+        });
+    } else {
+      mesSugeridoRef.current = null;
+      setMesSugerido(false);
+    }
+  }, [empresaId, ano, setValue]);
+
+  // Resetar mensagem de sugestão se o usuário alterar o mês manualmente
+  useEffect(() => {
+    if (mesSugeridoRef.current !== null && mes !== mesSugeridoRef.current) {
+      setMesSugerido(false);
+      mesSugeridoRef.current = null;
+    }
+  }, [mes]);
 
   // Verificar duplicata de período quando empresa, mês ou ano mudarem
   useEffect(() => {
@@ -369,7 +401,7 @@ const NovoUploadPage = () => {
       
       // Redirecionar para a página de detalhes do upload criado
       // Assim o usuário pode ver o progresso em tempo real
-      router.push(`/uploads/${upload.id}`);
+      router.push(`/admin/resultado-economico/uploads/${upload.id}`);
     } catch (err: unknown) {
       console.error('Erro no upload:', err);
       const error = err as { 
@@ -499,6 +531,11 @@ const NovoUploadPage = () => {
             </select>
             {errors.mes && (
               <p className="text-xs text-rose-600">{errors.mes.message}</p>
+            )}
+            {mesSugerido && !errors.mes && (
+              <p className="text-xs text-sky-600 dark:text-sky-400">
+                💡 Mês sugerido automaticamente com base nos uploads existentes
+              </p>
             )}
           </div>
 

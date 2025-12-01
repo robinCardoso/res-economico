@@ -81,6 +81,30 @@ export class UploadsController {
     return { existe: !!upload, upload };
   }
 
+  @Get('proximo-mes')
+  async getProximoMes(
+    @Query('empresaId') empresaId: string,
+    @Query('ano') ano?: string,
+  ) {
+    if (!empresaId) {
+      throw new BadRequestException('empresaId é obrigatório');
+    }
+
+    // Se ano não for fornecido, usar ano atual
+    const anoNum = ano ? parseInt(ano, 10) : new Date().getFullYear();
+    
+    if (isNaN(anoNum)) {
+      throw new BadRequestException('ano deve ser um número válido');
+    }
+
+    const proximoMes = await this.uploadsService.findProximoMesParaUpload(
+      empresaId,
+      anoNum,
+    );
+
+    return { mes: proximoMes };
+  }
+
   // Rotas específicas devem vir ANTES das rotas genéricas com :id
   @Get(':id/progresso')
   async getProgresso(@Param('id') id: string) {
