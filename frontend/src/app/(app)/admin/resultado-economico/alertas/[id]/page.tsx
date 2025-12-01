@@ -266,7 +266,7 @@ export default function AlertaDetalhePage({ params }: AlertaDetalheProps) {
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 <Link
-                  href={`/uploads/${alerta.upload.id}`}
+                  href={`/admin/resultado-economico/uploads/${alerta.upload.id}`}
                   className="hover:text-sky-600 dark:hover:text-sky-400"
                 >
                   {alerta.upload.mes}/{alerta.upload.ano}
