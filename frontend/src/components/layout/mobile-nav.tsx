@@ -28,9 +28,19 @@ export const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
   });
 
   const toggleMenu = (menuKey: string) => {
-    setOpenMenus((prev) =>
-      prev.includes(menuKey) ? prev.filter((key) => key !== menuKey) : [...prev, menuKey]
-    );
+    setOpenMenus((prev) => {
+      // Se o menu já está aberto, fecha ele
+      if (prev.includes(menuKey)) {
+        return prev.filter((key) => key !== menuKey);
+      }
+      // Se está fechado, abre ele e fecha todos os outros (comportamento accordion)
+      return [menuKey];
+    });
+  };
+
+  // Função para fechar todos os menus (usado quando clica em item simples)
+  const closeAllMenus = () => {
+    setOpenMenus([]);
   };
 
   const isActive = (href: string) => {
@@ -65,7 +75,7 @@ export const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
 
       {/* Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-background transition-transform duration-300 lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-border bg-background transition-transform duration-300 lg:hidden ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -101,15 +111,18 @@ export const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
             {/* Dashboard */}
             <Link
               href="/admin"
-              onClick={onClose}
-              className={`flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium transition ${
+              onClick={() => {
+                closeAllMenus();
+                onClose();
+              }}
+              className={`flex items-center gap-2.5 rounded-lg px-4 py-3 text-sm font-medium transition ${
                 isActive('/admin')
                   ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
                   : 'text-foreground/90 hover:bg-secondary'
               }`}
             >
-              <Home className="h-5 w-5 flex-shrink-0" aria-hidden />
-              <span>Dashboard</span>
+              <Home className="h-4 w-4 flex-shrink-0" aria-hidden />
+              <span className="whitespace-nowrap">Dashboard</span>
             </Link>
 
             {/* Resultado Econômico (colapsável) */}
@@ -118,21 +131,21 @@ export const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
               onOpenChange={() => toggleMenu('resultado-economico')}
             >
               <CollapsibleTrigger
-                className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium transition ${
+                className={`w-full flex items-center gap-2.5 rounded-lg px-4 py-3 text-sm font-medium transition ${
                   resultadoEconomicoItems.some((item) => isActive(item.href))
                     ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
                     : 'text-foreground/90 hover:bg-secondary'
                 }`}
               >
-                <BarChart3 className="h-5 w-5 flex-shrink-0" aria-hidden />
-                <span className="flex-1 text-left">Resultado Econômico</span>
+                <BarChart3 className="h-4 w-4 flex-shrink-0" aria-hidden />
+                <span className="flex-1 text-left whitespace-nowrap">Resultado Econômico</span>
                 {openMenus.includes('resultado-economico') ? (
                   <ChevronDown className="h-4 w-4" />
                 ) : (
                   <ChevronRight className="h-4 w-4" />
                 )}
               </CollapsibleTrigger>
-              <CollapsibleContent className="mt-1 space-y-1 pl-8">
+              <CollapsibleContent className="mt-1 space-y-0.5 pl-8 overflow-visible data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
                 {resultadoEconomicoItems.map((item) => {
                   const Icon = item.icon;
                   const itemIsActive = isActive(item.href);
@@ -140,15 +153,18 @@ export const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
                     <Link
                       key={item.href}
                       href={item.href}
-                      onClick={onClose}
-                      className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition ${
+                      onClick={() => {
+                        closeAllMenus();
+                        onClose();
+                      }}
+                      className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-medium transition ${
                         itemIsActive
                           ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
                           : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
                       }`}
                     >
-                      <Icon className="h-4 w-4 flex-shrink-0" aria-hidden />
-                      <span>{item.label}</span>
+                      <Icon className="h-3.5 w-3.5 flex-shrink-0" aria-hidden />
+                      <span className="whitespace-nowrap">{item.label}</span>
                     </Link>
                   );
                 })}

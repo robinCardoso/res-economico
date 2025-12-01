@@ -404,6 +404,27 @@ export class AtasService {
   async remove(id: string) {
     const ata = await this.findOne(id);
 
+    // Deletar arquivo físico se existir
+    if (ata.arquivoOriginalUrl) {
+      try {
+        // Extrair o nome do arquivo da URL (ex: /uploads/atas/abc123.pdf)
+        const fileName = ata.arquivoOriginalUrl.split('/').pop();
+        if (fileName) {
+          const filePath = path.join(process.cwd(), 'uploads', 'atas', fileName);
+          
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            this.logger.log(`Arquivo físico deletado: ${filePath}`);
+          } else {
+            this.logger.warn(`Arquivo físico não encontrado: ${filePath}`);
+          }
+        }
+      } catch (error) {
+        // Log do erro mas não falha a exclusão da ATA
+        this.logger.error(`Erro ao deletar arquivo físico da ata ${id}:`, error);
+      }
+    }
+
     await this.prisma.ataReuniao.delete({
       where: { id },
     });
@@ -572,6 +593,26 @@ Forneça uma análise completa incluindo:
    */
   async importarAta(dto: ImportarAtaDto, userId: string) {
     this.logger.log(`Importando ata do arquivo: ${dto.nomeArquivo}`);
+
+    // Verificar se já existe uma ATA com o mesmo nome de arquivo
+    const ataExistente = await this.prisma.ataReuniao.findFirst({
+      where: {
+        arquivoOriginalNome: dto.nomeArquivo,
+      },
+      select: {
+        id: true,
+        titulo: true,
+        numero: true,
+      },
+    });
+
+    if (ataExistente) {
+      throw new BadRequestException(
+        `Já existe uma ATA com o arquivo "${dto.nomeArquivo}". ` +
+        `ATA existente: ${ataExistente.numero} - ${ataExistente.titulo}. ` +
+        `Por favor, renomeie o arquivo ou exclua a ATA existente antes de importar novamente.`,
+      );
+    }
 
     // Verificar se Gemini está configurado (obrigatório agora)
     if (!this.gemini) {

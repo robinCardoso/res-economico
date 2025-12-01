@@ -103,9 +103,19 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
   });
 
   const toggleMenu = (menuKey: string) => {
-    setOpenMenus((prev) =>
-      prev.includes(menuKey) ? prev.filter((key) => key !== menuKey) : [...prev, menuKey]
-    );
+    setOpenMenus((prev) => {
+      // Se o menu já está aberto, fecha ele
+      if (prev.includes(menuKey)) {
+        return prev.filter((key) => key !== menuKey);
+      }
+      // Se está fechado, abre ele e fecha todos os outros (comportamento accordion)
+      return [menuKey];
+    });
+  };
+
+  // Função para fechar todos os menus (usado quando clica em item simples)
+  const closeAllMenus = () => {
+    setOpenMenus([]);
   };
 
   const isActive = (href: string) => {
@@ -121,7 +131,7 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
 
   return (
     <aside
-      className={`hidden lg:block lg:fixed lg:inset-y-0 lg:z-50 lg:w-64 lg:border-r lg:border-border lg:bg-background lg:transition-transform lg:duration-300 ${
+      className={`hidden lg:block lg:fixed lg:inset-y-0 lg:z-50 lg:w-72 lg:border-r lg:border-border lg:bg-background lg:transition-transform lg:duration-300 ${
         sidebarOpen ? 'lg:translate-x-0' : 'lg:-translate-x-full'
       }`}
     >
@@ -146,19 +156,22 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
         </div>
 
         {/* Navegação */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3">
+        <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-visible px-3">
           {/* Dashboard */}
           <Link
             href={dashboardItem.href}
-            onClick={onNavClick}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+            onClick={() => {
+              closeAllMenus();
+              onNavClick();
+            }}
+            className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition ${
               isActive(dashboardItem.href)
                 ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
                 : 'text-foreground/90 hover:bg-secondary'
             }`}
           >
-            <dashboardItem.icon className="h-5 w-5" aria-hidden />
-            {dashboardItem.label}
+            <dashboardItem.icon className="h-4 w-4 flex-shrink-0" aria-hidden />
+            <span className="whitespace-nowrap">{dashboardItem.label}</span>
           </Link>
 
           {/* Resultado Econômico (colapsável) */}
@@ -167,21 +180,21 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
             onOpenChange={() => toggleMenu('resultado-economico')}
           >
             <CollapsibleTrigger
-              className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+              className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition ${
                 isGroupActive(resultadoEconomicoGroup)
                   ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
                   : 'text-foreground/90 hover:bg-secondary'
               }`}
             >
-              <resultadoEconomicoGroup.icon className="h-5 w-5" aria-hidden />
-              <span className="flex-1 text-left">{resultadoEconomicoGroup.label}</span>
+              <resultadoEconomicoGroup.icon className="h-4 w-4 flex-shrink-0" aria-hidden />
+              <span className="flex-1 text-left whitespace-nowrap">{resultadoEconomicoGroup.label}</span>
               {openMenus.includes('resultado-economico') ? (
                 <ChevronDown className="h-4 w-4" />
               ) : (
                 <ChevronRight className="h-4 w-4" />
               )}
             </CollapsibleTrigger>
-            <CollapsibleContent className="mt-1 space-y-1 pl-8">
+            <CollapsibleContent className="mt-1 space-y-0.5 pl-8 overflow-visible data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
               {resultadoEconomicoGroup.items.map((item) => {
                 const Icon = item.icon;
                 const itemIsActive = isActive(item.href);
@@ -189,15 +202,18 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={onNavClick}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    onClick={() => {
+                      closeAllMenus();
+                      onNavClick();
+                    }}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                       itemIsActive
                         ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
                         : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
                     }`}
                   >
-                    <Icon className="h-4 w-4" aria-hidden />
-                    {item.label}
+                    <Icon className="h-3.5 w-3.5 flex-shrink-0" aria-hidden />
+                    <span className="whitespace-nowrap">{item.label}</span>
                   </Link>
                 );
               })}
@@ -211,21 +227,21 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
               onOpenChange={() => toggleMenu('processos')}
             >
               <CollapsibleTrigger
-                className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition ${
                   isGroupActive(processosGroup)
                     ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
                     : 'text-foreground/90 hover:bg-secondary'
                 }`}
               >
-                <processosGroup.icon className="h-5 w-5" aria-hidden />
-                <span className="flex-1 text-left">{processosGroup.label}</span>
+                <processosGroup.icon className="h-4 w-4 flex-shrink-0" aria-hidden />
+                <span className="flex-1 text-left whitespace-nowrap">{processosGroup.label}</span>
                 {openMenus.includes('processos') ? (
                   <ChevronDown className="h-4 w-4" />
                 ) : (
                   <ChevronRight className="h-4 w-4" />
                 )}
               </CollapsibleTrigger>
-              <CollapsibleContent className="mt-1 space-y-1 pl-8">
+              <CollapsibleContent className="mt-1 space-y-0.5 pl-8 overflow-visible data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
                 {processosGroup.items.map((item) => {
                   const Icon = item.icon;
                   const itemIsActive = isActive(item.href);
@@ -233,15 +249,18 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
                     <Link
                       key={item.href}
                       href={item.href}
-                      onClick={onNavClick}
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                      onClick={() => {
+                        closeAllMenus();
+                        onNavClick();
+                      }}
+                      className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                         itemIsActive
                           ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
                           : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
                       }`}
                     >
-                      <Icon className="h-4 w-4" aria-hidden />
-                      {item.label}
+                      <Icon className="h-3.5 w-3.5 flex-shrink-0" aria-hidden />
+                      <span className="whitespace-nowrap">{item.label}</span>
                     </Link>
                   );
                 })}
@@ -253,15 +272,18 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
           {isAdmin && (
             <Link
               href={atasItem.href}
-              onClick={onNavClick}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+              onClick={() => {
+                closeAllMenus();
+                onNavClick();
+              }}
+              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition ${
                 isActive(atasItem.href)
                   ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
                   : 'text-foreground/90 hover:bg-secondary'
               }`}
             >
-              <atasItem.icon className="h-5 w-5" aria-hidden />
-              {atasItem.label}
+              <atasItem.icon className="h-4 w-4 flex-shrink-0" aria-hidden />
+              <span className="whitespace-nowrap">{atasItem.label}</span>
             </Link>
           )}
         </nav>

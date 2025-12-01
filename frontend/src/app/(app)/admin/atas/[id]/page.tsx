@@ -413,12 +413,12 @@ export default function DetalhesAtaPage() {
 
   if (error || !ata) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-4">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4">
             <div className="text-center">
-              <p className="text-destructive">{error || 'Ata não encontrada'}</p>
-              <Button onClick={() => router.push('/admin/atas')} className="mt-4">
+              <p className="text-sm text-destructive">{error || 'Ata não encontrada'}</p>
+              <Button onClick={() => router.push('/admin/atas')} className="mt-3" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar
               </Button>
@@ -430,16 +430,16 @@ export default function DetalhesAtaPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => router.push('/admin/atas')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">{ata.titulo}</h1>
-            <div className="flex items-center gap-2 mt-2">
+            <h1 className="text-2xl font-bold">{ata.titulo}</h1>
+            <div className="flex items-center gap-2 mt-1.5">
               <Badge variant={ata.status === 'finalizada' ? 'default' : 'secondary'}>
                 {ata.status}
               </Badge>
@@ -471,29 +471,29 @@ export default function DetalhesAtaPage() {
       </div>
 
       {/* Informações Gerais */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Informações Gerais</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Informações Gerais</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-2.5">
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs">
                 {format(new Date(ata.data_reuniao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm capitalize">{ata.tipo_reuniao.replace('_', ' ')}</span>
+              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs capitalize">{ata.tipo_reuniao.replace('_', ' ')}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">{ata.participantes.length} participantes</span>
+              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs">{ata.participantes.length} participantes</span>
             </div>
             {ata.descricao && (
               <div>
-                <p className="text-sm text-muted-foreground">{ata.descricao}</p>
+                <p className="text-xs text-muted-foreground">{ata.descricao}</p>
               </div>
             )}
           </CardContent>
@@ -502,35 +502,35 @@ export default function DetalhesAtaPage() {
         {/* Informações de IA */}
         {ata.gerado_por_ia && (
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Sparkles className="h-5 w-5" />
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
                 Processamento por IA
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2.5">
               {ata.ia_usada && (
                 <div>
-                  <p className="text-sm text-muted-foreground">IA Utilizada</p>
-                  <p className="text-sm font-medium">{ata.ia_usada}</p>
+                  <p className="text-xs text-muted-foreground">IA Utilizada</p>
+                  <p className="text-xs font-medium">{ata.ia_usada}</p>
                 </div>
               )}
               {ata.modelo_ia && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Modelo</p>
-                  <p className="text-sm font-medium">{ata.modelo_ia}</p>
+                  <p className="text-xs text-muted-foreground">Modelo</p>
+                  <p className="text-xs font-medium">{ata.modelo_ia}</p>
                 </div>
               )}
               {ata.custo_ia && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Custo Estimado</p>
-                  <p className="text-sm font-medium capitalize">{ata.custo_ia}</p>
+                  <p className="text-xs text-muted-foreground">Custo Estimado</p>
+                  <p className="text-xs font-medium capitalize">{ata.custo_ia}</p>
                 </div>
               )}
               {ata.tempo_processamento_ia && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Tempo de Processamento</p>
-                  <p className="text-sm font-medium">{ata.tempo_processamento_ia}ms</p>
+                  <p className="text-xs text-muted-foreground">Tempo de Processamento</p>
+                  <p className="text-xs font-medium">{ata.tempo_processamento_ia}ms</p>
                 </div>
               )}
             </CardContent>
@@ -541,17 +541,17 @@ export default function DetalhesAtaPage() {
       {/* Participantes */}
       {ata.participantes.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Participantes</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Participantes</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {ata.participantes.map((participante, index) => (
-                <div key={index} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                <div key={index} className="flex items-center justify-between p-1.5 rounded-md bg-muted/50">
                   <div>
-                    <p className="font-medium">{participante.nome}</p>
+                    <p className="text-sm font-medium">{participante.nome}</p>
                     {participante.cargo && (
-                      <p className="text-sm text-muted-foreground">{participante.cargo}</p>
+                      <p className="text-xs text-muted-foreground">{participante.cargo}</p>
                     )}
                   </div>
                   <Badge variant={participante.presente ? 'default' : 'secondary'}>
@@ -567,16 +567,16 @@ export default function DetalhesAtaPage() {
       {/* Pautas */}
       {ata.pautas.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Pautas</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Pautas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {ata.pautas.map((pauta, index) => (
-                <div key={index} className="p-3 rounded-md border">
-                  <p className="font-medium">{pauta.titulo}</p>
+                <div key={index} className="p-2 rounded-md border">
+                  <p className="text-sm font-medium">{pauta.titulo}</p>
                   {pauta.descricao && (
-                    <p className="text-sm text-muted-foreground mt-1">{pauta.descricao}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{pauta.descricao}</p>
                   )}
                 </div>
               ))}
@@ -588,14 +588,14 @@ export default function DetalhesAtaPage() {
       {/* Decisões */}
       {ata.decisoes.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Decisões</CardTitle>
-            <CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Decisões</CardTitle>
+            <CardDescription className="text-xs">
               Gerencie as decisões tomadas nesta reunião
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {ata.decisoes.map((decisao, index) => (
                 <DecisaoItem
                   key={index}
@@ -612,14 +612,14 @@ export default function DetalhesAtaPage() {
       {/* Ações */}
       {ata.acoes.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Ações</CardTitle>
-            <CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Ações</CardTitle>
+            <CardDescription className="text-xs">
               Acompanhe o progresso das ações definidas
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {ata.acoes.map((acao, index) => (
                 <AcaoItem
                   key={index}
@@ -642,12 +642,12 @@ export default function DetalhesAtaPage() {
 
       {/* Conteúdo Completo */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Conteúdo Completo</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Conteúdo Completo</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="prose prose-sm max-w-none dark:prose-invert">
-            <div className="text-sm leading-relaxed space-y-4">
+            <div className="text-xs leading-relaxed space-y-2">
               {formatarConteudoAta(ata.conteudo).split('\n\n').map((paragrafo, index) => {
                 const paragrafoLimpo = paragrafo.trim();
                 if (!paragrafoLimpo) return null;

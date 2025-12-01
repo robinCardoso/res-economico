@@ -89,7 +89,7 @@ export const AppShell = ({ children }: AppShellProps) => {
 
       <div
         className={`flex flex-1 flex-col max-w-full overflow-x-hidden transition-all duration-300 ${
-          sidebarOpen ? 'lg:pl-64' : 'lg:pl-0'
+          sidebarOpen ? 'lg:pl-72' : 'lg:pl-0'
         }`}
       >
         <header className="sticky top-0 z-40 border-b border-border bg-background">
