@@ -1,6 +1,9 @@
 import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
 
+// Flag para mostrar aviso apenas uma vez
+let hasShownLocalStorageWarning = false;
+
 // Função para obter a baseURL dinamicamente
 const getBaseURL = (): string | undefined => {
   if (typeof window === 'undefined') {
@@ -8,16 +11,26 @@ const getBaseURL = (): string | undefined => {
     return process.env.NEXT_PUBLIC_API_URL?.trim() || undefined;
   }
 
-  // Client-side: verificar localStorage primeiro (permite configuração dinâmica)
+  // Client-side: priorizar variável de ambiente (mais confiável)
+  const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (envApiUrl) {
+    // Se há variável de ambiente, usar ela (mas avisar se localStorage está diferente - apenas uma vez)
+    const storedApiUrl = localStorage.getItem('api-url');
+    if (storedApiUrl && storedApiUrl.trim() !== envApiUrl && !hasShownLocalStorageWarning) {
+      console.warn(
+        `[HTTP] ⚠️ Variável de ambiente NEXT_PUBLIC_API_URL (${envApiUrl}) está sendo usada. ` +
+        `localStorage tem valor diferente (${storedApiUrl}). ` +
+        `Para limpar: localStorage.removeItem('api-url')`
+      );
+      hasShownLocalStorageWarning = true;
+    }
+    return envApiUrl;
+  }
+
+  // Se não há variável de ambiente, verificar localStorage (permite configuração dinâmica)
   const storedApiUrl = localStorage.getItem('api-url');
   if (storedApiUrl) {
     return storedApiUrl.trim();
-  }
-
-  // Depois verificar variável de ambiente
-  const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (envApiUrl) {
-    return envApiUrl;
   }
 
   // Fallback: usar localhost (funciona quando frontend e backend estão na mesma máquina)
@@ -26,7 +39,7 @@ const getBaseURL = (): string | undefined => {
 
 // Criar instância do axios sem baseURL fixa
 export const api = axios.create({
-  timeout: 15_000,
+  timeout: 60_000, // 60 segundos para uploads grandes
   headers: {
     "Content-Type": "application/json",
   },
@@ -174,15 +187,26 @@ api.interceptors.response.use(
       }
 
       console.error('[HTTP] Erro de conexão:', errorInfo);
-      console.error('[HTTP] Sugestão: Verifique se o backend está rodando e se o IP/URL está correto.');
-      console.error('[HTTP] Para configurar a URL da API, execute no console do navegador:');
-      console.error(`[HTTP]   localStorage.setItem("api-url", "http://SEU_IP:3000")`);
+      console.error('[HTTP] ⚠️ Não foi possível conectar ao backend.');
+      console.error(`[HTTP] URL tentada: ${fullURL}`);
+      console.error('');
+      console.error('[HTTP] 📋 SOLUÇÕES:');
+      console.error('[HTTP] 1. Crie o arquivo frontend/.env.local com:');
+      console.error('[HTTP]    NEXT_PUBLIC_API_URL=http://10.1.1.37:3000');
+      console.error('[HTTP]    (Substitua 10.1.1.37 pelo IP do seu backend)');
+      console.error('');
+      console.error('[HTTP] 2. OU configure via console do navegador (temporário):');
+      console.error('[HTTP]    localStorage.setItem("api-url", "http://10.1.1.37:3000")');
+      console.error('[HTTP]    (Depois recarregue a página)');
+      console.error('');
       console.error(`[HTTP] URL atual configurada: ${baseURL}`);
       
       // Criar erro mais descritivo
       const networkError = new Error(
         `Erro de conexão: Não foi possível conectar ao servidor em ${fullURL}. ` +
-        `Verifique se o backend está rodando na URL: ${baseURL}`
+        `Verifique se o backend está rodando e acessível na rede. ` +
+        `Backend deve estar escutando em 0.0.0.0:3000 (não apenas localhost). ` +
+        `URL configurada: ${baseURL}`
       );
       (networkError as { code?: string }).code = error.code || 'NETWORK_ERROR';
       (networkError as { config?: unknown }).config = error.config;

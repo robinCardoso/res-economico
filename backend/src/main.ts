@@ -3,10 +3,16 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import * as os from 'os';
+import * as fs from 'fs';
+import * as express from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Aumentar limite do body-parser para permitir uploads de arquivos maiores (10MB)
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
   // Habilitar validação global
   app.useGlobalPipes(
@@ -33,6 +39,12 @@ async function bootstrap() {
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads',
   });
+  
+  // Garantir que a pasta uploads/atas existe
+  const uploadsAtasDir = join(__dirname, '..', 'uploads', 'atas');
+  if (!fs.existsSync(uploadsAtasDir)) {
+    fs.mkdirSync(uploadsAtasDir, { recursive: true });
+  }
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0'); // Escutar em todas as interfaces de rede

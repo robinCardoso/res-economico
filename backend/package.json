@@ -36,6 +36,7 @@
     "create-empresa": "ts-node scripts/create-empresa.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/bull": "^11.0.4",
     "@nestjs/common": "^11.0.1",
@@ -50,6 +51,7 @@
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.63.0",
+    "canvas": "^3.2.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "groq-sdk": "^0.36.0",
@@ -58,10 +60,12 @@
     "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pdf-parse": "^2.4.5",
     "prisma": "^6.19.0",
     "reflect-metadata": "^0.2.2",
     "resend": "^6.4.2",
     "rxjs": "^7.8.1",
+    "tesseract.js": "^6.0.1",
     "xlsx": "^0.18.5",
     "zod": "^4.1.12"
   },
@@ -78,6 +82,7 @@
     "@types/multer": "^2.0.0",
     "@types/node": "^22.19.1",
     "@types/passport-jwt": "^4.0.1",
+    "@types/pdf-parse": "^1.1.5",
     "@types/supertest": "^6.0.2",
     "@types/xlsx": "^0.0.35",
     "eslint": "^9.18.0",

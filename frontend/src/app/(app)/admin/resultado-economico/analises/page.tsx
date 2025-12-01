@@ -8,11 +8,12 @@ import { resumosService } from '@/services/resumos.service';
 import { useEmpresas } from '@/hooks/use-empresas';
 import { BrainCircuit, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import type { AnalisarDadosParams, AnaliseResponse } from '@/types/api';
+import { TipoAnalise } from '@/types/api';
 
 const AnalisesPage = () => {
   const router = useRouter();
   const { data: empresas } = useEmpresas();
-  const [tipoAnalise, setTipoAnalise] = useState<'GERAL' | 'UPLOAD' | 'ALERTAS' | 'RELATORIO' | 'COMPARATIVO'>('GERAL');
+  const [tipoAnalise, setTipoAnalise] = useState<TipoAnalise>(TipoAnalise.GERAL);
   const [empresaId, setEmpresaId] = useState<string>('');
   const [mes, setMes] = useState<number | undefined>(undefined);
   const [ano, setAno] = useState<number | undefined>(new Date().getFullYear());
@@ -87,7 +88,7 @@ const AnalisesPage = () => {
             <select
               id="tipoAnalise"
               value={tipoAnalise}
-              onChange={(e) => setTipoAnalise(e.target.value as typeof tipoAnalise)}
+              onChange={(e) => setTipoAnalise(e.target.value as TipoAnalise)}
               className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
               required
             >

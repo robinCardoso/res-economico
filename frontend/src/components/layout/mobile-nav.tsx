@@ -35,7 +35,7 @@ export const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
 
   const isActive = (href: string) => {
     if (href === '/admin') {
-      return pathname === '/admin';
+      return pathname === '/admin' || pathname === '/admin/dashboard';
     }
     return pathname === href || (href !== '/admin' && pathname?.startsWith(href));
   };

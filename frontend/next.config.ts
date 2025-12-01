@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Permitir requisições cross-origin em desenvolvimento para acesso na rede
+  // Nota: allowedDevOrigins pode não estar disponível em Next.js 16.0.1
+  // O aviso é apenas informativo e não impede o funcionamento
   images: {
     remotePatterns: [
       {
@@ -25,6 +28,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-};
+} as NextConfig;
 
 export default withPWA(nextConfig);

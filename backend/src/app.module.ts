@@ -16,6 +16,7 @@ import { AiModule } from './ai/ai.module';
 import { ResumosModule } from './resumos/resumos.module';
 import { ConfiguracaoModeloNegocioModule } from './configuracao-modelo-negocio/configuracao-modelo-negocio.module';
 import { ProcessosModule } from './processos/processos.module';
+import { AtasModule } from './atas/atas.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ProcessosModule } from './processos/processos.module';
     ResumosModule,
     ConfiguracaoModeloNegocioModule,
     ProcessosModule,
+    AtasModule,
   ],
   controllers: [AppController],
   providers: [AppService],

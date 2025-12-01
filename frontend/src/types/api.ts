@@ -403,3 +403,139 @@ export interface RelatorioComparativo {
     percentual: number;
   };
 }
+
+// =====================================================
+// TIPOS DE ATAS E REUNIÕES
+// =====================================================
+
+export enum TipoReuniao {
+  ASSEMBLEIA_GERAL = 'ASSEMBLEIA_GERAL',
+  CONSELHO_DIRETOR = 'CONSELHO_DIRETOR',
+  REUNIAO_ORDINARIA = 'REUNIAO_ORDINARIA',
+  REUNIAO_EXTRAORDINARIA = 'REUNIAO_EXTRAORDINARIA',
+  COMISSAO = 'COMISSAO',
+  OUTRO = 'OUTRO',
+}
+
+export enum StatusAta {
+  RASCUNHO = 'RASCUNHO',
+  PUBLICADA = 'PUBLICADA',
+  ARQUIVADA = 'ARQUIVADA',
+}
+
+export interface AtaParticipante {
+  id: string;
+  ataId: string;
+  usuarioId?: string | null;
+  nomeExterno?: string | null;
+  email?: string | null;
+  cargo?: string | null;
+  presente: boolean;
+  observacoes?: string | null;
+  usuario?: {
+    id: string;
+    nome: string;
+    email: string;
+  } | null;
+}
+
+export interface AtaAnexo {
+  id: string;
+  ataId: string;
+  nomeArquivo: string;
+  urlArquivo: string;
+  tipoArquivo: string;
+  tamanhoArquivo?: number | null;
+  mimeType?: string | null;
+  uploadedBy?: string | null;
+  descricao?: string | null;
+  uploadedAt: string;
+}
+
+export interface AtaReuniao {
+  id: string;
+  numero: string;
+  titulo: string;
+  tipo: TipoReuniao;
+  dataReuniao: string;
+  local?: string | null;
+  status: StatusAta;
+  pauta?: string | null;
+  conteudo?: string | null;
+  decisoes?: string | null;
+  observacoes?: string | null;
+  criadoPor: string;
+  empresaId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  criador: {
+    id: string;
+    nome: string;
+    email: string;
+  };
+  empresa?: {
+    id: string;
+    razaoSocial: string;
+    nomeFantasia?: string | null;
+  } | null;
+  participantes: AtaParticipante[];
+  anexos?: AtaAnexo[];
+  _count?: {
+    anexos: number;
+  };
+}
+
+export interface AtasListResponse {
+  data: AtaReuniao[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface ParticipanteDto {
+  usuarioId?: string;
+  nomeExterno?: string;
+  email?: string;
+  cargo?: string;
+  presente?: boolean;
+  observacoes?: string;
+}
+
+export interface CreateAtaDto {
+  titulo: string;
+  tipo: TipoReuniao;
+  dataReuniao: string;
+  local?: string;
+  pauta?: string;
+  conteudo?: string;
+  decisoes?: string;
+  observacoes?: string;
+  empresaId?: string;
+  participantes?: ParticipanteDto[];
+}
+
+export interface UpdateAtaDto {
+  titulo?: string;
+  tipo?: TipoReuniao;
+  dataReuniao?: string;
+  local?: string;
+  status?: StatusAta;
+  pauta?: string;
+  conteudo?: string;
+  decisoes?: string;
+  observacoes?: string;
+  empresaId?: string;
+  participantes?: ParticipanteDto[];
+}
+
+export interface FilterAtaDto {
+  empresaId?: string;
+  tipo?: TipoReuniao;
+  status?: StatusAta;
+  dataInicio?: string;
+  dataFim?: string;
+  busca?: string;
+  page?: number;
+  limit?: number;
+}

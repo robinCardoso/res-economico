@@ -28,7 +28,7 @@ const LoginPage = () => {
     try {
       const response = await authService.login(data);
       setAuth(response.user, response.token);
-      router.push('/admin/resultado-economico/dashboard');
+      router.push('/admin/dashboard');
     } catch (err: unknown) {
       let errorMessage = 'Erro ao fazer login. Verifique suas credenciais.';
       const error = err as { 

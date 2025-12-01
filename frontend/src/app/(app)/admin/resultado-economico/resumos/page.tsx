@@ -6,16 +6,17 @@ import { useRouter } from 'next/navigation';
 import { resumosService } from '@/services/resumos.service';
 import { FileText, Download, Trash2, Eye, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import type { ResumoEconomico } from '@/types/api';
+import type { ResumoEconomico, FilterResumoDto, ResumoStatus } from '@/types/api';
+import { TipoAnalise } from '@/types/api';
 
 const ResumosPage = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [filters, setFilters] = useState({
-    ano: undefined as number | undefined,
-    mes: undefined as number | undefined,
-    status: undefined as string | undefined,
-    tipoAnalise: undefined as string | undefined,
+  const [filters, setFilters] = useState<FilterResumoDto>({
+    ano: undefined,
+    mes: undefined,
+    status: undefined,
+    tipoAnalise: undefined,
   });
 
   const { data, isLoading, error } = useQuery({
@@ -158,7 +159,7 @@ const ResumosPage = () => {
             <select
               id="status"
               value={filters.status || ''}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value || undefined })}
+              onChange={(e) => setFilters({ ...filters, status: (e.target.value || undefined) as ResumoStatus | undefined })}
               className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <option value="">Todos</option>
@@ -174,7 +175,7 @@ const ResumosPage = () => {
             <select
               id="tipoAnalise"
               value={filters.tipoAnalise || ''}
-              onChange={(e) => setFilters({ ...filters, tipoAnalise: e.target.value || undefined })}
+              onChange={(e) => setFilters({ ...filters, tipoAnalise: (e.target.value || undefined) as TipoAnalise | undefined })}
               className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <option value="">Todos</option>

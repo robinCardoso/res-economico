@@ -32,6 +32,7 @@ model Empresa {
   uploads               Upload[]
   usuarios              Usuario[]
   processos             Processo[]
+  atas                  AtaReuniao[]
 }
 
 model ConfiguracaoModeloNegocio {
@@ -49,19 +50,22 @@ model ConfiguracaoModeloNegocio {
 }
 
 model Usuario {
-  id           String            @id @default(uuid())
-  email        String            @unique
-  senha        String
-  nome         String
-  roles        String[]          @default(["user"])
-  empresaId    String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  departamento Departamento?
-  logs         LogAuditoria[]
-  resumos      ResumoEconomico[]
-  processos    Processo[]
-  empresa      Empresa?          @relation(fields: [empresaId], references: [id])
+  id                String            @id @default(uuid())
+  email             String            @unique
+  senha             String
+  nome              String
+  roles             String[]          @default(["user"])
+  empresaId         String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  departamento      Departamento?
+  logs              LogAuditoria[]
+  resumos           ResumoEconomico[]
+  processos         Processo[]
+  atas              AtaReuniao[]
+  participantesAtas AtaParticipante[]
+  comentariosAtas   AtaComentario[]
+  empresa           Empresa?          @relation(fields: [empresaId], references: [id])
 }
 
 model TemplateImportacao {
@@ -260,50 +264,50 @@ enum Departamento {
 // =====================================================
 
 model Processo {
-  id                    String            @id @default(uuid())
-  numeroControle        String            @unique
-  protocolo             String            @unique
-  userId                String
-  empresaId             String?
-  
+  id             String  @id @default(uuid())
+  numeroControle String  @unique
+  protocolo      String  @unique
+  userId         String
+  empresaId      String?
+
   // Dados básicos
-  tipo                  TipoProcesso
-  situacao              SituacaoProcesso  @default(AGUARDANDO_ANALISE)
-  nomeClienteAssociado  String
-  razaoSocial           String
-  titulo                String?
-  descricao             String?
-  categoria             CategoriaReclamacao?
-  prioridade            PrioridadeProcesso?
-  contatoRetorno        String?
-  
+  tipo                 TipoProcesso
+  situacao             SituacaoProcesso     @default(AGUARDANDO_ANALISE)
+  nomeClienteAssociado String
+  razaoSocial          String
+  titulo               String?
+  descricao            String?
+  categoria            CategoriaReclamacao?
+  prioridade           PrioridadeProcesso?
+  contatoRetorno       String?
+
   // Localização
-  uf                    String?
-  cidade                String?
-  
+  uf     String?
+  cidade String?
+
   // Dados específicos
-  fabrica               String?
-  importacao            String?
-  ano                   String?
-  reclamacao            String?
-  
+  fabrica    String?
+  importacao String?
+  ano        String?
+  reclamacao String?
+
   // Responsável e prazos
-  responsavel           String?
-  prazoResolucao        DateTime?
-  dataSolucao           DateTime?
-  comentarios           String?
-  
+  responsavel    String?
+  prazoResolucao DateTime?
+  dataSolucao    DateTime?
+  comentarios    String?
+
   // Relacionamentos
-  usuario               Usuario           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  empresa               Empresa?          @relation(fields: [empresaId], references: [id])
-  itens                 ProcessoItem[]
-  anexos                ProcessoAnexo[]
-  historico             ProcessoHistorico[]
-  
+  usuario   Usuario             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  empresa   Empresa?            @relation(fields: [empresaId], references: [id])
+  itens     ProcessoItem[]
+  anexos    ProcessoAnexo[]
+  historico ProcessoHistorico[]
+
   // Metadados
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId, createdAt])
   @@index([empresaId, createdAt])
   @@index([tipo, situacao])
@@ -313,77 +317,77 @@ model Processo {
 }
 
 model ProcessoItem {
-  id                    String            @id @default(uuid())
-  processoId            String
-  nf                    String
-  referencia            String
-  descricaoProduto      String?
-  qtd                   Int
-  valorUnit             Decimal            @db.Decimal(18, 2)
-  detalhes              String
-  marca                 String?
-  
+  id               String  @id @default(uuid())
+  processoId       String
+  nf               String
+  referencia       String
+  descricaoProduto String?
+  qtd              Int
+  valorUnit        Decimal @db.Decimal(18, 2)
+  detalhes         String
+  marca            String?
+
   // Informações técnicas (para garantias)
-  dataInstalacao        DateTime?
-  dataRemocao           DateTime?
-  kmInstalacao          String?
-  kmRemocao             String?
-  modeloVeiculo         String?
-  anoVeiculo            String?
-  marcaVeiculo          String?
-  
+  dataInstalacao DateTime?
+  dataRemocao    DateTime?
+  kmInstalacao   String?
+  kmRemocao      String?
+  modeloVeiculo  String?
+  anoVeiculo     String?
+  marcaVeiculo   String?
+
   // Custo de garantia
-  temCustoGarantia      Boolean           @default(false)
-  valorCusto            Decimal?          @db.Decimal(18, 2)
-  infoPecas              String?
-  
+  temCustoGarantia Boolean  @default(false)
+  valorCusto       Decimal? @db.Decimal(18, 2)
+  infoPecas        String?
+
   // Relacionamentos
-  processo              Processo          @relation(fields: [processoId], references: [id], onDelete: Cascade)
-  
+  processo Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+
   // Metadados
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([processoId])
 }
 
 model ProcessoAnexo {
-  id                    String            @id @default(uuid())
-  processoId            String
-  nomeArquivo           String
-  urlArquivo            String
-  tipoArquivo           TipoArquivoProcesso
-  tamanhoArquivo        Int?
-  mimeType              String?
-  uploadedBy            String?
-  metadata              Json?
-  
+  id             String              @id @default(uuid())
+  processoId     String
+  nomeArquivo    String
+  urlArquivo     String
+  tipoArquivo    TipoArquivoProcesso
+  tamanhoArquivo Int?
+  mimeType       String?
+  uploadedBy     String?
+  metadata       Json?
+
   // Relacionamentos
-  processo              Processo          @relation(fields: [processoId], references: [id], onDelete: Cascade)
-  
+  processo Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+
   // Metadados
-  uploadedAt            DateTime          @default(now())
-  
+  uploadedAt DateTime @default(now())
+
   @@index([processoId])
 }
 
 model ProcessoHistorico {
-  id                    String            @id @default(uuid())
-  processoId            String
-  acao                  String
-  descricao             String
-  usuarioId             String?
-  usuarioNome           String?
-  dadosAnteriores       Json?
-  dadosNovos            Json?
-  metadata              Json?
-  
+  id              String  @id @default(uuid())
+  processoId      String
+  acao            String
+  descricao       String
+  usuarioId       String?
+  usuarioNome     String?
+  dadosAnteriores Json?
+  dadosNovos      Json?
+  metadata        Json?
+
   // Relacionamentos
-  processo              Processo          @relation(fields: [processoId], references: [id], onDelete: Cascade)
-  
+  processo Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+
   // Metadados
-  createdAt             DateTime          @default(now())
-  
+  createdAt DateTime @default(now())
+
   @@index([processoId, createdAt])
   @@index([usuarioId])
 }
@@ -426,4 +430,153 @@ enum TipoArquivoProcesso {
   DOCUMENTO
   NOTA_FISCAL
   PROTOCOLO_FABRICA
+}
+
+// =====================================================
+// MODELOS DE ATAS E REUNIÕES
+// =====================================================
+
+model AtaReuniao {
+  id          String      @id @default(uuid())
+  numero      String      @unique
+  titulo      String
+  tipo        TipoReuniao
+  dataReuniao DateTime
+  local       String?
+  status      StatusAta   @default(RASCUNHO)
+
+  // Conteúdo
+  pauta       String? // Pauta da reunião (texto simples - legado)
+  conteudo    String? // Conteúdo/resumo da reunião
+  descricao   String? // Descrição breve da ata
+  resumo      String? // Resumo gerado por IA
+  pautas      Json? // Pautas estruturadas (array de objetos)
+  decisoes    Json? // Decisões tomadas (array de objetos)
+  acoes       Json? // Ações/observações estruturadas (array de objetos)
+  observacoes String? // Observações adicionais (texto simples - legado)
+
+  // Metadados de IA
+  geradoPorIa          Boolean? // Indica se foi gerado/processado por IA
+  iaUsada              String? // Qual IA foi usada (ex: "Groq", "Claude", "Gemini")
+  modeloIa             String? // Modelo específico usado (ex: "llama-3.1-8b-instant")
+  custoIa              String? // Custo estimado do processamento
+  tempoProcessamentoIa Int? // Tempo de processamento em milissegundos
+
+  // Arquivo original (quando importado)
+  arquivoOriginalUrl  String? // URL do arquivo original
+  arquivoOriginalNome String? // Nome do arquivo original
+  arquivoOriginalTipo String? // Tipo/MIME do arquivo original
+
+  // Relacionamentos
+  criadoPor String
+  empresaId String?
+
+  // Metadados
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  criador       Usuario           @relation(fields: [criadoPor], references: [id], onDelete: Cascade)
+  empresa       Empresa?          @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  participantes AtaParticipante[]
+  anexos        AtaAnexo[]
+  comentarios   AtaComentario[]
+
+  @@index([dataReuniao])
+  @@index([status])
+  @@index([empresaId])
+  @@index([criadoPor])
+  @@index([tipo])
+}
+
+model AtaParticipante {
+  id          String  @id @default(uuid())
+  ataId       String
+  usuarioId   String?
+  nomeExterno String? // Para participantes que não são usuários do sistema
+  email       String?
+  cargo       String?
+  presente    Boolean @default(true)
+  observacoes String?
+
+  // Relacionamentos
+  ata     AtaReuniao @relation(fields: [ataId], references: [id], onDelete: Cascade)
+  usuario Usuario?   @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([ataId])
+  @@index([usuarioId])
+}
+
+model AtaAnexo {
+  id             String         @id @default(uuid())
+  ataId          String
+  nomeArquivo    String
+  urlArquivo     String
+  tipoArquivo    TipoArquivoAta
+  tamanhoArquivo Int?
+  mimeType       String?
+  uploadedBy     String?
+  descricao      String?
+
+  // Relacionamentos
+  ata AtaReuniao @relation(fields: [ataId], references: [id], onDelete: Cascade)
+
+  // Metadados
+  uploadedAt DateTime @default(now())
+
+  @@index([ataId])
+}
+
+model AtaComentario {
+  id              String         @id @default(uuid())
+  ataId           String
+  comentario      String
+  tipo            TipoComentario
+  autorId         String
+  comentarioPaiId String? // Para respostas a outros comentários
+
+  // Relacionamentos
+  ata           AtaReuniao      @relation(fields: [ataId], references: [id], onDelete: Cascade)
+  autor         Usuario         @relation(fields: [autorId], references: [id], onDelete: Cascade)
+  comentarioPai AtaComentario?  @relation("ComentarioRespostas", fields: [comentarioPaiId], references: [id], onDelete: Cascade)
+  respostas     AtaComentario[] @relation("ComentarioRespostas")
+
+  // Metadados
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ataId])
+  @@index([autorId])
+  @@index([comentarioPaiId])
+}
+
+// Enums para Atas
+enum TipoReuniao {
+  ASSEMBLEIA_GERAL
+  CONSELHO_DIRETOR
+  REUNIAO_ORDINARIA
+  REUNIAO_EXTRAORDINARIA
+  COMISSAO
+  OUTRO
+}
+
+enum StatusAta {
+  RASCUNHO
+  PUBLICADA
+  ARQUIVADA
+}
+
+enum TipoArquivoAta {
+  DOCUMENTO
+  IMAGEM
+  PDF
+  PLANILHA
+  OUTRO
+}
+
+enum TipoComentario {
+  COMENTARIO
+  SUGESTAO
+  APROVACAO
+  REPROVACAO
 }

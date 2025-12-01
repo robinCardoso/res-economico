@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   BarChart3,
   Bell,
+  FileCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -71,6 +72,13 @@ const processosGroup: NavGroup = {
   ],
 };
 
+// Menu Atas e Reuniões (link simples)
+const atasItem: NavItem = {
+  label: 'Atas e Reuniões',
+  href: '/admin/atas',
+  icon: FileCheck,
+};
+
 type AdminSidebarProps = {
   sidebarOpen: boolean;
   onNavClick: () => void;
@@ -102,7 +110,7 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
 
   const isActive = (href: string) => {
     if (href === '/admin') {
-      return pathname === '/admin';
+      return pathname === '/admin' || pathname === '/admin/dashboard';
     }
     return pathname === href || (href !== '/admin' && pathname?.startsWith(href));
   };
@@ -239,6 +247,22 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
                 })}
               </CollapsibleContent>
             </Collapsible>
+          )}
+
+          {/* Atas e Reuniões - apenas para admin */}
+          {isAdmin && (
+            <Link
+              href={atasItem.href}
+              onClick={onNavClick}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                isActive(atasItem.href)
+                  ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                  : 'text-foreground/90 hover:bg-secondary'
+              }`}
+            >
+              <atasItem.icon className="h-5 w-5" aria-hidden />
+              {atasItem.label}
+            </Link>
           )}
         </nav>
 
