@@ -11,4 +11,3 @@ import { ConfigModule } from '@nestjs/config';
   exports: [AtasService],
 })
 export class AtasModule {}
-

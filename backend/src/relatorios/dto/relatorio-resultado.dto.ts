@@ -7,6 +7,8 @@ export interface ContaRelatorio {
     total: number;
   };
   filhos?: ContaRelatorio[]; // Para hierarquia
+  conta?: string; // Número da conta (ex: "1053")
+  subConta?: string; // Subconta (quando aplicável)
 }
 
 export interface RelatorioResultado {

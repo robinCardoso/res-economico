@@ -527,42 +527,42 @@ export class ExcelProcessorService {
     mapping: TemplateMapping,
   ): ExcelRow[] {
     // Função auxiliar para normalizar strings e garantir UTF-8
-      const normalizeString = (value: unknown): string => {
-        if (value === null || value === undefined || value === '') {
-          return '';
-        }
+    const normalizeString = (value: unknown): string => {
+      if (value === null || value === undefined || value === '') {
+        return '';
+      }
 
-        let str: string;
-        if (typeof value === 'string') {
-          str = value;
-        } else if (typeof value === 'number' || typeof value === 'boolean') {
-          return String(value).trim();
-        } else if (typeof value === 'object') {
-          // Para objetos, usar JSON.stringify
+      let str: string;
+      if (typeof value === 'string') {
+        str = value;
+      } else if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value).trim();
+      } else if (typeof value === 'object') {
+        // Para objetos, usar JSON.stringify
+        return JSON.stringify(value).trim();
+      } else if (typeof value === 'symbol' || typeof value === 'function') {
+        // Para symbol e function, converter para string explicitamente
+        return String(value).trim();
+      } else {
+        // Para outros tipos desconhecidos, tentar converter
+        // Mas evitar objetos que possam ter passado pela verificação
+        if (value !== null && typeof value === 'object') {
           return JSON.stringify(value).trim();
-        } else if (typeof value === 'symbol' || typeof value === 'function') {
-          // Para symbol e function, converter para string explicitamente
-          return String(value).trim();
-        } else {
-          // Para outros tipos desconhecidos, tentar converter
-          // Mas evitar objetos que possam ter passado pela verificação
-          if (value !== null && typeof value === 'object') {
-            return JSON.stringify(value).trim();
-          }
-          // Type guard: se não é objeto, null, undefined, string, number, boolean, symbol ou function,
-          // então é um tipo desconhecido - usar conversão segura
-          const safeValue: string | number | boolean = value as
-            | string
-            | number
-            | boolean;
-          return String(safeValue).trim();
         }
+        // Type guard: se não é objeto, null, undefined, string, number, boolean, symbol ou function,
+        // então é um tipo desconhecido - usar conversão segura
+        const safeValue: string | number | boolean = value as
+          | string
+          | number
+          | boolean;
+        return String(safeValue).trim();
+      }
 
-        // Retornar string normalizada (trim) sem tentar corrigir encoding
-        // O PostgreSQL já está configurado com UTF-8, então não precisamos fazer conversão
-        // A conversão de encoding estava causando problemas com caracteres acentuados
-        return str.trim();
-      };
+      // Retornar string normalizada (trim) sem tentar corrigir encoding
+      // O PostgreSQL já está configurado com UTF-8, então não precisamos fazer conversão
+      // A conversão de encoding estava causando problemas com caracteres acentuados
+      return str.trim();
+    };
 
     return rawData.map((row: Record<string, unknown>, index: number) => {
       const parsed: ExcelRow = {};
@@ -1169,7 +1169,7 @@ export class ExcelProcessorService {
 
     for (let i = 0; i < linhas.length; i++) {
       const linha = linhas[i];
-      
+
       // Buscar linha criada usando chave composta para garantir associação correta
       const subContaStr = linha.subConta || '';
       const chaveLinha = `${linha.classificacao}|${linha.conta}|${subContaStr}`;

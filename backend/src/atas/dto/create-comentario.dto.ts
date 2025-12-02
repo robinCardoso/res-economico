@@ -13,4 +13,3 @@ export class CreateComentarioDto {
   @IsString()
   comentarioPaiId?: string; // Para respostas a outros comentários
 }
-

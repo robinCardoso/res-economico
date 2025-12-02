@@ -1,9 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
 import { CreateProcessoDto } from './dto/create-processo.dto';
-import { UpdateProcessoDto, SituacaoProcesso } from './dto/update-processo.dto';
+import { UpdateProcessoDto } from './dto/update-processo.dto';
 import { FilterProcessosDto } from './dto/filter-processos.dto';
-import { Prisma, TipoProcesso, SituacaoProcesso as PrismaSituacaoProcesso, CategoriaReclamacao, PrioridadeProcesso } from '@prisma/client';
+import {
+  Prisma,
+  TipoProcesso,
+  SituacaoProcesso as PrismaSituacaoProcesso,
+  CategoriaReclamacao,
+  PrioridadeProcesso,
+} from '@prisma/client';
 
 @Injectable()
 export class ProcessosService {
@@ -14,7 +24,9 @@ export class ProcessosService {
    */
   private async generateNumeroControle(): Promise<string> {
     const currentYear = new Date().getFullYear();
-    const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+    const currentMonth = (new Date().getMonth() + 1)
+      .toString()
+      .padStart(2, '0');
     const currentPattern = `${currentYear}${currentMonth}`;
 
     // Buscar o maior número de controle do mês atual
@@ -82,8 +94,10 @@ export class ProcessosService {
    */
   async create(createDto: CreateProcessoDto, userId: string) {
     // Validar se é Garantia/Devolução e tem itens
+    const tipoProcesso = this.mapTipoProcesso(createDto.tipo);
     if (
-      (createDto.tipo === 'Garantia' || createDto.tipo === 'Devolução') &&
+      (tipoProcesso === TipoProcesso.GARANTIA ||
+        tipoProcesso === TipoProcesso.DEVOLUCAO) &&
       (!createDto.itens || createDto.itens.length === 0)
     ) {
       throw new BadRequestException(
@@ -92,7 +106,7 @@ export class ProcessosService {
     }
 
     // Validar se é Reclamação e tem título/descrição
-    if (createDto.tipo === 'Reclamação') {
+    if (tipoProcesso === TipoProcesso.RECLAMACAO) {
       if (!createDto.titulo || !createDto.descricao || !createDto.categoria) {
         throw new BadRequestException(
           'Processos de Reclamação devem ter título, descrição e categoria',
@@ -101,7 +115,7 @@ export class ProcessosService {
     }
 
     // Validar imagens para garantias
-    if (createDto.tipo === 'Garantia') {
+    if (tipoProcesso === TipoProcesso.GARANTIA) {
       const allItemsHaveImages = createDto.itens?.every(
         (item) => item.imagesDataUri && item.imagesDataUri.length > 0,
       );
@@ -419,11 +433,12 @@ export class ProcessosService {
         data: {
           processoId: processoAtualizado.id,
           acao: updateDto.novaEntradaHistorico.acao || 'ATUALIZADO',
-          descricao: updateDto.novaEntradaHistorico.descricao || 'Processo atualizado',
+          descricao:
+            updateDto.novaEntradaHistorico.descricao || 'Processo atualizado',
           usuarioId: userId,
           usuarioNome: updateDto.novaEntradaHistorico.usuarioNome,
-          dadosAnteriores: dadosAnteriores as any,
-          dadosNovos: updateData as any,
+          dadosAnteriores: dadosAnteriores as Prisma.InputJsonValue,
+          dadosNovos: updateData as Prisma.InputJsonValue,
           metadata: updateDto.novaEntradaHistorico.metadata,
         },
       });
@@ -442,7 +457,7 @@ export class ProcessosService {
       Devolução: 'DEVOLUCAO',
       Reclamação: 'RECLAMACAO',
     };
-    const mapped = mapping[tipo] || tipo.toUpperCase() as TipoProcesso;
+    const mapped = mapping[tipo] || (tipo.toUpperCase() as TipoProcesso);
     return mapped;
   }
 
@@ -456,7 +471,8 @@ export class ProcessosService {
       Concluído: 'CONCLUIDO',
       Cancelado: 'CANCELADO',
     };
-    const mapped = mapping[situacao] || situacao.toUpperCase() as PrismaSituacaoProcesso;
+    const mapped =
+      mapping[situacao] || (situacao.toUpperCase() as PrismaSituacaoProcesso);
     return mapped;
   }
 
@@ -469,7 +485,9 @@ export class ProcessosService {
       tecnico: 'TECNICO',
       comunicacao: 'COMUNICACAO',
     };
-    const mapped = mapping[categoria.toLowerCase()] || categoria.toUpperCase() as CategoriaReclamacao;
+    const mapped =
+      mapping[categoria.toLowerCase()] ||
+      (categoria.toUpperCase() as CategoriaReclamacao);
     return mapped;
   }
 
@@ -479,11 +497,25 @@ export class ProcessosService {
       media: 'MEDIA',
       alta: 'ALTA',
     };
-    const mapped = mapping[prioridade.toLowerCase()] || prioridade.toUpperCase() as PrioridadeProcesso;
+    const mapped =
+      mapping[prioridade.toLowerCase()] ||
+      (prioridade.toUpperCase() as PrioridadeProcesso);
     return mapped;
   }
 
-  private mapProcessoCompleto(processo: any) {
+  private mapProcessoCompleto(
+    processo: Prisma.ProcessoGetPayload<{
+      include: {
+        itens: true;
+        anexos: true;
+        historico: true;
+        usuario: { select: { id: true; nome: true; email: true } };
+        empresa: {
+          select: { id: true; razaoSocial: true; nomeFantasia: true; uf: true };
+        };
+      };
+    }>,
+  ) {
     return {
       id: processo.id,
       numeroControle: processo.numeroControle,
@@ -524,7 +556,7 @@ export class ProcessosService {
       comentarios: processo.comentarios,
       created_at: processo.createdAt.toISOString(),
       updated_at: processo.updatedAt.toISOString(),
-      itens: processo.itens?.map((item: any) => ({
+      itens: processo.itens?.map((item) => ({
         id: item.id,
         nf: item.nf,
         referencia: item.referencia,
@@ -545,7 +577,7 @@ export class ProcessosService {
         created_at: item.createdAt.toISOString(),
         updated_at: item.updatedAt.toISOString(),
       })),
-      anexos: processo.anexos?.map((anexo: any) => ({
+      anexos: processo.anexos?.map((anexo) => ({
         id: anexo.id,
         processoId: anexo.processoId,
         nomeArquivo: anexo.nomeArquivo,
@@ -557,7 +589,7 @@ export class ProcessosService {
         uploadedBy: anexo.uploadedBy,
         metadata: anexo.metadata,
       })),
-      historico: processo.historico?.map((hist: any) => ({
+      historico: processo.historico?.map((hist) => ({
         id: hist.id,
         processoId: hist.processoId,
         acao: hist.acao,
@@ -594,4 +626,3 @@ export class ProcessosService {
     return mapping[situacao] || situacao;
   }
 }
-

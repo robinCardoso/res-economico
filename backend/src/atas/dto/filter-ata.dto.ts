@@ -3,7 +3,6 @@ import {
   IsString,
   IsEnum,
   IsDateString,
-  IsInt,
   Min,
   Max,
   IsNumber,
@@ -49,4 +48,3 @@ export class FilterAtaDto {
   @Max(100)
   limit?: number;
 }
-

@@ -802,7 +802,9 @@ ${
   contextoEmpresa.tipo === 'MATRIZ'
     ? `
 - Você está analisando dados da MATRIZ (sede/headquarters)
-${contextoEmpresa.custosCentralizados ? `
+${
+  contextoEmpresa.custosCentralizados
+    ? `
 🚨 CRÍTICO ENTENDER:
 - A matriz PODE ESTAR NEGATIVA e isso é ESPERADO quando custos estão centralizados
 - Custos operacionais altos na matriz são NORMAIS e ESPERADOS - isso é a estrutura organizacional, NÃO é um problema
@@ -813,18 +815,26 @@ ${contextoEmpresa.custosCentralizados ? `
   ✓ Se há necessidade de ajustar mensalidades ou reduzir custos
 - NÃO interprete custos altos como problema - é a estrutura organizacional
 - NÃO interprete resultado negativo como problema se receitas cobrem custos centralizados
-` : ''}
-${contextoEmpresa.receitasCentralizadas ? `
+`
+    : ''
+}
+${
+  contextoEmpresa.receitasCentralizadas
+    ? `
 - Receitas altas (ex: bonificações) na matriz são NORMAIS e ESPERADAS - isso é a estrutura organizacional, não um problema
 - A matriz concentra receitas que servem a todas as unidades
-` : ''}
+`
+    : ''
+}
 - A matriz concentra custos/receitas que servem a todas as unidades
 - Foque em avaliar se as receitas (mensalidades + bonificações) cobrem os custos centralizados
 - Avalie a SUSTENTABILIDADE considerando a estrutura completa (matriz + filiais)
 `
     : `
 - Você está analisando dados de uma FILIAL (unidade individual)
-${contextoEmpresa.custosCentralizados ? `
+${
+  contextoEmpresa.custosCentralizados
+    ? `
 🚨 CRÍTICO ENTENDER:
 - A filial PODE PARECER SAUDÁVEL, mas isso é porque custos estão centralizados na matriz
 - Custos operacionais podem estar BAIXOS ou AUSENTES porque são centralizados na matriz
@@ -841,11 +851,17 @@ ${contextoEmpresa.custosCentralizados ? `
   ✓ Se há custos locais que precisam ser cobertos
 - NÃO interprete ausência de custos como problema - eles estão centralizados
 - NÃO avalie a saúde financeira completa sem considerar custos centralizados na matriz
-` : ''}
-${contextoEmpresa.receitasCentralizadas ? `
+`
+    : ''
+}
+${
+  contextoEmpresa.receitasCentralizadas
+    ? `
 - Receitas podem estar baixas se bonificações estão centralizadas na matriz
 - A filial pode não ter receitas de bonificações porque estão na matriz
-` : ''}
+`
+    : ''
+}
 - Foque em avaliar a operação individual da filial
 - Considere que custos/receitas centralizados não aparecem nos dados da filial
 - Para avaliar saúde financeira completa, considere também os custos/receitas na matriz
@@ -878,7 +894,9 @@ PONTOS CRÍTICOS A MONITORAR:
 IMPORTANTE: Ao analisar os dados, considere que:
 - Variações em "vendas" não geram lucro (é normal ter saldo zero)
 - Foque em mensalidades e bonificações como indicadores de saúde
-${contextoEmpresa.tipo === 'MATRIZ' && contextoEmpresa.custosCentralizados ? `
+${
+  contextoEmpresa.tipo === 'MATRIZ' && contextoEmpresa.custosCentralizados
+    ? `
 🚨 ATENÇÃO ESPECIAL PARA MATRIZ COM CUSTOS CENTRALIZADOS:
 - A matriz PODE ESTAR NEGATIVA e isso é ESPERADO quando custos estão centralizados
 - Custos altos na matriz são NORMAIS quando centralizados - não é um problema, é a estrutura organizacional
@@ -886,16 +904,22 @@ ${contextoEmpresa.tipo === 'MATRIZ' && contextoEmpresa.custosCentralizados ? `
 - Você DEVE avaliar se receitas (mensalidades + bonificações) cobrem os custos centralizados
 - NÃO interprete resultado negativo como problema se receitas cobrem custos centralizados
 - NÃO interprete custos altos como problema - é a estrutura organizacional
-` : ''}
+`
+    : ''
+}
 ${contextoEmpresa.tipo === 'MATRIZ' && contextoEmpresa.receitasCentralizadas ? '- Receitas altas (ex: bonificações) na matriz são NORMAIS quando centralizadas - não é um problema, é a estrutura organizacional' : ''}
-${contextoEmpresa.tipo === 'FILIAL' && contextoEmpresa.custosCentralizados ? `
+${
+  contextoEmpresa.tipo === 'FILIAL' && contextoEmpresa.custosCentralizados
+    ? `
 🚨 ATENÇÃO ESPECIAL PARA FILIAL COM CUSTOS CENTRALIZADOS:
 - A filial PODE PARECER SAUDÁVEL, mas isso é porque custos estão centralizados na matriz
 - Você NÃO verá lançamentos como salários, assessoria, contabilidade, sistema - eles estão na matriz
 - Isso NÃO significa que a filial não tem esses custos - eles estão centralizados
 - Avalie a operação individual da filial, mas considere que custos operacionais estão na matriz
 - NÃO interprete ausência de custos como problema - eles estão centralizados na matriz
-` : ''}
+`
+    : ''
+}
 - Custos/receitas centralizados na matriz devem ser cobertos pelas receitas totais
 - Identifique se há necessidade de ajustar mensalidades ou reduzir custos
 - Forneça recomendações PRÁTICAS e ACIONÁVEIS: ex: "Aumentar contribuição mensal em X%" ou "Reduzir custos de X em Y%"
@@ -954,33 +978,49 @@ Foque em:
 2. Identificar padrões anômalos específicos (valores zerados, inconsistências)
 3. Comparar estatísticas por tipo de conta
 4. Fornecer insights baseados nos dados reais do período analisado
-${contextoEmpresa?.tipo === 'MATRIZ' && contextoEmpresa?.custosCentralizados ? `
+${
+  contextoEmpresa?.tipo === 'MATRIZ' && contextoEmpresa?.custosCentralizados
+    ? `
 5. 🚨 ATENÇÃO ESPECIAL - MATRIZ COM CUSTOS CENTRALIZADOS:
    - Se a matriz estiver NEGATIVA, isso PODE SER ESPERADO quando custos estão centralizados
    - Custos altos na matriz são NORMAIS - a matriz concentra custos de todas as filiais
    - Avalie se receitas (mensalidades + bonificações) cobrem os custos centralizados
    - NÃO interprete custos altos ou resultado negativo como problema - é estrutura organizacional
    - Foque em avaliar se a estrutura está sustentável (receitas totais vs. custos centralizados)
-` : ''}
-${contextoEmpresa?.tipo === 'FILIAL' && contextoEmpresa?.custosCentralizados ? `
+`
+    : ''
+}
+${
+  contextoEmpresa?.tipo === 'FILIAL' && contextoEmpresa?.custosCentralizados
+    ? `
 5. 🚨 ATENÇÃO ESPECIAL - FILIAL COM CUSTOS CENTRALIZADOS:
    - Se a filial parecer SAUDÁVEL mas não tiver custos operacionais (salários, assessoria, contabilidade, sistema), isso é porque estão centralizados na matriz
    - Você NÃO verá lançamentos como salários administrativos, assessoria, contabilidade - eles estão na matriz
    - Isso NÃO significa que a filial não tem esses custos - eles estão centralizados
    - Avalie a operação individual da filial, mas considere que custos operacionais estão na matriz
    - NÃO interprete ausência de custos como problema - eles estão centralizados na matriz
-` : ''}
+`
+    : ''
+}
 
 IMPORTANTE: 
 - Cite valores específicos, nomes de contas, classificações e o período analisado
 - Seja preciso e acionável
 - Analise apenas os dados fornecidos - não invente informações
-${contextoEmpresa?.tipo === 'MATRIZ' && contextoEmpresa?.custosCentralizados ? `
+${
+  contextoEmpresa?.tipo === 'MATRIZ' && contextoEmpresa?.custosCentralizados
+    ? `
 - NÃO interprete custos altos ou resultado negativo como problema se custos estão centralizados - é estrutura organizacional
-` : ''}
-${contextoEmpresa?.tipo === 'FILIAL' && contextoEmpresa?.custosCentralizados ? `
+`
+    : ''
+}
+${
+  contextoEmpresa?.tipo === 'FILIAL' && contextoEmpresa?.custosCentralizados
+    ? `
 - NÃO interprete ausência de custos operacionais como problema - eles estão centralizados na matriz
-` : ''}
+`
+    : ''
+}
 
 Dados resumidos do relatório:
 ${dadosStr}`;

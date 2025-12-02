@@ -5,4 +5,3 @@ export class AnalisarAtaDto {
   @IsString()
   tipoAnalise?: 'resumo' | 'decisoes' | 'acoes' | 'completo';
 }
-

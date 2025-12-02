@@ -9,7 +9,7 @@ import {
   IsEmail,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TipoReuniao, StatusAta } from '@prisma/client';
+import { TipoReuniao, StatusAta, Prisma } from '@prisma/client';
 
 export class ParticipanteDto {
   @IsOptional()
@@ -67,10 +67,10 @@ export class UpdateAtaDto {
   conteudo?: string;
 
   @IsOptional()
-  decisoes?: any; // Campo JSON - aceita array ou objeto
+  decisoes?: Prisma.InputJsonValue; // Campo JSON - aceita array ou objeto
 
   @IsOptional()
-  acoes?: any; // Campo JSON - aceita array ou objeto
+  acoes?: Prisma.InputJsonValue; // Campo JSON - aceita array ou objeto
 
   @IsOptional()
   @IsString()
@@ -86,4 +86,3 @@ export class UpdateAtaDto {
   @Type(() => ParticipanteDto)
   participantes?: ParticipanteDto[];
 }
-

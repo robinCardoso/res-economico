@@ -12,7 +12,7 @@ import { AnalisarAtaDto } from './dto/analisar-ata.dto';
 import { ImportarAtaDto } from './dto/importar-ata.dto';
 import { CreateComentarioDto } from './dto/create-comentario.dto';
 import { UpdateComentarioDto } from './dto/update-comentario.dto';
-import { Prisma, TipoComentario, TipoArquivoAta } from '@prisma/client';
+import { Prisma, TipoArquivoAta, TipoReuniao } from '@prisma/client';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
@@ -31,10 +31,14 @@ export class AtasService {
     const geminiApiKey = this.configService.get<string>('GEMINI_API_KEY');
     if (geminiApiKey) {
       this.gemini = new GoogleGenerativeAI(geminiApiKey);
-      this.logger.log('Google Gemini inicializado para processamento de PDFs escaneados');
+      this.logger.log(
+        'Google Gemini inicializado para processamento de PDFs escaneados',
+      );
     } else {
       this.gemini = null;
-      this.logger.warn('GEMINI_API_KEY não configurada. Processamento de PDFs escaneados desabilitado.');
+      this.logger.warn(
+        'GEMINI_API_KEY não configurada. Processamento de PDFs escaneados desabilitado.',
+      );
     }
   }
 
@@ -43,7 +47,9 @@ export class AtasService {
    */
   private async generateNumeroAta(): Promise<string> {
     const currentYear = new Date().getFullYear();
-    const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+    const currentMonth = (new Date().getMonth() + 1)
+      .toString()
+      .padStart(2, '0');
     const currentPattern = `ATA-${currentYear}${currentMonth}`;
 
     // Buscar o maior número do mês atual
@@ -137,41 +143,48 @@ export class AtasService {
   /**
    * Lista atas com filtros e paginação
    */
-  async findAll(filters: FilterAtaDto, userId?: string) {
-    const page = filters.page || 1;
-    const limit = filters.limit || 20;
+  async findAll(filters: FilterAtaDto) {
+    const filterDto: FilterAtaDto = filters;
+    const page = filterDto.page || 1;
+    const limit = filterDto.limit || 20;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.AtaReuniaoWhereInput = {};
 
-    if (filters.empresaId) {
-      where.empresaId = filters.empresaId;
+    const empresaId = filterDto.empresaId;
+    if (empresaId) {
+      where.empresaId = empresaId;
     }
 
-    if (filters.tipo) {
-      where.tipo = filters.tipo;
+    const tipo = filterDto.tipo;
+    if (tipo) {
+      where.tipo = tipo;
     }
 
-    if (filters.status) {
-      where.status = filters.status;
+    const status = filterDto.status;
+    if (status) {
+      where.status = status;
     }
 
-    if (filters.dataInicio || filters.dataFim) {
+    const dataInicio = filterDto.dataInicio;
+    const dataFim = filterDto.dataFim;
+    if (dataInicio || dataFim) {
       where.dataReuniao = {};
-      if (filters.dataInicio) {
-        where.dataReuniao.gte = new Date(filters.dataInicio);
+      if (dataInicio) {
+        where.dataReuniao.gte = new Date(dataInicio);
       }
-      if (filters.dataFim) {
-        where.dataReuniao.lte = new Date(filters.dataFim);
+      if (dataFim) {
+        where.dataReuniao.lte = new Date(dataFim);
       }
     }
 
-    if (filters.busca) {
+    const busca = filterDto.busca;
+    if (busca) {
       where.OR = [
-        { titulo: { contains: filters.busca, mode: 'insensitive' } },
-        { numero: { contains: filters.busca, mode: 'insensitive' } },
-        { conteudo: { contains: filters.busca, mode: 'insensitive' } },
-        { pauta: { contains: filters.busca, mode: 'insensitive' } },
+        { titulo: { contains: busca, mode: 'insensitive' } },
+        { numero: { contains: busca, mode: 'insensitive' } },
+        { conteudo: { contains: busca, mode: 'insensitive' } },
+        { pauta: { contains: busca, mode: 'insensitive' } },
       ];
     }
 
@@ -182,7 +195,7 @@ export class AtasService {
 
     const [atas, total] = await Promise.all([
       this.prisma.ataReuniao.findMany({
-        where,
+        where: where,
         include: {
           criador: {
             select: {
@@ -219,14 +232,17 @@ export class AtasService {
         skip,
         take: limit,
       }),
-      this.prisma.ataReuniao.count({ where }),
+      this.prisma.ataReuniao.count({
+        where: where,
+      }),
     ]);
 
     return {
-      data: atas,
+      success: true,
+      message: 'Atas encontradas com sucesso',
+      atas,
       total,
       page,
-      limit,
       totalPages: Math.ceil(total / limit),
     };
   }
@@ -297,37 +313,51 @@ export class AtasService {
   /**
    * Atualiza uma ata
    */
-  async update(id: string, dto: UpdateAtaDto, userId: string) {
-    const ata = await this.findOne(id);
+  async update(id: string, dto: UpdateAtaDto) {
+    await this.findOne(id);
 
-    const updateData: any = {};
+    const updateDto: UpdateAtaDto = dto;
+    const updateData: Prisma.AtaReuniaoUpdateInput = {};
 
-    if (dto.titulo !== undefined) updateData.titulo = dto.titulo;
-    if (dto.tipo !== undefined) updateData.tipo = dto.tipo;
-    if (dto.dataReuniao !== undefined)
-      updateData.dataReuniao = new Date(dto.dataReuniao);
-    if (dto.local !== undefined) updateData.local = dto.local;
-    if (dto.status !== undefined) updateData.status = dto.status;
-    if (dto.pauta !== undefined) updateData.pauta = dto.pauta;
-    if (dto.conteudo !== undefined) updateData.conteudo = dto.conteudo;
+    const titulo = updateDto.titulo;
+    if (titulo !== undefined) updateData.titulo = titulo;
+    const tipo = updateDto.tipo;
+    if (tipo !== undefined) updateData.tipo = tipo;
+    const dataReuniao = updateDto.dataReuniao;
+    if (dataReuniao !== undefined)
+      updateData.dataReuniao = new Date(dataReuniao);
+    const local = updateDto.local;
+    if (local !== undefined) updateData.local = local;
+    const status = updateDto.status;
+    if (status !== undefined) updateData.status = status;
+    const pauta = updateDto.pauta;
+    if (pauta !== undefined) updateData.pauta = pauta;
+    const conteudo = updateDto.conteudo;
+    if (conteudo !== undefined) updateData.conteudo = conteudo;
     // Campos JSON - aceitar diretamente como objeto/array
-    if (dto.decisoes !== undefined) {
+    const decisoes = updateDto.decisoes;
+    if (decisoes !== undefined) {
       // Se for string, tentar fazer parse; caso contrário, usar diretamente
-      updateData.decisoes = typeof dto.decisoes === 'string' 
-        ? JSON.parse(dto.decisoes) 
-        : dto.decisoes;
+      updateData.decisoes =
+        typeof decisoes === 'string'
+          ? (JSON.parse(decisoes) as Prisma.InputJsonValue)
+          : (decisoes as Prisma.InputJsonValue);
     }
-    if (dto.acoes !== undefined) {
+    const acoes = updateDto.acoes;
+    if (acoes !== undefined) {
       // Se for string, tentar fazer parse; caso contrário, usar diretamente
-      updateData.acoes = typeof dto.acoes === 'string' 
-        ? JSON.parse(dto.acoes) 
-        : dto.acoes;
+      updateData.acoes =
+        typeof acoes === 'string'
+          ? (JSON.parse(acoes) as Prisma.InputJsonValue)
+          : (acoes as Prisma.InputJsonValue);
     }
-    if (dto.observacoes !== undefined) updateData.observacoes = dto.observacoes;
-    if (dto.empresaId !== undefined) {
-      if (dto.empresaId) {
+    const observacoes = updateDto.observacoes;
+    if (observacoes !== undefined) updateData.observacoes = observacoes;
+    const empresaId = updateDto.empresaId;
+    if (empresaId !== undefined) {
+      if (empresaId) {
         updateData.empresa = {
-          connect: { id: dto.empresaId },
+          connect: { id: empresaId },
         };
       } else {
         updateData.empresa = {
@@ -337,16 +367,16 @@ export class AtasService {
     }
 
     // Atualizar participantes se fornecidos
-    if (dto.participantes) {
+    if (updateDto.participantes) {
       // Remover participantes existentes
       await this.prisma.ataParticipante.deleteMany({
         where: { ataId: id },
       });
 
       // Adicionar novos participantes
-      if (dto.participantes.length > 0) {
+      if (updateDto.participantes.length > 0) {
         await this.prisma.ataParticipante.createMany({
-          data: dto.participantes.map((p) => ({
+          data: updateDto.participantes.map((p) => ({
             ataId: id,
             usuarioId: p.usuarioId || undefined,
             nomeExterno: p.nomeExterno || undefined,
@@ -410,8 +440,13 @@ export class AtasService {
         // Extrair o nome do arquivo da URL (ex: /uploads/atas/abc123.pdf)
         const fileName = ata.arquivoOriginalUrl.split('/').pop();
         if (fileName) {
-          const filePath = path.join(process.cwd(), 'uploads', 'atas', fileName);
-          
+          const filePath = path.join(
+            process.cwd(),
+            'uploads',
+            'atas',
+            fileName,
+          );
+
           if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
             this.logger.log(`Arquivo físico deletado: ${filePath}`);
@@ -421,7 +456,10 @@ export class AtasService {
         }
       } catch (error) {
         // Log do erro mas não falha a exclusão da ATA
-        this.logger.error(`Erro ao deletar arquivo físico da ata ${id}:`, error);
+        this.logger.error(
+          `Erro ao deletar arquivo físico da ata ${id}:`,
+          error,
+        );
       }
     }
 
@@ -543,9 +581,7 @@ Forneça uma análise completa incluindo:
         contents: [
           {
             role: 'user',
-            parts: [
-              { text: `${systemPrompt}\n\n${userPrompt}` },
-            ],
+            parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
           },
         ],
         generationConfig: {
@@ -562,10 +598,22 @@ Forneça uma análise completa incluindo:
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Erro HTTP: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new Error(
+          `Erro HTTP: ${response.status} ${response.statusText} - ${errorText}`,
+        );
       }
 
-      const result = await response.json();
+      interface GeminiResponse {
+        candidates?: Array<{
+          content?: {
+            parts?: Array<{ text?: string }>;
+          };
+        }>;
+        usageMetadata?: {
+          totalTokenCount?: number;
+        };
+      }
+      const result = (await response.json()) as GeminiResponse;
       const tempoProcessamento = Date.now() - startTime;
       const resposta = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
@@ -609,8 +657,8 @@ Forneça uma análise completa incluindo:
     if (ataExistente) {
       throw new BadRequestException(
         `Já existe uma ATA com o arquivo "${dto.nomeArquivo}". ` +
-        `ATA existente: ${ataExistente.numero} - ${ataExistente.titulo}. ` +
-        `Por favor, renomeie o arquivo ou exclua a ATA existente antes de importar novamente.`,
+          `ATA existente: ${ataExistente.numero} - ${ataExistente.titulo}. ` +
+          `Por favor, renomeie o arquivo ou exclua a ATA existente antes de importar novamente.`,
       );
     }
 
@@ -627,11 +675,15 @@ Forneça uma análise completa incluindo:
     // Processar arquivo com Gemini (única IA usada agora)
     if (extensao === 'txt') {
       // TXT - Decodificar base64 e enviar texto no prompt do Gemini
-      this.logger.log('Arquivo TXT detectado. Usando Gemini para processar o texto.');
+      this.logger.log(
+        'Arquivo TXT detectado. Usando Gemini para processar o texto.',
+      );
       usarGeminiDiretamente = false; // Texto será enviado no prompt
     } else if (extensao === 'pdf') {
       // PDF - Usar Gemini diretamente (processa PDFs escaneados automaticamente)
-      this.logger.log('PDF detectado. Usando Gemini para processar diretamente (inclui OCR automático).');
+      this.logger.log(
+        'PDF detectado. Usando Gemini para processar diretamente (inclui OCR automático).',
+      );
       usarGeminiDiretamente = true; // PDF será enviado como anexo
     } else {
       throw new BadRequestException(
@@ -644,7 +696,9 @@ Forneça uma análise completa incluindo:
     // Para PDF, Gemini processa diretamente (não precisa do texto)
     let textoCompleto = '';
     if (!usarGeminiDiretamente && extensao === 'txt') {
-      textoCompleto = Buffer.from(dto.conteudoBase64, 'base64').toString('utf-8');
+      textoCompleto = Buffer.from(dto.conteudoBase64, 'base64').toString(
+        'utf-8',
+      );
       textoCompleto = textoCompleto.substring(0, 30000); // Limitar tamanho
     }
 
@@ -744,7 +798,7 @@ Retorne EXATAMENTE este JSON (sem texto adicional):
       // Usar Gemini para processar (PDF ou TXT)
       if (this.gemini) {
         this.logger.log('Processando documento com Google Gemini...');
-        
+
         try {
           const geminiApiKey = this.configService.get<string>('GEMINI_API_KEY');
           if (!geminiApiKey) {
@@ -755,15 +809,23 @@ Retorne EXATAMENTE este JSON (sem texto adicional):
           // Modelos disponíveis: gemini-1.5-flash, gemini-2.0-flash, gemini-2.5-flash
           const API_MODEL = 'gemini-2.0-flash'; // Modelo mais recente com melhor suporte a documentos e OCR
           const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL}:generateContent?key=${geminiApiKey}`;
-          
+
           // Preparar conteúdo baseado no tipo de arquivo
-          let payload: any;
-          
+          let payload: {
+            contents: Array<{
+              role: string;
+              parts: Array<{
+                text?: string;
+                inlineData?: { mimeType: string; data: string };
+              }>;
+            }>;
+          };
+
           if (usarGeminiDiretamente && extensao === 'pdf') {
             // PDF - enviar como anexo
             const pdfBase64 = dto.conteudoBase64;
             const mimeType = 'application/pdf';
-            
+
             const geminiPrompt = `${prompt}
 
 IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.`;
@@ -790,9 +852,7 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
               contents: [
                 {
                   role: 'user',
-                  parts: [
-                    { text: prompt },
-                  ],
+                  parts: [{ text: prompt }],
                 },
               ],
             };
@@ -801,7 +861,6 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
           // Tentar com retry (como no exemplo)
           const MAX_RETRIES = 5;
           let delay = 2000; // Delay inicial maior para evitar 429
-          let lastError: any = null;
 
           for (let i = 0; i < MAX_RETRIES; i++) {
             try {
@@ -812,13 +871,23 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
               });
 
               if (response.ok) {
-                const result = await response.json();
-                resposta = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                
+                interface GeminiResponse {
+                  candidates?: Array<{
+                    content?: {
+                      parts?: Array<{ text?: string }>;
+                    };
+                  }>;
+                }
+                const result = (await response.json()) as GeminiResponse;
+                resposta =
+                  result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
                 if (resposta) {
                   tempoProcessamento = Date.now() - startTime;
                   modeloUsado = API_MODEL;
-                  this.logger.log(`Gemini processou documento em ${tempoProcessamento}ms`);
+                  this.logger.log(
+                    `Gemini processou documento em ${tempoProcessamento}ms`,
+                  );
                   break; // Sucesso
                 } else {
                   throw new Error('Resposta da API Gemini estava vazia');
@@ -826,47 +895,63 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
               } else if (response.status === 429) {
                 // Erro de rate limit (429) - aumentar delay significativamente
                 const retryAfter = response.headers.get('Retry-After');
-                const retryAfterSeconds = retryAfter ? parseInt(retryAfter, 10) * 1000 : delay;
+                const retryAfterSeconds = retryAfter
+                  ? parseInt(retryAfter, 10) * 1000
+                  : delay;
                 const actualDelay = Math.max(delay, retryAfterSeconds);
-                
+
                 this.logger.warn(
                   `Rate limit (429) na tentativa ${i + 1}/${MAX_RETRIES}. Aguardando ${actualDelay}ms antes de tentar novamente...`,
                 );
-                
+
                 if (i === MAX_RETRIES - 1) {
                   // Última tentativa falhou
                   const errorText = await response.text();
                   throw new Error(
                     `Rate limit excedido na API Gemini após ${MAX_RETRIES} tentativas. ` +
-                    `Aguarde alguns minutos e tente novamente. ` +
-                    `Detalhes: ${errorText}`,
+                      `Aguarde alguns minutos e tente novamente. ` +
+                      `Detalhes: ${errorText}`,
                   );
                 }
-                
-                await new Promise((resolve) => setTimeout(resolve, actualDelay));
+
+                await new Promise((resolve) =>
+                  setTimeout(resolve, actualDelay),
+                );
                 delay = Math.min(delay * 2, 60000); // Max 60 segundos
               } else if (response.status >= 500) {
                 // Erro de servidor (>= 500), tentar novamente
-                this.logger.warn(`Erro ${response.status} na tentativa ${i + 1}, tentando novamente em ${delay}ms...`);
+                this.logger.warn(
+                  `Erro ${response.status} na tentativa ${i + 1}, tentando novamente em ${delay}ms...`,
+                );
                 await new Promise((resolve) => setTimeout(resolve, delay));
                 delay *= 2; // Backoff exponencial
               } else {
                 const errorText = await response.text();
-                throw new Error(`Erro HTTP: ${response.status} ${response.statusText} - ${errorText}`);
+                throw new Error(
+                  `Erro HTTP: ${response.status} ${response.statusText} - ${errorText}`,
+                );
               }
-            } catch (e: any) {
-              lastError = e;
+            } catch (e) {
+              const error = e instanceof Error ? e : new Error(String(e));
               if (i === MAX_RETRIES - 1) {
-                throw e; // Lançar o erro na última tentativa
+                throw error; // Lançar o erro na última tentativa
               }
-              this.logger.warn(`Erro na tentativa ${i + 1}: ${e.message}, tentando novamente em ${delay}ms...`);
+              this.logger.warn(
+                `Erro na tentativa ${i + 1}: ${error.message}, tentando novamente em ${delay}ms...`,
+              );
               await new Promise((resolve) => setTimeout(resolve, delay));
               delay *= 2;
             }
           }
-        } catch (geminiError: any) {
+        } catch (geminiError) {
+          const errorMessage =
+            geminiError instanceof Error
+              ? geminiError.message
+              : String(geminiError);
           this.logger.error('Erro ao processar com Gemini:', geminiError);
-          throw new Error(`Falha ao processar documento com Gemini: ${geminiError.message || 'Erro desconhecido'}`);
+          throw new Error(
+            `Falha ao processar documento com Gemini: ${errorMessage}`,
+          );
         }
       } else {
         throw new BadRequestException(
@@ -875,49 +960,103 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
       }
 
       // Log da resposta bruta para debug
-      this.logger.log(`Resposta bruta da IA (primeiros 1000 chars): ${resposta.substring(0, 1000)}`);
-      
+      this.logger.log(
+        `Resposta bruta da IA (primeiros 1000 chars): ${resposta.substring(0, 1000)}`,
+      );
+
       // Parsear resposta JSON
       let jsonLimpo = resposta.trim();
-      
+
       // Remover delimitadores markdown se existirem
       if (jsonLimpo.startsWith('```')) {
         jsonLimpo = jsonLimpo.replace(/^```(?:json)?\s*/, '');
         jsonLimpo = jsonLimpo.replace(/\s*```$/, '');
       }
-      
+
       // Extrair JSON se houver texto antes ou depois
       const jsonMatch = jsonLimpo.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         jsonLimpo = jsonMatch[0];
-        this.logger.log(`JSON extraído (primeiros 500 chars): ${jsonLimpo.substring(0, 500)}`);
+        this.logger.log(
+          `JSON extraído (primeiros 500 chars): ${jsonLimpo.substring(0, 500)}`,
+        );
       } else {
-        this.logger.error('Resposta da IA não contém JSON válido. Resposta completa:', resposta);
-        throw new Error('Resposta da IA não contém JSON válido. A IA pode não ter processado o documento corretamente.');
+        this.logger.error(
+          'Resposta da IA não contém JSON válido. Resposta completa:',
+          resposta,
+        );
+        throw new Error(
+          'Resposta da IA não contém JSON válido. A IA pode não ter processado o documento corretamente.',
+        );
       }
-      
-      let dadosProcessados: any;
+
+      interface DadosProcessados {
+        titulo?: string;
+        conteudo?: string;
+        participantes?: Array<{
+          nome?: string;
+          email?: string;
+          cargo?: string;
+        }>;
+        pautas?: Array<{ titulo?: string; descricao?: string }>;
+        decisoes?: Array<{
+          descricao?: string;
+          responsavel?: string;
+          prazo?: string;
+        }>;
+        acoes?: Array<{
+          descricao?: string;
+          responsavel?: string;
+          status?: string;
+        }>;
+        secoes?: Array<{
+          titulo?: string;
+          artigos?: Array<{
+            numero?: string;
+            texto?: string;
+            itens?: string[];
+          }>;
+        }>;
+        descricao?: string;
+        resumo?: string;
+        tipo?: string;
+        [key: string]: unknown;
+      }
+      let dadosProcessados: DadosProcessados;
       try {
-        dadosProcessados = JSON.parse(jsonLimpo);
+        dadosProcessados = JSON.parse(jsonLimpo) as DadosProcessados;
       } catch (parseError) {
         this.logger.error('Erro ao fazer parse do JSON da IA:', parseError);
         this.logger.error('JSON que falhou:', jsonLimpo.substring(0, 500));
-        throw new Error('Erro ao processar resposta da IA. O formato JSON está inválido.');
+        throw new Error(
+          'Erro ao processar resposta da IA. O formato JSON está inválido.',
+        );
       }
-      
+
       // Log dos dados processados para debug
       this.logger.log('Dados processados pela IA:', {
         titulo: dadosProcessados.titulo,
-        temParticipantes: Array.isArray(dadosProcessados.participantes) && dadosProcessados.participantes.length > 0,
-        temPautas: Array.isArray(dadosProcessados.pautas) && dadosProcessados.pautas.length > 0,
-        temDecisoes: Array.isArray(dadosProcessados.decisoes) && dadosProcessados.decisoes.length > 0,
-        temAcoes: Array.isArray(dadosProcessados.acoes) && dadosProcessados.acoes.length > 0,
-        tamanhoConteudo: dadosProcessados.conteudo?.length || 0,
+        temParticipantes:
+          Array.isArray(dadosProcessados.participantes) &&
+          dadosProcessados.participantes.length > 0,
+        temPautas:
+          Array.isArray(dadosProcessados.pautas) &&
+          dadosProcessados.pautas.length > 0,
+        temDecisoes:
+          Array.isArray(dadosProcessados.decisoes) &&
+          dadosProcessados.decisoes.length > 0,
+        temAcoes:
+          Array.isArray(dadosProcessados.acoes) &&
+          dadosProcessados.acoes.length > 0,
+        tamanhoConteudo:
+          typeof dadosProcessados.conteudo === 'string'
+            ? dadosProcessados.conteudo.length
+            : 0,
       });
-      
+
       // Gerar número da ata
       const numero = await this.generateNumeroAta();
-      
+
       // Validar e mapear tipo de reunião
       const tiposValidos = [
         'ASSEMBLEIA_GERAL',
@@ -927,73 +1066,108 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
         'COMISSAO',
         'OUTRO',
       ];
-      
+
       let tipoFinal = 'OUTRO';
-      
+
       if (dadosProcessados.tipo) {
         const tipoProcessado = String(dadosProcessados.tipo).toUpperCase();
         if (tiposValidos.includes(tipoProcessado)) {
-          tipoFinal = tipoProcessado as any;
+          tipoFinal = tipoProcessado as TipoReuniao;
           this.logger.log(`Tipo determinado pela IA: ${tipoFinal}`);
         } else {
-          this.logger.warn(`Tipo retornado pela IA inválido: ${tipoProcessado}, usando OUTRO`);
+          this.logger.warn(
+            `Tipo retornado pela IA inválido: ${tipoProcessado}, usando OUTRO`,
+          );
         }
       } else if (dto.tipoReuniao) {
         const tipoUsuario = String(dto.tipoReuniao).toUpperCase();
         if (tiposValidos.includes(tipoUsuario)) {
-          tipoFinal = tipoUsuario as any;
-          this.logger.log(`Tipo do usuário usado (IA não retornou): ${tipoFinal}`);
+          tipoFinal = tipoUsuario as TipoReuniao;
+          this.logger.log(
+            `Tipo do usuário usado (IA não retornou): ${tipoFinal}`,
+          );
         }
       }
-      
+
       // Salvar arquivo original na pasta uploads
       const uploadsDir = path.join(process.cwd(), 'uploads', 'atas');
-      
+
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
-      
+
       const randomName = crypto.randomBytes(16).toString('hex');
       const fileName = `${randomName}.${extensao}`;
       const filePath = path.join(uploadsDir, fileName);
-      
+
       const fileBuffer = Buffer.from(dto.conteudoBase64, 'base64');
       fs.writeFileSync(filePath, fileBuffer);
-      
+
       const arquivoUrl = `/uploads/atas/${fileName}`;
-      
-      const participantes = Array.isArray(dadosProcessados.participantes)
-        ? dadosProcessados.participantes
+
+      interface ParticipanteProcessado {
+        nome?: string;
+        email?: string;
+        cargo?: string;
+      }
+      interface PautaProcessada {
+        titulo?: string;
+        descricao?: string;
+      }
+      interface DecisaoProcessada {
+        descricao?: string;
+        responsavel?: string;
+        prazo?: string;
+      }
+      interface AcaoProcessada {
+        descricao?: string;
+        responsavel?: string;
+        status?: string;
+        prazo?: string;
+      }
+
+      const participantes: ParticipanteProcessado[] = Array.isArray(
+        dadosProcessados.participantes,
+      )
+        ? (dadosProcessados.participantes as ParticipanteProcessado[])
         : [];
-      const pautas = Array.isArray(dadosProcessados.pautas)
-        ? dadosProcessados.pautas
+      const pautas: PautaProcessada[] = Array.isArray(dadosProcessados.pautas)
+        ? (dadosProcessados.pautas as PautaProcessada[])
         : [];
-      const decisoes = Array.isArray(dadosProcessados.decisoes)
-        ? dadosProcessados.decisoes
+      const decisoes: DecisaoProcessada[] = Array.isArray(
+        dadosProcessados.decisoes,
+      )
+        ? (dadosProcessados.decisoes as DecisaoProcessada[])
         : [];
-      const acoes = Array.isArray(dadosProcessados.acoes)
-        ? dadosProcessados.acoes
+      const acoes: AcaoProcessada[] = Array.isArray(dadosProcessados.acoes)
+        ? (dadosProcessados.acoes as AcaoProcessada[])
         : [];
-      
+
       const tituloFinal = dadosProcessados.titulo?.trim()
         ? dadosProcessados.titulo.trim()
         : dto.nomeArquivo.replace(/\.[^/.]+$/, '');
-      
+
       // Construir conteúdo se não foi retornado diretamente
       let conteudoFinal = dadosProcessados.conteudo?.trim() || '';
-      
+
       // Se não há conteúdo direto, tentar construir a partir de seções/artigos (para estatutos)
-      if (!conteudoFinal && dadosProcessados.secoes && Array.isArray(dadosProcessados.secoes)) {
-        this.logger.log('Construindo conteúdo a partir de seções/artigos retornados pela IA...');
+      if (
+        !conteudoFinal &&
+        dadosProcessados.secoes &&
+        Array.isArray(dadosProcessados.secoes)
+      ) {
+        this.logger.log(
+          'Construindo conteúdo a partir de seções/artigos retornados pela IA...',
+        );
         const conteudoPartes: string[] = [];
-        
-        dadosProcessados.secoes.forEach((secao: any) => {
+
+        dadosProcessados.secoes.forEach((secao) => {
           if (secao.titulo) {
             conteudoPartes.push(`\n${secao.titulo}\n`);
           }
-          
+
           if (secao.artigos && Array.isArray(secao.artigos)) {
-            secao.artigos.forEach((artigo: any) => {
+            secao.artigos.forEach((artigo) => {
               if (artigo.numero) {
                 conteudoPartes.push(`${artigo.numero}`);
               }
@@ -1008,38 +1182,56 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
             });
           }
         });
-        
+
         conteudoFinal = conteudoPartes.join('\n').trim();
-        this.logger.log(`Conteúdo construído: ${conteudoFinal.length} caracteres`);
+        this.logger.log(
+          `Conteúdo construído: ${conteudoFinal.length} caracteres`,
+        );
       }
-      
+
       // Se ainda não há conteúdo, tentar usar o texto completo da resposta JSON
       if (!conteudoFinal) {
         // Tentar extrair todo o texto do JSON como fallback
         const jsonString = JSON.stringify(dadosProcessados, null, 2);
-        this.logger.warn('Nenhum conteúdo extraído. Tentando usar estrutura completa do JSON como conteúdo.');
+        this.logger.warn(
+          'Nenhum conteúdo extraído. Tentando usar estrutura completa do JSON como conteúdo.',
+        );
         conteudoFinal = jsonString;
       }
-      
+
       // Validar conteúdo final
       if (!conteudoFinal || conteudoFinal.length === 0) {
-        throw new Error('Não foi possível extrair conteúdo do documento. Verifique se o arquivo contém texto válido.');
+        throw new Error(
+          'Não foi possível extrair conteúdo do documento. Verifique se o arquivo contém texto válido.',
+        );
       }
-      
+
       const ata = await this.prisma.ataReuniao.create({
         data: {
           numero,
           titulo: tituloFinal,
           dataReuniao: new Date(dto.dataReuniao),
-          tipo: tipoFinal as any,
+          tipo: tipoFinal as TipoReuniao,
           conteudo: conteudoFinal,
           descricao: dadosProcessados.descricao || undefined,
           resumo: dadosProcessados.resumo || undefined,
           // Participantes serão criados separadamente (é uma relação)
-          pautas: pautas.length > 0 ? pautas : undefined,
-          decisoes: decisoes.length > 0 ? decisoes : undefined,
-          acoes: acoes.length > 0 ? acoes : undefined,
-          observacoes: dadosProcessados.observacoes || undefined,
+          pautas:
+            pautas.length > 0
+              ? (pautas as unknown as Prisma.InputJsonValue)
+              : undefined,
+          decisoes:
+            decisoes.length > 0
+              ? (decisoes as unknown as Prisma.InputJsonValue)
+              : undefined,
+          acoes:
+            acoes.length > 0
+              ? (acoes as unknown as Prisma.InputJsonValue)
+              : undefined,
+          observacoes:
+            typeof dadosProcessados.observacoes === 'string'
+              ? dadosProcessados.observacoes
+              : undefined,
           criadoPor: userId,
           status: 'RASCUNHO',
           // Metadados de IA
@@ -1051,7 +1243,9 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
           // Informações do arquivo original
           arquivoOriginalUrl: arquivoUrl,
           arquivoOriginalNome: dto.nomeArquivo,
-          arquivoOriginalTipo: dto.tipoArquivo || (extensao === 'pdf' ? 'application/pdf' : 'text/plain'),
+          arquivoOriginalTipo:
+            dto.tipoArquivo ||
+            (extensao === 'pdf' ? 'application/pdf' : 'text/plain'),
         },
         include: {
           criador: {
@@ -1067,7 +1261,7 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
       // Criar participantes separadamente (é uma relação, não um campo JSON)
       if (participantes.length > 0) {
         await this.prisma.ataParticipante.createMany({
-          data: participantes.map((p: any) => ({
+          data: participantes.map((p) => ({
             ataId: ata.id,
             nomeExterno: p.nome || undefined,
             email: p.email || undefined,
@@ -1076,7 +1270,9 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
             observacoes: undefined,
           })),
         });
-        this.logger.log(`Criados ${participantes.length} participantes para a ata ${ata.id}`);
+        this.logger.log(
+          `Criados ${participantes.length} participantes para a ata ${ata.id}`,
+        );
       }
 
       // Mapear tipo de arquivo para o enum
@@ -1101,7 +1297,9 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
           urlArquivo: arquivoUrl,
           tipoArquivo: tipoArquivoEnum,
           tamanhoArquivo: fileBuffer.length,
-          mimeType: dto.tipoArquivo || (extensao === 'pdf' ? 'application/pdf' : 'text/plain'),
+          mimeType:
+            dto.tipoArquivo ||
+            (extensao === 'pdf' ? 'application/pdf' : 'text/plain'),
           uploadedAt: new Date(),
         },
       });
@@ -1236,11 +1434,7 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
   /**
    * Atualiza um comentário existente
    */
-  async updateComentario(
-    id: string,
-    dto: UpdateComentarioDto,
-    userId: string,
-  ) {
+  async updateComentario(id: string, dto: UpdateComentarioDto, userId: string) {
     // Buscar o comentário
     const comentario = await this.prisma.ataComentario.findUnique({
       where: { id },
@@ -1317,7 +1511,8 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
 
     const formatDate = (dateString: string | Date) => {
       if (!dateString) return 'Não informado';
-      const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+      const date =
+        typeof dateString === 'string' ? new Date(dateString) : dateString;
       if (isNaN(date.getTime())) return 'Não informado';
       return date.toLocaleDateString('pt-BR', {
         day: '2-digit',
@@ -1328,7 +1523,8 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
 
     const formatDateTime = (dateString: string | Date) => {
       if (!dateString) return 'Não informado';
-      const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+      const date =
+        typeof dateString === 'string' ? new Date(dateString) : dateString;
       if (isNaN(date.getTime())) return 'Não informado';
       return date.toLocaleString('pt-BR', {
         day: '2-digit',
@@ -1406,29 +1602,52 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
     };
 
     // Parse campos JSON
-    const pautas = Array.isArray(ata.pautas)
-      ? ata.pautas
+    interface Pauta {
+      titulo?: string;
+      descricao?: string;
+    }
+    interface Decisao {
+      descricao?: string;
+      responsavel?: string;
+      prazo?: string;
+    }
+    interface Acao {
+      descricao?: string;
+      responsavel?: string;
+      status?: string;
+      prazo?: string;
+    }
+
+    const pautas: Pauta[] = Array.isArray(ata.pautas)
+      ? (ata.pautas as Pauta[])
       : typeof ata.pautas === 'string'
-        ? JSON.parse(ata.pautas || '[]')
+        ? (JSON.parse(ata.pautas || '[]') as Pauta[])
         : [];
 
-    const decisoes = Array.isArray(ata.decisoes)
-      ? ata.decisoes
+    const decisoes: Decisao[] = Array.isArray(ata.decisoes)
+      ? (ata.decisoes as Decisao[])
       : typeof ata.decisoes === 'string'
-        ? JSON.parse(ata.decisoes || '[]')
+        ? (JSON.parse(ata.decisoes || '[]') as Decisao[])
         : [];
 
-    const acoes = Array.isArray(ata.acoes)
-      ? ata.acoes
+    const acoes: Acao[] = Array.isArray(ata.acoes)
+      ? (ata.acoes as Acao[])
       : typeof ata.acoes === 'string'
-        ? JSON.parse(ata.acoes || '[]')
+        ? (JSON.parse(ata.acoes || '[]') as Acao[])
         : [];
 
-    const participantes = (ata.participantes || []).map((p: any) => ({
-      nome: p.usuario?.nome || p.nomeExterno || 'Participante',
-      cargo: p.cargo || 'Não informado',
-      presente: p.presente || false,
-    }));
+    interface ParticipanteFormatado {
+      nome: string;
+      cargo: string;
+      presente: boolean;
+    }
+    const participantes = (ata.participantes || []).map(
+      (p): ParticipanteFormatado => ({
+        nome: p.usuario?.nome || p.nomeExterno || 'Participante',
+        cargo: p.cargo || 'Não informado',
+        presente: p.presente || false,
+      }),
+    );
 
     return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -1755,15 +1974,21 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
                 <span class="info-value">${getStatusText(ata.status)}</span>
             </div>
         </div>
-        ${ata.descricao ? `
+        ${
+          ata.descricao
+            ? `
         <div class="info-item">
             <span class="info-label">📝 Descrição:</span>
             <span class="info-value">${ata.descricao}</span>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
     </div>
 
-    ${ata.geradoPorIa ? `
+    ${
+      ata.geradoPorIa
+        ? `
     <div class="ai-info">
         <div class="ai-label">⚡ Processamento por IA</div>
         <div class="ai-details">
@@ -1773,9 +1998,13 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
             <strong>Processado em:</strong> ${formatDateTime(ata.createdAt)}
         </div>
     </div>
-    ` : ''}
+    `
+        : ''
+    }
 
-    ${participantes.length > 0 ? `
+    ${
+      participantes.length > 0
+        ? `
     <div class="section">
         <div class="section-title">👥 PARTICIPANTES</div>
         <table class="participants-table">
@@ -1787,7 +2016,9 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
                 </tr>
             </thead>
             <tbody>
-                ${participantes.map((p: any) => `
+                ${participantes
+                  .map(
+                    (p) => `
                 <tr>
                     <td><strong>${p.nome || 'Não informado'}</strong></td>
                     <td>${p.cargo || 'Não informado'}</td>
@@ -1797,72 +2028,108 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
                         </span>
                     </td>
                 </tr>
-                `).join('')}
+                `,
+                  )
+                  .join('')}
             </tbody>
         </table>
     </div>
-    ` : ''}
+    `
+        : ''
+    }
 
-    ${pautas.length > 0 ? `
+    ${
+      pautas.length > 0
+        ? `
     <div class="section">
         <div class="section-title">📋 PAUTAS DA REUNIÃO</div>
-        ${pautas.map((pauta: any) => `
+        ${pautas
+          .map(
+            (pauta) => `
         <div class="agenda-item">
             <div class="agenda-title">${pauta.titulo || 'Pauta sem título'}</div>
             ${pauta.descricao ? `<div class="agenda-description">${pauta.descricao}</div>` : ''}
         </div>
-        `).join('')}
+        `,
+          )
+          .join('')}
     </div>
-    ` : ''}
+    `
+        : ''
+    }
 
-    ${decisoes.length > 0 ? `
+    ${
+      decisoes.length > 0
+        ? `
     <div class="section">
         <div class="section-title">✅ DECISÕES TOMADAS</div>
         <ul class="decisions-list">
-            ${decisoes.map((decisao: any) => `
+            ${decisoes
+              .map(
+                (decisao) => `
             <li>
                 ${decisao.prazo ? `<div class="decision-prazo">Prazo: ${decisao.prazo}</div>` : ''}
                 <div class="decision-desc">${decisao.descricao || 'Sem descrição'}</div>
                 ${decisao.responsavel ? `<div class="decision-responsavel">Responsável: ${decisao.responsavel}</div>` : ''}
             </li>
-            `).join('')}
+            `,
+              )
+              .join('')}
         </ul>
     </div>
-    ` : ''}
+    `
+        : ''
+    }
 
-    ${acoes.length > 0 ? `
+    ${
+      acoes.length > 0
+        ? `
     <div class="section">
         <div class="section-title">🎯 AÇÕES DEFINIDAS</div>
         <ul class="actions-list">
-            ${acoes.map((acao: any) => `
+            ${acoes
+              .map(
+                (acao) => `
             <li>
-                <div class="action-status ${getStatusClass(acao.status)}">${getStatusTextAction(acao.status)}</div>
+                <div class="action-status ${getStatusClass(acao.status || undefined)}">${getStatusTextAction(acao.status || undefined)}</div>
                 <div class="decision-desc">${acao.descricao || 'Sem descrição'}</div>
                 ${acao.responsavel ? `<div class="decision-responsavel">Responsável: ${acao.responsavel}</div>` : ''}
                 ${acao.prazo ? `<div class="decision-responsavel">Prazo: ${acao.prazo}</div>` : ''}
             </li>
-            `).join('')}
+            `,
+              )
+              .join('')}
         </ul>
     </div>
-    ` : ''}
+    `
+        : ''
+    }
 
-    ${ata.resumo ? `
+    ${
+      ata.resumo
+        ? `
     <div class="section">
         <div class="section-title">📄 RESUMO EXECUTIVO</div>
         <div class="content-text">
             ${ata.resumo}
         </div>
     </div>
-    ` : ''}
+    `
+        : ''
+    }
 
-    ${ata.conteudo ? `
+    ${
+      ata.conteudo
+        ? `
     <div class="section">
         <div class="section-title">📄 CONTEÚDO COMPLETO DA ATA</div>
         <div class="content-text">
             ${ata.conteudo}
         </div>
     </div>
-    ` : ''}
+    `
+        : ''
+    }
 
     <div class="footer">
         <p><strong>Rede União Nacional de Peças</strong></p>
@@ -1874,4 +2141,3 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
 </html>`;
   }
 }
-

@@ -125,7 +125,10 @@ export class UploadsService {
    * @param ano Ano para verificar (geralmente o ano atual)
    * @returns Número do mês (1-12) que deve ser importado
    */
-  async findProximoMesParaUpload(empresaId: string, ano: number): Promise<number> {
+  async findProximoMesParaUpload(
+    empresaId: string,
+    ano: number,
+  ): Promise<number> {
     // 1. Buscar todos os uploads da empresa no ano (independente do status)
     const uploads = await this.prisma.upload.findMany({
       where: {
@@ -138,7 +141,7 @@ export class UploadsService {
     });
 
     // 2. Extrair lista de meses que já possuem uploads cadastrados
-    const mesesComUpload = new Set(uploads.map(u => u.mes));
+    const mesesComUpload = new Set(uploads.map((u) => u.mes));
 
     // 3. Encontrar o primeiro mês que falta (de 1 a 12)
     for (let mes = 1; mes <= 12; mes++) {
@@ -563,12 +566,15 @@ export class UploadsService {
     // SEMPRE processar consolidado mês a mês
     const consolidadoMap = new Map<string, number>();
     // Usar chave composta empresaId|||periodo para evitar problemas com UUIDs que contêm hífens
-    const porEmpresaMap = new Map<string, { empresaId: string; empresaNome: string; periodo: string; valor: number }>();
+    const porEmpresaMap = new Map<
+      string,
+      { empresaId: string; empresaNome: string; periodo: string; valor: number }
+    >();
 
     for (const upload of uploads) {
       const periodoMensal = `${upload.mes.toString().padStart(2, '0')}/${upload.ano}`;
       const periodoAnual = ano ? ano.toString() : `${upload.ano}`;
-      
+
       // Somar valores da conta 745 para este upload
       const totalUpload = upload.linhas.reduce((sum, linha) => {
         return sum + Number(linha.saldoAtual);
@@ -579,11 +585,14 @@ export class UploadsService {
       consolidadoMap.set(periodoMensal, valorAtualConsolidado + totalUpload);
 
       // Por empresa - depende se mês está selecionado
-      const empresaNome = upload.empresa.razaoSocial || upload.empresa.nomeFantasia || 'N/A';
-      const periodoParaEmpresa = mostrarMensalPorEmpresa ? periodoMensal : periodoAnual;
+      const empresaNome =
+        upload.empresa.razaoSocial || upload.empresa.nomeFantasia || 'N/A';
+      const periodoParaEmpresa = mostrarMensalPorEmpresa
+        ? periodoMensal
+        : periodoAnual;
       // Usar separador único ||| que não aparece em UUIDs
       const keyEmpresa = `${upload.empresaId}|||${periodoParaEmpresa}`;
-      
+
       if (mostrarMensalPorEmpresa) {
         // Modo mensal: agrupar por mês/ano
         porEmpresaMap.set(keyEmpresa, {

@@ -203,6 +203,12 @@ export class CreateProcessoDto {
 
   @IsArray()
   @IsOptional()
-  anexos?: any[];
+  anexos?: Array<{
+    nomeArquivo?: string;
+    urlArquivo?: string;
+    tipoArquivo?: string;
+    tamanhoArquivo?: number;
+    mimeType?: string;
+    metadata?: Record<string, unknown>;
+  }>;
 }
-

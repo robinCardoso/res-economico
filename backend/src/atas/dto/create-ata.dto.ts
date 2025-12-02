@@ -77,4 +77,3 @@ export class CreateAtaDto {
   @Type(() => ParticipanteDto)
   participantes?: ParticipanteDto[];
 }
-

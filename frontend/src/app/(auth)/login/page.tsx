@@ -73,7 +73,7 @@ const LoginPage = () => {
           </div>
           <h1 className="text-xl font-semibold text-slate-900">Acesse sua conta</h1>
           <p className="text-xs text-slate-600">
-            Sistema de resultado econômico integrado à contabilidade.
+            Sistema completo de gestão da Rede União Nacional.
           </p>
         </div>
         <form

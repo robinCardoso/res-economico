@@ -259,7 +259,7 @@ export class AlertasService {
     if (alerta.linha && alerta.upload) {
       // Garantir que TypeScript entenda que linha não é null
       const linhaAlerta = alerta.linha;
-      
+
       // Buscar uploads dos últimos 12 meses da mesma empresa
       const dataAtual = new Date(alerta.upload.ano, alerta.upload.mes - 1);
       const uploads = await this.prisma.upload.findMany({
@@ -311,10 +311,12 @@ export class AlertasService {
 
       historico = uploads.map((upload) => {
         const linha = upload.linhas[0];
-        
+
         // Converter Decimal para Number corretamente
-        // Prisma Decimal pode vir como string ou objeto Decimal
-        const converterDecimal = (value: any): number => {
+        // Prisma Decimal pode vir como string, number ou objeto Decimal
+        const converterDecimal = (
+          value: string | number | { toString(): string } | null | undefined,
+        ): number => {
           if (value === null || value === undefined) return 0;
           if (typeof value === 'number') return value;
           if (typeof value === 'string') {
@@ -384,7 +386,8 @@ export class AlertasService {
         const mediaUltimos3 = ultimos3.reduce((a, b) => a + b, 0) / 3;
         const mediaAnteriores =
           valores.slice(3, 6).length > 0
-            ? valores.slice(3, 6).reduce((a, b) => a + b, 0) / valores.slice(3, 6).length
+            ? valores.slice(3, 6).reduce((a, b) => a + b, 0) /
+              valores.slice(3, 6).length
             : mediaUltimos3;
 
         if (mediaUltimos3 > mediaAnteriores * 1.05) {

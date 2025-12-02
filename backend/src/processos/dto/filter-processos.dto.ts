@@ -58,4 +58,3 @@ export class FilterProcessosDto {
   @IsOptional()
   offset?: number = 0;
 }
-

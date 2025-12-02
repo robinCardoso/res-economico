@@ -63,6 +63,9 @@ const RelatorioResultadoPage = () => {
   const [descricoesSugeridas, setDescricoesSugeridas] = useState<DescricaoSugerida[]>([]);
   const [mostrarSugestoes, setMostrarSugestoes] = useState<boolean>(false);
   const [carregandoDescricoes, setCarregandoDescricoes] = useState<boolean>(false);
+  
+  // Estado para armazenar o nomeConta quando uma chave única está selecionada
+  const [nomeContaSelecionado, setNomeContaSelecionado] = useState<string>('');
 
   const { data: empresas } = useEmpresas();
   const empresasList = useMemo(() => empresas || [], [empresas]);
@@ -152,6 +155,7 @@ const RelatorioResultadoPage = () => {
     setEmpresaIdLocal('');
     setEmpresaIdsLocal([]);
     setDescricaoLocal('');
+    setNomeContaSelecionado('');
     setMesInicialLocal(undefined);
     setMesFinalLocal(undefined);
     setAno(anoParaUsar);
@@ -317,42 +321,6 @@ const RelatorioResultadoPage = () => {
     return Math.max(100, larguraCalculada + 20);
   }, [relatorio?.contas, calcularLarguraClassi]);
 
-  // Efeito para expandir/colapsar todos os níveis quando o checkbox mudar
-  useEffect(() => {
-    if (relatorio?.contas) {
-      if (expandirTodosNiveis) {
-        // Expandir todas as contas que têm filhos
-        const todasClassificacoes = coletarTodasClassificacoes(relatorio.contas);
-        setContasExpandidas(todasClassificacoes);
-      } else {
-        // Colapsar todas (exceto raiz que já está expandida por padrão)
-        setContasExpandidas(new Set());
-      }
-    }
-  }, [expandirTodosNiveis, relatorio?.contas, coletarTodasClassificacoes]);
-
-  // Função para encontrar conta filtrada no relatório
-  const contaFiltrada = useMemo(() => {
-    if (!descricao || !relatorio?.contas) return null;
-    
-    const encontrarConta = (contas: ContaRelatorio[]): ContaRelatorio | null => {
-      for (const conta of contas) {
-        // Busca case-insensitive e parcial
-        if (conta.nomeConta.toLowerCase().includes(descricao.toLowerCase())) {
-          return conta;
-        }
-        // Buscar recursivamente nos filhos
-        if (conta.filhos && conta.filhos.length > 0) {
-          const encontrada = encontrarConta(conta.filhos);
-          if (encontrada) return encontrada;
-        }
-      }
-      return null;
-    };
-    
-    return encontrarConta(relatorio.contas);
-  }, [descricao, relatorio?.contas]);
-
   // Função para extrair todos os níveis hierárquicos de uma classificação
   // Exemplo: "3.09.03.05" -> ["3", "3.09", "3.09.03", "3.09.03.05"]
   const extrairNiveisHierarquicos = useCallback((classificacao: string): string[] => {
@@ -366,6 +334,60 @@ const RelatorioResultadoPage = () => {
     
     return niveis;
   }, []);
+
+  // Função para encontrar conta filtrada no relatório
+  const contaFiltrada = useMemo(() => {
+    if (!descricao || !relatorio?.contas) return null;
+    
+    // Verificar se descricao é uma chave única (formato: classificacao|conta|subConta)
+    const ehChaveUnica = descricao.includes('|');
+    
+    const encontrarConta = (contas: ContaRelatorio[]): ContaRelatorio | null => {
+      for (const conta of contas) {
+        if (ehChaveUnica) {
+          // Buscar por chave única (identificação precisa)
+          const chaveConta = `${conta.classificacao}|${(conta as any).conta || ''}|${(conta as any).subConta || ''}`;
+          if (chaveConta === descricao) {
+            return conta;
+          }
+        } else {
+          // Busca por nome (compatibilidade com busca manual)
+          if (conta.nomeConta.toLowerCase().includes(descricao.toLowerCase())) {
+            return conta;
+          }
+        }
+        
+        // Buscar recursivamente nos filhos
+        if (conta.filhos && conta.filhos.length > 0) {
+          const encontrada = encontrarConta(conta.filhos);
+          if (encontrada) return encontrada;
+        }
+      }
+      return null;
+    };
+    
+    return encontrarConta(relatorio.contas);
+  }, [descricao, relatorio?.contas]);
+
+  // Efeito para expandir/colapsar todos os níveis quando o checkbox mudar
+  useEffect(() => {
+    if (relatorio?.contas) {
+      if (expandirTodosNiveis) {
+        // Expandir todas as contas que têm filhos, independente de filtro de descrição
+        const todasClassificacoes = coletarTodasClassificacoes(relatorio.contas);
+        setContasExpandidas(todasClassificacoes);
+      } else {
+        // Se há filtro de descrição, manter apenas os níveis da conta filtrada
+        if (descricao && contaFiltrada) {
+          const niveisHierarquicos = extrairNiveisHierarquicos(contaFiltrada.classificacao);
+          setContasExpandidas(new Set(niveisHierarquicos));
+        } else {
+          // Sem filtro, colapsar todas (exceto raiz que já está expandida por padrão)
+          setContasExpandidas(new Set());
+        }
+      }
+    }
+  }, [expandirTodosNiveis, relatorio?.contas, coletarTodasClassificacoes, descricao, contaFiltrada, extrairNiveisHierarquicos]);
 
   // Auto-expandir quando conta filtrada for encontrada
   // Garante que todos os níveis hierárquicos até a conta filtrada sejam expandidos
@@ -645,8 +667,29 @@ const RelatorioResultadoPage = () => {
                   <input
                     id="descricao"
                     type="text"
-                    value={descricaoLocal}
+                    value={(() => {
+                      // Se descricaoLocal é uma chave única, mostrar nomeConta correspondente
+                      if (descricaoLocal.includes('|')) {
+                        // Se temos nomeContaSelecionado, usar ele
+                        if (nomeContaSelecionado) {
+                          return nomeContaSelecionado;
+                        }
+                        // Caso contrário, buscar nas sugestões
+                        const descSelecionada = descricoesSugeridas.find(d => {
+                          const chave = d.subConta
+                            ? `${d.classificacao}|${d.conta || ''}|${d.subConta}`
+                            : d.conta
+                            ? `${d.classificacao}|${d.conta}|`
+                            : `${d.classificacao}||`;
+                          return chave === descricaoLocal;
+                        });
+                        return descSelecionada?.nomeConta || descricaoLocal;
+                      }
+                      return descricaoLocal;
+                    })()}
                     onChange={(e) => {
+                      // Se usuário digitar manualmente, limpar nomeContaSelecionado
+                      setNomeContaSelecionado('');
                       setDescricaoLocal(e.target.value);
                       setMostrarSugestoes(true);
                     }}
@@ -678,12 +721,21 @@ const RelatorioResultadoPage = () => {
                           ? `${desc.classificacao}.${desc.conta}`
                           : desc.classificacao;
                         
+                        // Criar chave única: classificacao|conta|subConta
+                        const chaveUnica = desc.subConta
+                          ? `${desc.classificacao}|${desc.conta || ''}|${desc.subConta}`
+                          : desc.conta
+                          ? `${desc.classificacao}|${desc.conta}|`
+                          : `${desc.classificacao}||`;
+                        
                         return (
                           <button
                             key={index}
                             type="button"
                             onClick={() => {
-                              setDescricaoLocal(desc.nomeConta);
+                              // Armazenar chave única para identificação precisa
+                              setDescricaoLocal(chaveUnica);
+                              setNomeContaSelecionado(desc.nomeConta);
                               setMostrarSugestoes(false);
                             }}
                             className="w-full px-3 py-1.5 text-left text-[10px] text-foreground hover:bg-muted"

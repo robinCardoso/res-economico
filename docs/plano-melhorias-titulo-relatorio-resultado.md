@@ -1,6 +1,6 @@
 # 📋 Plano de Melhorias: Título Dinâmico do Relatório de Resultado Econômico
 
-> **Última Atualização**: Todas as fases (1-7) concluídas. Projeto completo.
+> **Última Atualização**: Todas as fases (1-7) concluídas. Correções adicionais de filtro de descrição e "Expandir Níveis" implementadas.
 
 ## 📈 Progresso Geral
 
@@ -1124,19 +1124,40 @@ export interface GerarRelatorioParams {
 - Frontend: UI com selects e validação
 - Status: ✅ Completo e testado
 
+## 🚀 Correções Adicionais Implementadas
+
+### Correção: Filtro de Descrição e "Expandir Níveis"
+
+**Problemas Identificados**:
+1. "Expandir Níveis" não funcionava corretamente com filtro de descrição
+2. Filtro de descrição não distinguia entre contas com mesmo nome mas diferentes classificação/conta/subConta
+3. Sistema mostrava hierarquia pai da conta filtrada (não deveria)
+
+**Soluções Implementadas**:
+1. ✅ Modificado `useEffect` de "Expandir Níveis" para considerar filtro de descrição
+2. ✅ Implementado sistema de chave única (`classificacao|conta|subConta`) para identificação precisa
+3. ✅ Simplificada lógica de filtro para mostrar apenas conta filtrada e seus filhos (sem pais)
+
+**Arquivos Modificados**:
+- `frontend/src/app/(app)/admin/resultado-economico/relatorios/resultado/page.tsx`
+- `backend/src/relatorios/relatorios.service.ts`
+
+**Documentação Completa**: Ver `docs/plano-correcao-expandir-niveis-e-descricao.md`
+
 ## 🚀 Próximos Passos Após Implementação
 
 ### Imediatos
 1. ✅ Implementar Fase 6: Filtro de mês (intervalo de meses) - **CONCLUÍDO**
-2. ✅ Coletar feedback dos usuários sobre melhorias implementadas
-3. ✅ Todas as melhorias principais foram implementadas
+2. ✅ Correções de filtro de descrição e "Expandir Níveis" - **CONCLUÍDO**
+3. ✅ Coletar feedback dos usuários sobre melhorias implementadas
+4. ✅ Todas as melhorias principais foram implementadas
 
 ### Futuras Melhorias
-3. Considerar adicionar UF nas empresas do título consolidado (se necessário)
-4. Considerar limitar número de empresas no título (ex: "e mais 3 empresas")
-5. Adicionar tooltip com lista completa se título for muito longo
-6. Considerar destacar visualmente a conta filtrada na tabela
-7. Considerar adicionar busca também por classificação no filtro de descrição
-8. Considerar opção de mostrar total apenas dos meses filtrados (além do total anual)
-9. Considerar adicionar atalhos rápidos (ex: "Últimos 3 meses", "Primeiro semestre")
+1. Considerar adicionar UF nas empresas do título consolidado (se necessário)
+2. Considerar limitar número de empresas no título (ex: "e mais 3 empresas")
+3. Adicionar tooltip com lista completa se título for muito longo
+4. Considerar destacar visualmente a conta filtrada na tabela
+5. Considerar adicionar busca também por classificação no filtro de descrição
+6. Considerar opção de mostrar total apenas dos meses filtrados (além do total anual)
+7. Considerar adicionar atalhos rápidos (ex: "Últimos 3 meses", "Primeiro semestre")
 

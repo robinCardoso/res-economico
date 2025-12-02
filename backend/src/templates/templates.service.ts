@@ -91,7 +91,7 @@ export class TemplatesService {
       nome?: string;
       descricao?: string | null;
       empresaId?: string | null;
-      configuracao?: any; // Prisma JSON type
+      configuracao?: Prisma.InputJsonValue; // Prisma JSON type
     } = {};
 
     if (dto.nome) updateData.nome = dto.nome;
@@ -104,7 +104,7 @@ export class TemplatesService {
     if (dto.columnMapping) {
       updateData.configuracao = {
         columnMapping: dto.columnMapping as Record<string, unknown>,
-      };
+      } as Prisma.InputJsonValue;
     }
 
     return this.prisma.templateImportacao.update({

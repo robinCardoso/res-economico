@@ -10,4 +10,3 @@ import { CoreModule } from '../core/core.module';
   exports: [ProcessosService],
 })
 export class ProcessosModule {}
-

@@ -16,7 +16,9 @@ export class AuditoriaService {
     try {
       // Verificar se o usuário existe (exceto para 'system' que é usado em scripts)
       if (usuarioId === 'system') {
-        this.logger.debug(`Auditoria ignorada para usuário 'system': ${recurso} - ${acao}`);
+        this.logger.debug(
+          `Auditoria ignorada para usuário 'system': ${recurso} - ${acao}`,
+        );
         return; // Não registrar auditoria para scripts automáticos
       }
 

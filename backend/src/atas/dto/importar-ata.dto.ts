@@ -18,4 +18,3 @@ export class ImportarAtaDto {
   @IsEnum(TipoReuniao)
   tipoReuniao?: TipoReuniao;
 }
-

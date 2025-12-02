@@ -19,14 +19,23 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | Resultado Econômico',
-    default: 'Resultado Econômico',
+    template: '%s | Rede União Nacional',
+    default: 'Rede União Nacional',
   },
   description:
-    'Aplicativo PWA para importação de balancetes, análise inteligente e controle de alertas contábeis.',
+    'Sistema completo de gestão para a Rede União Nacional - Resultado econômico, importação de balancetes, análise inteligente e controle de alertas contábeis.',
   manifest: '/manifest.json',
-  applicationName: 'Resultado Econômico',
-  keywords: ['contabilidade', 'resultado econômico', 'balancete', 'PWA'],
+  applicationName: 'Rede União Nacional',
+  keywords: ['rede união nacional', 'contabilidade', 'resultado econômico', 'balancete', 'PWA', 'gestão'],
+  icons: {
+    icon: [
+      { url: '/minha-logo.png', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: [
+      { url: '/minha-logo.png', type: 'image/png' },
+    ],
+  },
 };
 
 export const viewport: Viewport = {

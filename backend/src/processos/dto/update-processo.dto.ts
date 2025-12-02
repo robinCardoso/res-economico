@@ -5,7 +5,10 @@ import {
   IsEnum,
   IsOptional,
   IsDateString,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { Prisma } from '@prisma/client';
 
 export enum SituacaoProcesso {
   AGUARDANDO_ANALISE = 'Aguardando Análise',
@@ -45,6 +48,24 @@ export class UpdateProcessoDto {
   comentarios?: string;
 
   @IsOptional()
-  novaEntradaHistorico?: any;
+  @ValidateNested()
+  @Type(() => NovaEntradaHistoricoDto)
+  novaEntradaHistorico?: NovaEntradaHistoricoDto;
 }
 
+export class NovaEntradaHistoricoDto {
+  @IsString()
+  @IsOptional()
+  acao?: string;
+
+  @IsString()
+  @IsOptional()
+  descricao?: string;
+
+  @IsString()
+  @IsOptional()
+  usuarioNome?: string;
+
+  @IsOptional()
+  metadata?: Prisma.InputJsonValue;
+}

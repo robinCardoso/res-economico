@@ -92,7 +92,7 @@ export class UploadsController {
 
     // Se ano não for fornecido, usar ano atual
     const anoNum = ano ? parseInt(ano, 10) : new Date().getFullYear();
-    
+
     if (isNaN(anoNum)) {
       throw new BadRequestException('ano deve ser um número válido');
     }

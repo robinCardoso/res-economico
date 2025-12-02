@@ -50,7 +50,6 @@ export class AtasController {
     @Query('busca') busca?: string,
     @Query('page', new ParseIntPipe({ optional: true })) page?: number,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
-    @Request() req?: { user?: { id?: string } },
   ) {
     const filters: FilterAtaDto = {
       empresaId,
@@ -63,8 +62,7 @@ export class AtasController {
       limit: limit || 20,
     };
 
-    const userId = req?.user?.id;
-    return this.atasService.findAll(filters, userId);
+    return this.atasService.findAll(filters);
   }
 
   // Rotas específicas devem vir antes das rotas com parâmetros
@@ -130,10 +128,7 @@ export class AtasController {
   }
 
   @Post(':id/analisar')
-  async analisar(
-    @Param('id') id: string,
-    @Body() dto: AnalisarAtaDto,
-  ) {
+  async analisar(@Param('id') id: string, @Body() dto: AnalisarAtaDto) {
     return this.atasService.analisarAta(id, dto);
   }
 
@@ -143,16 +138,8 @@ export class AtasController {
   }
 
   @Put(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateAtaDto,
-    @Request() req: { user?: { id?: string } },
-  ) {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new Error('Usuário não autenticado');
-    }
-    return this.atasService.update(id, dto, userId);
+  async update(@Param('id') id: string, @Body() dto: UpdateAtaDto) {
+    return this.atasService.update(id, dto);
   }
 
   @Delete(':id')
@@ -169,11 +156,14 @@ export class AtasController {
     try {
       const ata = await this.atasService.findOne(id);
       const html = await this.atasService.exportarHTML(id);
-      
+
       const filename = `ata-${ata.titulo?.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() || 'reuniao'}.html`;
-      
+
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${filename}"`,
+      );
       res.send(html);
     } catch (error) {
       console.error('Erro ao exportar HTML:', error);
@@ -184,4 +174,3 @@ export class AtasController {
     }
   }
 }
-

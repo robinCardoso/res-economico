@@ -6,4 +6,3 @@ export class UpdateComentarioDto {
   @IsNotEmpty()
   comentario?: string;
 }
-

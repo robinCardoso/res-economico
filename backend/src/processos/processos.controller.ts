@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { Request as ExpressRequest } from 'express';
 import { ProcessosService } from './processos.service';
 import { CreateProcessoDto } from './dto/create-processo.dto';
 import { UpdateProcessoDto } from './dto/update-processo.dto';
@@ -21,7 +22,10 @@ export class ProcessosController {
   constructor(private readonly processosService: ProcessosService) {}
 
   @Post()
-  async create(@Body() createDto: CreateProcessoDto, @Request() req: any) {
+  async create(
+    @Body() createDto: CreateProcessoDto,
+    @Request() req: ExpressRequest & { user: { id: string } },
+  ) {
     return this.processosService.create(createDto, req.user.id);
   }
 
@@ -39,8 +43,10 @@ export class ProcessosController {
   }
 
   @Put()
-  async update(@Body() updateDto: UpdateProcessoDto, @Request() req: any) {
+  async update(
+    @Body() updateDto: UpdateProcessoDto,
+    @Request() req: ExpressRequest & { user: { id: string } },
+  ) {
     return this.processosService.update(updateDto, req.user.id);
   }
 }
-
