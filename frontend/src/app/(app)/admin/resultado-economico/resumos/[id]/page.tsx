@@ -3,8 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { resumosService } from '@/services/resumos.service';
-import { ArrowLeft, Download, FileText, Calendar, Building2, User, Loader2, AlertCircle } from 'lucide-react';
-import type { ResumoEconomico } from '@/types/api';
+import { ArrowLeft, Download, Calendar, Building2, User, Loader2, AlertCircle } from 'lucide-react';
 
 const ResumoDetailPage = () => {
   const params = useParams();
@@ -47,7 +46,7 @@ const ResumoDetailPage = () => {
         a.click();
         window.URL.revokeObjectURL(url);
       }
-    } catch (err) {
+    } catch {
       alert(`Erro ao exportar resumo em formato ${format.toUpperCase()}`);
     }
   };
@@ -78,7 +77,7 @@ const ResumoDetailPage = () => {
     );
   }
 
-  const resultado = resumo.resultado as any;
+  const resultado = resumo.resultado as Record<string, unknown>;
 
   return (
     <div className="space-y-6">
@@ -169,7 +168,7 @@ const ResumoDetailPage = () => {
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold text-foreground">Insights</h2>
           <div className="space-y-4">
-            {resultado.insights.map((insight: any, index: number) => (
+            {resultado.insights.map((insight: { tipo: string; titulo: string; descricao: string; recomendacao?: string }, index: number) => (
               <div
                 key={index}
                 className="rounded-md border border-border bg-muted p-4"
@@ -214,7 +213,7 @@ const ResumoDetailPage = () => {
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold text-foreground">Padrões Anômalos</h2>
           <div className="space-y-2">
-            {resultado.padroesAnomalos.map((padrao: any, index: number) => (
+            {resultado.padroesAnomalos.map((padrao: { tipo: string; descricao: string; severidade: string }, index: number) => (
               <div
                 key={index}
                 className="rounded-md border border-border bg-muted p-3"

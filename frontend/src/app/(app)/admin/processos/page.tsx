@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Search, Filter, Eye, AlertCircle, AlertTriangle, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Loader2, Search, Filter, Eye, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { api } from '@/lib/http';
 
@@ -138,9 +138,10 @@ export default function ProcessosPage() {
       } else {
         throw new Error(response.data.message);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao carregar processos:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Erro ao carregar processos';
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage = error.response?.data?.message || error.message || 'Erro ao carregar processos';
       setError(errorMessage);
       toast({
         variant: 'destructive',

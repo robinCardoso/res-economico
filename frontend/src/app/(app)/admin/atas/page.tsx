@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { atasService } from '@/services/atas.service';
-import { FileText, Calendar, Users, Sparkles, Upload, Filter } from 'lucide-react';
+import { FileText, Calendar, Users, Sparkles, Upload, Filter, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-import type { FilterAtaDto, TipoReuniao, StatusAta } from '@/types/api';
+import type { FilterAtaDto, TipoReuniao, StatusAta, AtaReuniao } from '@/types/api';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -59,18 +59,25 @@ export default function AtasPage() {
     limit: 20,
   });
   const [buscaInput, setBuscaInput] = useState(filters.busca || '');
+  const [filtroDecisoesPendentes, setFiltroDecisoesPendentes] = useState(false);
+  const [filtroAcoesPendentes, setFiltroAcoesPendentes] = useState(false);
   
   // Debounce da busca para evitar requisições a cada letra
   const debouncedBusca = useDebounce(buscaInput, 500);
   
   // Atualizar filtros quando o debounce da busca mudar
   useEffect(() => {
-    setFilters(prev => ({
-      ...prev,
-      busca: debouncedBusca || undefined,
-      page: 1, // Resetar para primeira página ao buscar
-    }));
-  }, [debouncedBusca]);
+    if (debouncedBusca !== filters.busca) {
+      // Usar setTimeout para evitar setState síncrono em effect
+      setTimeout(() => {
+        setFilters(prev => ({
+          ...prev,
+          busca: debouncedBusca || undefined,
+          page: 1, // Resetar para primeira página ao buscar
+        }));
+      }, 0);
+    }
+  }, [debouncedBusca, filters.busca]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['atas', filters],
@@ -107,6 +114,12 @@ export default function AtasPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Link href="/admin/atas/decisoes-acoes">
+            <Button size="default" variant="outline">
+              <Filter className="mr-2 h-4 w-4" />
+              Gerenciar Decisões/Ações
+            </Button>
+          </Link>
           <Link href="/admin/atas/importar">
             <Button size="default" variant="outline">
               <Upload className="mr-2 h-4 w-4" />
@@ -136,8 +149,30 @@ export default function AtasPage() {
         </div>
       </div>
 
+      {/* Filtros Rápidos */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant={filtroDecisoesPendentes ? "default" : "outline"}
+          onClick={() => setFiltroDecisoesPendentes(!filtroDecisoesPendentes)}
+          className="h-8 text-xs"
+        >
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Decisões Pendentes
+        </Button>
+        <Button
+          size="sm"
+          variant={filtroAcoesPendentes ? "default" : "outline"}
+          onClick={() => setFiltroAcoesPendentes(!filtroAcoesPendentes)}
+          className="h-8 text-xs"
+        >
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Ações Pendentes
+        </Button>
+      </div>
+
       {/* Cards de Estatísticas */}
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-4 pt-4">
             <CardTitle className="text-xs font-medium">Total de Atas</CardTitle>
@@ -150,45 +185,84 @@ export default function AtasPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-4 pt-4">
-            <CardTitle className="text-xs font-medium">Finalizadas</CardTitle>
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="text-xl font-bold">
-              {data?.data?.filter((a) => a.status === 'PUBLICADA').length || 0}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-4 pt-4">
-            <CardTitle className="text-xs font-medium">Rascunhos</CardTitle>
-            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="text-xl font-bold">
-              {data?.data?.filter((a) => a.status === 'RASCUNHO').length || 0}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-4 pt-4">
-            <CardTitle className="text-xs font-medium">Geradas por IA</CardTitle>
+            <CardTitle className="text-xs font-medium">Processadas por IA</CardTitle>
             <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
           <CardContent className="px-4 pb-4">
             <div className="text-xl font-bold">
-              {data?.data?.filter((a) => (a as any).geradoPorIa).length || 0}
+              {data?.data?.filter((a) => {
+                const ata = a as AtaReuniao & { geradoPorIa?: boolean };
+                return ata.geradoPorIa;
+              }).length || 0}
             </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* Filtros Rápidos */}
+      {(filtroDecisoesPendentes || filtroAcoesPendentes) && (
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">Filtros ativos:</span>
+              {filtroDecisoesPendentes && (
+                <Badge variant="outline" className="text-xs">
+                  Decisões Pendentes
+                </Badge>
+              )}
+              {filtroAcoesPendentes && (
+                <Badge variant="outline" className="text-xs">
+                  Ações Pendentes
+                </Badge>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setFiltroDecisoesPendentes(false);
+                  setFiltroAcoesPendentes(false);
+                }}
+                className="h-7 text-xs ml-auto"
+              >
+                Limpar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Lista de Atas */}
       <div className="space-y-3">
         {data?.data && data.data.length > 0 ? (
-          data.data.map((ata) => (
+          data.data
+            .filter((ata) => {
+              // Filtro de decisões pendentes
+              if (filtroDecisoesPendentes) {
+                const ataCompleta = ata as AtaReuniao & { decisoes?: Array<{ status?: string; concluida?: boolean }> };
+                const decisoes = ataCompleta.decisoes;
+                if (!Array.isArray(decisoes) || decisoes.length === 0) return false;
+                const temPendente = decisoes.some((d) => {
+                  const status = d.status || (d.concluida ? 'concluida' : 'pendente');
+                  return status === 'pendente' || !status;
+                });
+                if (!temPendente) return false;
+              }
+              
+              // Filtro de ações pendentes
+              if (filtroAcoesPendentes) {
+                const ataCompleta = ata as AtaReuniao & { acoes?: Array<{ status?: string; concluida?: boolean }> };
+                const acoes = ataCompleta.acoes;
+                if (!Array.isArray(acoes) || acoes.length === 0) return false;
+                const temPendente = acoes.some((a) => {
+                  const status = a.status || (a.concluida ? 'concluida' : 'pendente');
+                  return status === 'pendente' || !status;
+                });
+                if (!temPendente) return false;
+              }
+              
+              return true;
+            })
+            .map((ata) => (
             <Card key={ata.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="px-4 py-3">
                 <div className="flex items-start justify-between">
@@ -210,7 +284,10 @@ export default function AtasPage() {
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {(ata as any).geradoPorIa && (
+                    {(() => {
+                      const ataCompleta = ata as AtaReuniao & { geradoPorIa?: boolean };
+                      return ataCompleta.geradoPorIa;
+                    })() && (
                       <Badge variant="outline" className="border-purple-200 text-purple-700 text-xs px-1.5 py-0.5">
                         <Sparkles className="h-2.5 w-2.5 mr-0.5" />
                         IA
@@ -236,9 +313,15 @@ export default function AtasPage() {
                     )}
                   </div>
 
-                  {(ata as any).resumo && (
+                  {(() => {
+                    const ataCompleta = ata as AtaReuniao & { resumo?: string };
+                    return ataCompleta.resumo;
+                  })() && (
                     <p className="text-xs text-muted-foreground line-clamp-2">
-                      {(ata as any).resumo}
+                      {(() => {
+                        const ataCompleta = ata as AtaReuniao & { resumo?: string };
+                        return ataCompleta.resumo || '';
+                      })()}
                     </p>
                   )}
 

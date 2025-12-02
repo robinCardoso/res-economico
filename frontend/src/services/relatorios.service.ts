@@ -7,6 +7,8 @@ export interface GerarRelatorioParams {
   empresaIds?: string[];
   tipo: TipoRelatorio;
   descricao?: string;
+  mesInicial?: number;
+  mesFinal?: number;
 }
 
 export interface GerarRelatorioComparativoParams {
@@ -38,12 +40,22 @@ export const relatoriosService = {
     return data;
   },
 
-  async getDescricoesDisponiveis(busca?: string): Promise<string[]> {
+  async getDescricoesDisponiveis(busca?: string): Promise<Array<{
+    nomeConta: string;
+    classificacao: string;
+    conta?: string;
+    subConta?: string;
+  }>> {
     const queryParams = new URLSearchParams();
     if (busca && busca.trim().length > 0) {
       queryParams.append('busca', busca.trim());
     }
-    const { data } = await api.get<string[]>(
+    const { data } = await api.get<Array<{
+      nomeConta: string;
+      classificacao: string;
+      conta?: string;
+      subConta?: string;
+    }>>(
       `/relatorios/descricoes-disponiveis?${queryParams.toString()}`,
     );
     return data;
@@ -66,6 +78,14 @@ export const relatoriosService = {
 
     if (params.descricao && params.descricao.trim().length > 0) {
       queryParams.append('descricao', params.descricao.trim());
+    }
+
+    if (params.mesInicial !== undefined && params.mesInicial >= 1 && params.mesInicial <= 12) {
+      queryParams.append('mesInicial', params.mesInicial.toString());
+    }
+
+    if (params.mesFinal !== undefined && params.mesFinal >= 1 && params.mesFinal <= 12) {
+      queryParams.append('mesFinal', params.mesFinal.toString());
     }
 
     const { data } = await api.get<RelatorioResultado>(

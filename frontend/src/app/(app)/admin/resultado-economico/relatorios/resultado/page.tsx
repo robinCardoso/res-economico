@@ -12,10 +12,12 @@ import { ModeloNegocioBadge } from '@/components/configuracao/ModeloNegocioBadge
 import { MetricasModelo } from '@/components/configuracao/MetricasModelo';
 import { useQuery } from '@tanstack/react-query';
 import { configuracaoModeloNegocioService } from '@/services/configuracao-modelo-negocio.service';
+import { construirTituloRelatorio } from '@/utils/titulo-relatorio';
+import { useFiltros } from './filtros-context';
 
 const RelatorioResultadoPage = () => {
-  // Estado para controlar se os filtros estão expandidos
-  const [filtrosExpandidos, setFiltrosExpandidos] = useState<boolean>(true);
+  // Estado para controlar se os filtros estão expandidos (agora vem do contexto)
+  const { filtrosExpandidos, setFiltrosExpandidos } = useFiltros();
 
   // Estados locais dos filtros (não aplicados ainda)
   const [anoLocal, setAnoLocal] = useState<number>(new Date().getFullYear());
@@ -23,6 +25,8 @@ const RelatorioResultadoPage = () => {
   const [empresaIdLocal, setEmpresaIdLocal] = useState<string>('');
   const [empresaIdsLocal, setEmpresaIdsLocal] = useState<string[]>([]);
   const [descricaoLocal, setDescricaoLocal] = useState<string>('');
+  const [mesInicialLocal, setMesInicialLocal] = useState<number | undefined>(undefined);
+  const [mesFinalLocal, setMesFinalLocal] = useState<number | undefined>(undefined);
 
   // Estados dos filtros aplicados (usados na query)
   const [ano, setAno] = useState<number>(new Date().getFullYear());
@@ -30,9 +34,33 @@ const RelatorioResultadoPage = () => {
   const [empresaId, setEmpresaId] = useState<string>('');
   const [empresaIds, setEmpresaIds] = useState<string[]>([]);
   const [descricao, setDescricao] = useState<string>('');
+  const [mesInicial, setMesInicial] = useState<number | undefined>(undefined);
+  const [mesFinal, setMesFinal] = useState<number | undefined>(undefined);
+
+  // Constantes de meses
+  const meses = [
+    { value: 1, label: 'Janeiro' },
+    { value: 2, label: 'Fevereiro' },
+    { value: 3, label: 'Março' },
+    { value: 4, label: 'Abril' },
+    { value: 5, label: 'Maio' },
+    { value: 6, label: 'Junho' },
+    { value: 7, label: 'Julho' },
+    { value: 8, label: 'Agosto' },
+    { value: 9, label: 'Setembro' },
+    { value: 10, label: 'Outubro' },
+    { value: 11, label: 'Novembro' },
+    { value: 12, label: 'Dezembro' },
+  ];
 
   // Estados para autocomplete de descrição
-  const [descricoesSugeridas, setDescricoesSugeridas] = useState<string[]>([]);
+  interface DescricaoSugerida {
+    nomeConta: string;
+    classificacao: string;
+    conta?: string;
+    subConta?: string;
+  }
+  const [descricoesSugeridas, setDescricoesSugeridas] = useState<DescricaoSugerida[]>([]);
   const [mostrarSugestoes, setMostrarSugestoes] = useState<boolean>(false);
   const [carregandoDescricoes, setCarregandoDescricoes] = useState<boolean>(false);
 
@@ -69,8 +97,10 @@ const RelatorioResultadoPage = () => {
       empresaId: tipo === 'FILIAL' ? empresaId : undefined,
       empresaIds: tipo === TipoRelatorio.CONSOLIDADO && empresaIds.length > 0 ? empresaIds : undefined,
       descricao: descricao && descricao.trim().length > 0 ? descricao : undefined,
+      mesInicial: mesInicial && mesInicial >= 1 && mesInicial <= 12 ? mesInicial : undefined,
+      mesFinal: mesFinal && mesFinal >= 1 && mesFinal <= 12 ? mesFinal : undefined,
     }),
-    [ano, tipo, empresaId, empresaIds, descricao],
+    [ano, tipo, empresaId, empresaIds, descricao, mesInicial, mesFinal],
   );
 
   // Buscar descrições para autocomplete
@@ -106,6 +136,8 @@ const RelatorioResultadoPage = () => {
     setEmpresaId(empresaIdLocal);
     setEmpresaIds(empresaIdsLocal);
     setDescricao(descricaoLocal);
+    setMesInicial(mesInicialLocal);
+    setMesFinal(mesFinalLocal);
     // Recolher os filtros após aplicar
     setFiltrosExpandidos(false);
     setMostrarSugestoes(false);
@@ -120,17 +152,32 @@ const RelatorioResultadoPage = () => {
     setEmpresaIdLocal('');
     setEmpresaIdsLocal([]);
     setDescricaoLocal('');
+    setMesInicialLocal(undefined);
+    setMesFinalLocal(undefined);
     setAno(anoParaUsar);
     setTipo(TipoRelatorio.CONSOLIDADO);
     setEmpresaId('');
     setEmpresaIds([]);
     setDescricao('');
+    setMesInicial(undefined);
+    setMesFinal(undefined);
     setMostrarSugestoes(false);
     // Recolher os filtros após limpar
     setFiltrosExpandidos(false);
   };
 
   const { data: relatorio, isLoading, error } = useRelatorioResultado(params);
+
+  // Calcular título dinâmico usando useMemo para otimização
+  const tituloRelatorio = useMemo(() => {
+    return construirTituloRelatorio(
+      tipo,
+      empresaIds,
+      empresasList,
+      relatorio || null,
+      ano
+    );
+  }, [tipo, empresaIds, empresasList, relatorio, ano]);
 
   // Buscar empresa selecionada e sua configuração
   const empresaSelecionada = useMemo(() => {
@@ -283,6 +330,73 @@ const RelatorioResultadoPage = () => {
       }
     }
   }, [expandirTodosNiveis, relatorio?.contas, coletarTodasClassificacoes]);
+
+  // Função para encontrar conta filtrada no relatório
+  const contaFiltrada = useMemo(() => {
+    if (!descricao || !relatorio?.contas) return null;
+    
+    const encontrarConta = (contas: ContaRelatorio[]): ContaRelatorio | null => {
+      for (const conta of contas) {
+        // Busca case-insensitive e parcial
+        if (conta.nomeConta.toLowerCase().includes(descricao.toLowerCase())) {
+          return conta;
+        }
+        // Buscar recursivamente nos filhos
+        if (conta.filhos && conta.filhos.length > 0) {
+          const encontrada = encontrarConta(conta.filhos);
+          if (encontrada) return encontrada;
+        }
+      }
+      return null;
+    };
+    
+    return encontrarConta(relatorio.contas);
+  }, [descricao, relatorio?.contas]);
+
+  // Função para extrair todos os níveis hierárquicos de uma classificação
+  // Exemplo: "3.09.03.05" -> ["3", "3.09", "3.09.03", "3.09.03.05"]
+  const extrairNiveisHierarquicos = useCallback((classificacao: string): string[] => {
+    const partes = classificacao.split('.').filter(p => p.length > 0);
+    const niveis: string[] = [];
+    
+    for (let i = 0; i < partes.length; i++) {
+      const nivel = partes.slice(0, i + 1).join('.');
+      niveis.push(nivel);
+    }
+    
+    return niveis;
+  }, []);
+
+  // Auto-expandir quando conta filtrada for encontrada
+  // Garante que todos os níveis hierárquicos até a conta filtrada sejam expandidos
+  // e que a própria conta seja expandida para mostrar seus filhos
+  useEffect(() => {
+    if (!contaFiltrada || !relatorio?.contas) {
+      return;
+    }
+    
+    // Extrair todos os níveis hierárquicos da classificação
+    // Exemplo: "3.09.03.05" -> ["3", "3.09", "3.09.03", "3.09.03.05"]
+    const niveisHierarquicos = extrairNiveisHierarquicos(contaFiltrada.classificacao);
+    
+    // Expandir TODOS os níveis, incluindo a própria conta filtrada
+    // Isso garante que todos os filhos da conta filtrada sejam exibidos
+    // Exemplo: se filtramos "3.09", precisamos expandir ["3", "3.09"]
+    // para mostrar todos os filhos de "3.09" (como "3.09.03", "3.09.01", etc.)
+    const niveisParaExpandir = niveisHierarquicos;
+    
+    if (niveisParaExpandir.length > 0) {
+      // Sempre adicionar as classificações ao Set, mesmo se "Expandir Todos" estiver ativo
+      // Isso garante que a conta filtrada seja explicitamente expandida
+      setContasExpandidas((prev) => {
+        const novo = new Set(prev);
+        niveisParaExpandir.forEach((classificacao) => {
+          novo.add(classificacao);
+        });
+        return novo;
+      });
+    }
+  }, [contaFiltrada, relatorio?.contas, extrairNiveisHierarquicos]);
 
   const toggleExpandir = (classificacao: string) => {
     // Se "Expandir Todos" estiver marcado, desmarcar primeiro
@@ -556,19 +670,33 @@ const RelatorioResultadoPage = () => {
                   {/* Dropdown de sugestões */}
                   {mostrarSugestoes && descricoesSugeridas.length > 0 && (
                     <div className="absolute z-[9999] mt-1 max-h-48 w-full overflow-auto rounded-md border border-border bg-card shadow-lg">
-                      {descricoesSugeridas.map((desc, index) => (
-                        <button
-                          key={index}
-                          type="button"
-                          onClick={() => {
-                            setDescricaoLocal(desc);
-                            setMostrarSugestoes(false);
-                          }}
-                          className="w-full px-3 py-1.5 text-left text-[10px] text-foreground hover:bg-muted"
-                        >
-                          {desc}
-                        </button>
-                      ))}
+                      {descricoesSugeridas.map((desc, index) => {
+                        // Construir classificação completa
+                        const classificacaoCompleta = desc.subConta 
+                          ? `${desc.classificacao}.${desc.conta}.${desc.subConta}`
+                          : desc.conta 
+                          ? `${desc.classificacao}.${desc.conta}`
+                          : desc.classificacao;
+                        
+                        return (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => {
+                              setDescricaoLocal(desc.nomeConta);
+                              setMostrarSugestoes(false);
+                            }}
+                            className="w-full px-3 py-1.5 text-left text-[10px] text-foreground hover:bg-muted"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium truncate">{desc.nomeConta}</span>
+                              <span className="text-[9px] text-muted-foreground font-mono flex-shrink-0">
+                                {classificacaoCompleta}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -577,6 +705,78 @@ const RelatorioResultadoPage = () => {
                     {descricoesSugeridas.length > 0
                       ? `${descricoesSugeridas.length} sugestão(ões) encontrada(s)`
                       : 'Digite pelo menos 2 caracteres'}
+                  </p>
+                )}
+              </div>
+
+              {/* Filtro de Mês Inicial */}
+              <div className="min-w-[150px]">
+                <label
+                  htmlFor="mes-inicial"
+                  className="mb-0.5 block text-[10px] font-medium text-foreground"
+                >
+                  Mês Inicial (opcional)
+                </label>
+                <select
+                  id="mes-inicial"
+                  value={mesInicialLocal || ''}
+                  onChange={(e) => {
+                    const valor = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                    setMesInicialLocal(valor);
+                    // Se mesFinal estiver definido e for menor que mesInicial, resetar mesFinal
+                    if (valor && mesFinalLocal && valor > mesFinalLocal) {
+                      setMesFinalLocal(undefined);
+                    }
+                  }}
+                  className="h-7 w-full rounded border border-border bg-input px-2 text-[10px] text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
+                >
+                  <option value="">Todos</option>
+                  {meses.map((mes) => (
+                    <option key={mes.value} value={mes.value}>
+                      {mes.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro de Mês Final */}
+              <div className="min-w-[150px]">
+                <label
+                  htmlFor="mes-final"
+                  className="mb-0.5 block text-[10px] font-medium text-foreground"
+                >
+                  Mês Final (opcional)
+                </label>
+                <select
+                  id="mes-final"
+                  value={mesFinalLocal || ''}
+                  onChange={(e) => {
+                    const valor = e.target.value ? parseInt(e.target.value, 10) : undefined;
+                    setMesFinalLocal(valor);
+                    // Se mesInicial estiver definido e for maior que mesFinal, resetar mesInicial
+                    if (valor && mesInicialLocal && valor < mesInicialLocal) {
+                      setMesInicialLocal(undefined);
+                    }
+                  }}
+                  disabled={!mesInicialLocal} // Desabilitar se não houver mês inicial
+                  className="h-7 w-full rounded border border-border bg-input px-2 text-[10px] text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Todos</option>
+                  {meses
+                    .filter((mes) => !mesInicialLocal || mes.value >= mesInicialLocal)
+                    .map((mes) => (
+                      <option key={mes.value} value={mes.value}>
+                        {mes.label}
+                      </option>
+                    ))}
+                </select>
+                {mesInicialLocal && (
+                  <p className="mt-0.5 text-[9px] text-slate-500">
+                    {mesInicialLocal === mesFinalLocal
+                      ? 'Mesmo mês selecionado'
+                      : mesFinalLocal
+                      ? `${meses.find(m => m.value === mesInicialLocal)?.label} a ${meses.find(m => m.value === mesFinalLocal)?.label}`
+                      : `A partir de ${meses.find(m => m.value === mesInicialLocal)?.label}`}
                   </p>
                 )}
               </div>
@@ -601,7 +801,7 @@ const RelatorioResultadoPage = () => {
               {relatorio && (
                 <div className="flex items-start gap-1.5 pt-[18px]">
                   <button
-                    onClick={() => exportarParaExcel(relatorio)}
+                    onClick={() => exportarParaExcel(relatorio, tipo, empresaIds, empresasList)}
                     className="inline-flex h-7 items-center gap-1 rounded border border-border bg-card px-2 text-[10px] font-medium text-muted-foreground hover:bg-muted"
                   >
                     <FileSpreadsheet className="h-3 w-3" />
@@ -609,7 +809,7 @@ const RelatorioResultadoPage = () => {
                   </button>
                   <button
                     onClick={() => {
-                      exportarParaPDF(relatorio).catch((error) => {
+                      exportarParaPDF(relatorio, tipo, empresaIds, empresasList).catch((error) => {
                         console.error('Erro ao exportar PDF:', error);
                         alert('Erro ao exportar PDF. Tente novamente.');
                       });
@@ -631,7 +831,7 @@ const RelatorioResultadoPage = () => {
             )}
           </div>
         ) : (
-          <div className="flex items-center justify-between px-3 py-1.5">
+          <div className="flex items-center px-3 py-1.5">
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
               <span className="font-medium">Filtros aplicados:</span>
               <span>Ano: {ano}</span>
@@ -652,13 +852,20 @@ const RelatorioResultadoPage = () => {
                   <span>{empresaIds.length} empresa(s) selecionada(s)</span>
                 </>
               )}
+              {(mesInicial || mesFinal) && (
+                <>
+                  <span>•</span>
+                  <span>
+                    Período:{' '}
+                    {mesInicial && mesFinal
+                      ? `${meses.find(m => m.value === mesInicial)?.label} a ${meses.find(m => m.value === mesFinal)?.label}`
+                      : mesInicial
+                      ? `A partir de ${meses.find(m => m.value === mesInicial)?.label}`
+                      : `Até ${meses.find(m => m.value === mesFinal)?.label}`}
+                  </span>
+                </>
+              )}
             </div>
-            <button
-              onClick={() => setFiltrosExpandidos(true)}
-              className="inline-flex h-6 items-center gap-1 rounded border border-border bg-card px-2 text-[10px] font-medium text-foreground hover:bg-muted"
-            >
-              Editar Filtros
-            </button>
           </div>
         )}
       </div>
@@ -694,8 +901,7 @@ const RelatorioResultadoPage = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h2 className="text-sm font-semibold text-foreground">
-                    RESULTADO ECONÔMICO {relatorio.empresaNome.toUpperCase()}
-                    {relatorio.uf ? ` - ${relatorio.uf}` : ''} {relatorio.ano}
+                    {tituloRelatorio}
                   </h2>
                   {empresaSelecionada?.modeloNegocio && (
                     <ModeloNegocioBadge modelo={empresaSelecionada.modeloNegocio} />

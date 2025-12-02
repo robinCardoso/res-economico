@@ -107,9 +107,12 @@ export class RelatoriosService {
     return meses;
   }
 
-  async getDescricoesDisponiveis(busca?: string): Promise<string[]> {
-    const descricoesSet = new Set<string>();
-
+  async getDescricoesDisponiveis(busca?: string): Promise<Array<{
+    nomeConta: string;
+    classificacao: string;
+    conta?: string;
+    subConta?: string;
+  }>> {
     // 1. Buscar do catálogo
     const whereCatalogo: Record<string, unknown> = {
       tipoConta: '3-DRE', // Apenas contas DRE
@@ -126,18 +129,15 @@ export class RelatoriosService {
       where: whereCatalogo,
       select: {
         nomeConta: true,
+        classificacao: true,
+        conta: true,
+        subConta: true,
       },
-      distinct: ['nomeConta'],
+      distinct: ['nomeConta', 'classificacao', 'conta', 'subConta'],
       orderBy: {
-        nomeConta: 'asc',
+        classificacao: 'asc',
       },
     });
-
-    for (const conta of contasCatalogo) {
-      if (conta.nomeConta) {
-        descricoesSet.add(conta.nomeConta);
-      }
-    }
 
     // 2. Buscar também das linhas de upload (para incluir contas que não estão no catálogo)
     const whereLinhas: Record<string, unknown> = {
@@ -155,25 +155,45 @@ export class RelatoriosService {
       where: whereLinhas,
       select: {
         nomeConta: true,
+        classificacao: true,
+        conta: true,
+        subConta: true,
       },
-      distinct: ['nomeConta'],
+      distinct: ['nomeConta', 'classificacao', 'conta', 'subConta'],
       orderBy: {
-        nomeConta: 'asc',
+        classificacao: 'asc',
       },
       take: 20, // Limitar a 20 resultados para performance
     });
 
-    for (const linha of linhasUpload) {
-      if (linha.nomeConta) {
-        descricoesSet.add(linha.nomeConta);
+    // Combinar e formatar resultados
+    const resultados: Array<{
+      nomeConta: string;
+      classificacao: string;
+      conta?: string;
+      subConta?: string;
+    }> = [];
+    const visto = new Set<string>();
+
+    for (const conta of [...contasCatalogo, ...linhasUpload]) {
+      if (!conta.nomeConta) continue;
+      
+      const chave = `${conta.nomeConta}|${conta.classificacao}|${conta.conta || ''}|${conta.subConta || ''}`;
+      if (!visto.has(chave)) {
+        visto.add(chave);
+        resultados.push({
+          nomeConta: conta.nomeConta,
+          classificacao: conta.classificacao,
+          conta: conta.conta || undefined,
+          subConta: conta.subConta || undefined,
+        });
       }
     }
 
-    // Converter para array e ordenar
-    const descricoes = Array.from(descricoesSet).sort();
-
-    // Limitar a 20 resultados finais
-    return descricoes.slice(0, 20);
+    // Ordenar por classificação e limitar a 20 resultados finais
+    return resultados
+      .sort((a, b) => a.classificacao.localeCompare(b.classificacao))
+      .slice(0, 20);
   }
 
   private readonly meses = [
@@ -197,6 +217,8 @@ export class RelatoriosService {
     empresaIds?: string[],
     tipo: TipoRelatorio = TipoRelatorio.CONSOLIDADO,
     descricao?: string,
+    mesInicial?: number,
+    mesFinal?: number,
   ): Promise<RelatorioResultado> {
     // 1. Buscar empresas conforme tipo
     let empresas: Empresa[];
@@ -857,9 +879,23 @@ export class RelatoriosService {
         // Buscar conta pai: mesma classificação e conta, mas sem subConta
         const chavePaiSubConta = `${classificacaoNormalizada}|${conta}|`;
         pai = contasMap.get(chavePaiSubConta);
+        
+        // Se não encontrou com conta específica, buscar conta pai geral (sem conta/subConta)
+        if (!pai) {
+          const chavePaiGeral = `${classificacaoNormalizada}||`;
+          pai = contasMap.get(chavePaiGeral);
+        }
+      } else if (conta && conta.trim() !== '') {
+        // Se a conta tem conta mas não tem subConta, pode ser filha de uma conta pai geral (sem conta/subConta)
+        // mas só se não houver uma conta pai específica com a mesma conta
+        const chavePaiComConta = `${classificacaoNormalizada}|${conta}|`;
+        if (!contasMap.has(chavePaiComConta)) {
+          const chavePaiGeral = `${classificacaoNormalizada}||`;
+          pai = contasMap.get(chavePaiGeral);
+        }
       }
 
-      // Se não encontrou pai por subConta, buscar pelo pai da classificação (hierarquia normal)
+      // Se não encontrou pai por subConta/conta, buscar pelo pai da classificação (hierarquia normal)
       if (!pai) {
         const classificacaoPai = encontrarPai(contaRelatorio.classificacao);
 
@@ -895,8 +931,23 @@ export class RelatoriosService {
     }
 
     // Ordenar filhos de cada conta por classificação
+    // Usar Set com chave única para evitar loops infinitos causados por referências circulares
+    const visitadasOrdenacao = new Set<string>();
     const ordenarFilhos = (contas: ContaRelatorio[]) => {
       for (const conta of contas) {
+        // Criar chave única para identificar a conta
+        const contaKey = (conta as any).conta || '';
+        const subContaKey = (conta as any).subConta || '';
+        const chaveUnica = `${conta.classificacao}|${contaKey}|${subContaKey}`;
+        
+        // Proteção contra referências circulares
+        if (visitadasOrdenacao.has(chaveUnica)) {
+          this.logger.warn(`[ordenarFilhos] Referência circular detectada: ${chaveUnica} - ${conta.nomeConta}`);
+          continue;
+        }
+        
+        visitadasOrdenacao.add(chaveUnica);
+        
         if (conta.filhos && conta.filhos.length > 0) {
           conta.filhos.sort((a, b) =>
             a.classificacao.localeCompare(b.classificacao),
@@ -907,8 +958,295 @@ export class RelatoriosService {
     };
     ordenarFilhos(raiz);
 
+    // 6.5. Se há filtro de descrição, incluir todos os filhos de contas que correspondem ao filtro
+    // Isso garante que quando filtramos por uma conta pai, todos os seus filhos sejam exibidos
+    if (descricao && descricao.trim().length > 0 && todasClassificacoesUploads && todasClassificacoesUploads.length > 0) {
+      const busca = descricao.trim().toLowerCase();
+      
+      // Função recursiva para encontrar e incluir filhos de contas que correspondem ao filtro
+      // Usar Set para evitar processar a mesma conta múltiplas vezes
+      const contasProcessadasParaFilhos = new Set<string>();
+      
+      // Função auxiliar para verificar se uma conta já está na hierarquia
+      const jaEstaNaHierarquia = (
+        chaveComposta: string,
+        contaPai: ContaRelatorio,
+        visitadas = new Set<string>()
+      ): boolean => {
+        // Verificar se já foi visitada nesta passagem
+        if (visitadas.has(chaveComposta)) return true;
+        visitadas.add(chaveComposta);
+        
+        // Verificar se está nos filhos diretos
+        if (contaPai.filhos) {
+          for (const filho of contaPai.filhos) {
+            const chaveFilho = `${filho.classificacao}|${(filho as any).conta || ''}|${(filho as any).subConta || ''}`;
+            if (chaveFilho === chaveComposta) return true;
+            
+            // Verificar recursivamente nos filhos (apenas filhos hierárquicos, não subcontas)
+            // Subcontas têm a mesma classificação, então não verificar recursivamente
+            if (filho.classificacao !== contaPai.classificacao) {
+              if (jaEstaNaHierarquia(chaveComposta, filho, visitadas)) return true;
+            }
+          }
+        }
+        
+        return false;
+      };
+      
+      const incluirFilhosDeContasFiltradas = (contas: ContaRelatorio[]) => {
+        for (const conta of contas) {
+          const chaveConta = `${conta.classificacao}|${(conta as any).conta || ''}|${(conta as any).subConta || ''}`;
+          
+          // Se já processamos esta conta para incluir filhos, pular
+          if (contasProcessadasParaFilhos.has(chaveConta)) {
+            continue;
+          }
+          
+          const nomeConta = (conta.nomeConta || '').toLowerCase();
+          const contaCorresponde = nomeConta.includes(busca);
+          
+          // Se a conta corresponde ao filtro, garantir que todos os seus filhos sejam incluídos
+          if (contaCorresponde) {
+            // Marcar como processada para evitar loop infinito
+            contasProcessadasParaFilhos.add(chaveConta);
+            const classificacaoNormalizada = normalizarClassificacao(conta.classificacao);
+            // Para contas pai (sem conta/subConta específicos), usar string vazia
+            const contaPaiNum = (conta as any).conta || '';
+            const subContaPaiNum = (conta as any).subConta || '';
+            
+            // Se a conta pai não tem conta/subConta (chave ||), buscar todas as subcontas
+            const ehContaPai = !contaPaiNum && !subContaPaiNum;
+            
+            // Buscar todas as linhas que são filhos desta conta
+            for (const linha of todasClassificacoesUploads) {
+              const classificacaoLinha = normalizarClassificacaoParaChave(
+                linha.classificacao || '',
+              );
+              
+              // Verificar se é filho desta conta de duas formas:
+              // 1. Filho hierárquico: classificação diferente (ex: 3.01.03.01.01.01)
+              // 2. Subconta: mesma classificação mas diferente conta/subConta
+              const ehFilhoHierarquico = 
+                classificacaoLinha.startsWith(classificacaoNormalizada + '.') &&
+                classificacaoLinha !== classificacaoNormalizada;
+              
+              // Subconta: mesma classificação mas diferente conta/subConta
+              // Se for conta pai (sem conta/subConta), incluir todas as subcontas
+              // Se não for conta pai, incluir apenas subcontas diferentes
+              const ehSubConta = 
+                classificacaoLinha === classificacaoNormalizada &&
+                (ehContaPai || (linha.conta !== contaPaiNum || linha.subConta !== subContaPaiNum));
+              
+              if (ehFilhoHierarquico) {
+                // Verificar se é filho direto (apenas um nível abaixo)
+                const partesPai = classificacaoNormalizada.split('.').filter(p => p.length > 0);
+                const partesFilho = classificacaoLinha.split('.').filter(p => p.length > 0);
+                
+                // Só incluir se for filho direto (diferença de exatamente 1 nível)
+                if (partesFilho.length !== partesPai.length + 1) {
+                  continue;
+                }
+              } else if (!ehSubConta) {
+                // Não é nem filho hierárquico nem subconta, pular
+                continue;
+              }
+              
+              const chaveComposta = criarChaveComposta(
+                linha.classificacao || '',
+                linha.conta,
+                linha.subConta,
+              );
+              
+              // IMPORTANTE: Verificar se não estamos tentando adicionar a conta como filha de si mesma
+              // Comparar chaves completas para evitar auto-referência
+              // A chave da conta atual já foi criada no início do loop
+              if (chaveComposta === chaveConta) {
+                // Esta linha é a mesma conta que estamos processando, pular silenciosamente
+                // (não logar para evitar spam de logs)
+                continue;
+              }
+              
+              // Verificar se já está na hierarquia antes de adicionar (evitar duplicatas)
+              if (jaEstaNaHierarquia(chaveComposta, conta)) {
+                // Já está na hierarquia, pular para evitar duplicatas
+                continue;
+              }
+              
+              // Se não está no mapa, adicionar
+              if (!contasMap.has(chaveComposta)) {
+                // Buscar valores desta linha nos uploads
+                const valores: { [mes: number]: number; total: number } = {
+                  total: 0,
+                };
+                for (let m = 1; m <= 12; m++) {
+                  valores[m] = 0;
+                }
+                
+                // Buscar valores nos uploads
+                for (const upload of uploads) {
+                  for (const linhaUpload of upload.linhas) {
+                    if (linhaUpload.tipoConta !== '3-DRE') continue;
+                    
+                    const chaveLinha = criarChaveComposta(
+                      linhaUpload.classificacao || '',
+                      linhaUpload.conta,
+                      linhaUpload.subConta,
+                    );
+                    
+                    if (chaveLinha === chaveComposta) {
+                      const mes = upload.mes;
+                      const debito = Number(linhaUpload.debito) || 0;
+                      const credito = Number(linhaUpload.credito) || 0;
+                      let valorLinha = credito + debito;
+                      
+                      const nomeContaFilho = (linhaUpload.nomeConta || '').toUpperCase();
+                      if (
+                        nomeContaFilho.includes('(-)') ||
+                        nomeContaFilho.includes('DESPESA') ||
+                        nomeContaFilho.includes('CUSTO') ||
+                        nomeContaFilho.includes('DEDUÇÃO')
+                      ) {
+                        valorLinha = -Math.abs(valorLinha);
+                      }
+                      
+                      valores[mes] = (valores[mes] || 0) + valorLinha;
+                      valores.total = (valores.total || 0) + valorLinha;
+                    }
+                  }
+                }
+                
+                const contaNum = linha.conta || '';
+                const subContaNum = linha.subConta || '';
+                const nivelFilho = (classificacaoLinha.match(/\./g) || []).length + 1;
+                
+                const contaFilho = {
+                  classificacao: linha.classificacao || '',
+                  conta: contaNum || undefined,
+                  subConta: subContaNum || undefined,
+                  nomeConta: linha.nomeConta || classificacaoLinha,
+                  tipoConta: linha.tipoConta || '',
+                  nivel: linha.nivel || nivelFilho,
+                  titulo: false,
+                  estabelecimento: false,
+                  saldoAnterior: 0,
+                  debito: 0,
+                  credito: 0,
+                  saldoAtual: valores.total,
+                  valores,
+                  filhos: [],
+                } as ContaRelatorio & { conta?: string; subConta?: string };
+                
+                contasMap.set(chaveComposta, contaFilho);
+                
+                // Adicionar diretamente como filho da conta
+                // IMPORTANTE: Verificar se não estamos adicionando a conta como filha de si mesma
+                // Já verificamos acima antes de criar a contaFilho, mas adicionar verificação extra aqui também
+                if (chaveComposta === chaveConta) {
+                  // Já verificamos acima, então não deveria chegar aqui, mas se chegar, pular silenciosamente
+                  continue;
+                }
+                
+                conta.filhos = conta.filhos || [];
+                if (!conta.filhos.some(f => {
+                  const fConta = (f as any).conta || '';
+                  const fSubConta = (f as any).subConta || '';
+                  return f.classificacao === contaFilho.classificacao &&
+                    fConta === contaNum && fSubConta === subContaNum;
+                })) {
+                  conta.filhos.push(contaFilho);
+                  // Marcar o filho como processado para evitar processá-lo novamente
+                  contasProcessadasParaFilhos.add(chaveComposta);
+                }
+              } else {
+                // Se já está no mapa, garantir que está como filho
+                const contaFilho = contasMap.get(chaveComposta);
+                if (contaFilho) {
+                  // IMPORTANTE: Verificar se não estamos adicionando a conta como filha de si mesma
+                  if (chaveComposta === chaveConta) {
+                    // Já verificamos acima, então não deveria chegar aqui, mas se chegar, pular silenciosamente
+                    continue;
+                  }
+                  
+                  conta.filhos = conta.filhos || [];
+                  if (!conta.filhos.some(f => {
+                    const fConta = (f as any).conta || '';
+                    const fSubConta = (f as any).subConta || '';
+                    const fContaNum = (contaFilho as any).conta || '';
+                    const fSubContaNum = (contaFilho as any).subConta || '';
+                    return f.classificacao === contaFilho.classificacao &&
+                      fConta === fContaNum && fSubConta === fSubContaNum;
+                  })) {
+                    conta.filhos.push(contaFilho);
+                    // Marcar o filho como processado para evitar processá-lo novamente
+                    contasProcessadasParaFilhos.add(chaveComposta);
+                  }
+                }
+              }
+            }
+          }
+          
+          // Continuar recursivamente apenas se:
+          // 1. A conta não corresponde ao filtro (já processamos filhos acima)
+          // 2. A conta não é uma subconta (subcontas são folhas, não têm filhos)
+          if (!contaCorresponde && conta.filhos && conta.filhos.length > 0) {
+            // Filtrar apenas filhos hierárquicos (não subcontas)
+            // Subcontas têm a mesma classificação mas diferente conta/subConta
+            const filhosHierarquicos = conta.filhos.filter(f => {
+              // Se tem classificação diferente, é filho hierárquico (processar)
+              if (f.classificacao !== conta.classificacao) return true;
+              
+              // Se tem a mesma classificação, verificar se é conta pai ou subconta
+              const fConta = (f as any).conta || '';
+              const fSubConta = (f as any).subConta || '';
+              const contaAtual = (conta as any).conta || '';
+              const subContaAtual = (conta as any).subConta || '';
+              
+              // Se não tem conta/subConta, é conta pai (processar recursivamente)
+              if (!fConta && !fSubConta) return true;
+              
+              // Se tem conta/subConta, é subconta (não processar recursivamente - são folhas)
+              return false;
+            });
+            
+            if (filhosHierarquicos.length > 0) {
+              incluirFilhosDeContasFiltradas(filhosHierarquicos);
+            }
+          }
+        }
+      };
+      
+      // Incluir filhos de contas filtradas
+      incluirFilhosDeContasFiltradas(raiz);
+      
+      // Reordenar após adicionar novos filhos (limpar Set de visitadas para nova passagem)
+      visitadasOrdenacao.clear();
+      ordenarFilhos(raiz);
+    }
+
     // 7. Calcular totais hierárquicos (contas pai = soma dos filhos)
     this.calcularTotaisHierarquicos(raiz);
+
+    // 8. Filtrar período se especificado
+    let periodo: Array<{ mes: number; nome: string }>;
+    if (mesInicial && mesFinal) {
+      periodo = this.meses.filter(
+        (m) => m.mes >= mesInicial && m.mes <= mesFinal,
+      );
+    } else if (mesInicial) {
+      periodo = this.meses.filter((m) => m.mes >= mesInicial);
+    } else if (mesFinal) {
+      periodo = this.meses.filter((m) => m.mes <= mesFinal);
+    } else {
+      periodo = this.meses; // Todos os meses (padrão)
+    }
+
+    // 9. Recalcular totais baseado no período filtrado
+    // Se há filtro de mês, recalcular o total apenas para os meses visíveis
+    if (mesInicial || mesFinal) {
+      const mesesFiltrados = periodo.map((p) => p.mes);
+      this.recalcularTotaisPorPeriodo(raiz, mesesFiltrados);
+    }
 
     return {
       empresaId: tipo === TipoRelatorio.FILIAL ? empresaId : undefined,
@@ -916,7 +1254,7 @@ export class RelatoriosService {
       uf: ufRelatorio,
       ano,
       tipo: tipo as 'FILIAL' | 'CONSOLIDADO',
-      periodo: this.meses,
+      periodo,
       contas: raiz,
     };
   }
@@ -925,11 +1263,24 @@ export class RelatoriosService {
    * Calcula totais hierárquicos recursivamente
    * Contas pai = soma de todas as contas filhas
    */
-  private calcularTotaisHierarquicos(contas: ContaRelatorio[]): void {
+  private calcularTotaisHierarquicos(contas: ContaRelatorio[], visitadas = new Set<string>()): void {
     for (const conta of contas) {
+      // Criar chave única para identificar a conta
+      const contaKey = (conta as any).conta || '';
+      const subContaKey = (conta as any).subConta || '';
+      const chaveUnica = `${conta.classificacao}|${contaKey}|${subContaKey}`;
+      
+      // Proteção contra referências circulares
+      if (visitadas.has(chaveUnica)) {
+        this.logger.warn(`[calcularTotaisHierarquicos] Referência circular detectada: ${chaveUnica} - ${conta.nomeConta}`);
+        continue;
+      }
+      
+      visitadas.add(chaveUnica);
+      
       if (conta.filhos && conta.filhos.length > 0) {
         // Primeiro, calcular totais dos filhos
-        this.calcularTotaisHierarquicos(conta.filhos);
+        this.calcularTotaisHierarquicos(conta.filhos, visitadas);
 
         // Depois, somar valores dos filhos para o pai
         const valoresPai: { [mes: number]: number; total: number } = {
@@ -946,6 +1297,40 @@ export class RelatoriosService {
 
         // Atualizar valores do pai
         conta.valores = valoresPai;
+      }
+    }
+  }
+
+  /**
+   * Recalcula totais baseado apenas nos meses do período filtrado
+   * Atualiza o campo 'total' de cada conta para refletir apenas os meses visíveis
+   */
+  private recalcularTotaisPorPeriodo(
+    contas: ContaRelatorio[],
+    mesesFiltrados: number[],
+  ): void {
+    for (const conta of contas) {
+      if (conta.filhos && conta.filhos.length > 0) {
+        // Primeiro, recalcular totais dos filhos
+        this.recalcularTotaisPorPeriodo(conta.filhos, mesesFiltrados);
+
+        // Depois, recalcular total do pai baseado apenas nos meses filtrados
+        let totalFiltrado = 0;
+        for (const mes of mesesFiltrados) {
+          totalFiltrado += conta.valores[mes] || 0;
+        }
+
+        // Atualizar apenas o total, mantendo os valores mensais
+        conta.valores.total = totalFiltrado;
+      } else {
+        // Para contas sem filhos, recalcular total baseado apenas nos meses filtrados
+        let totalFiltrado = 0;
+        for (const mes of mesesFiltrados) {
+          totalFiltrado += conta.valores[mes] || 0;
+        }
+
+        // Atualizar apenas o total, mantendo os valores mensais
+        conta.valores.total = totalFiltrado;
       }
     }
   }

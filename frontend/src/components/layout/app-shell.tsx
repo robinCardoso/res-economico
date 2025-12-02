@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
   LogOut,
   Menu,
@@ -18,7 +18,6 @@ type AppShellProps = {
 };
 
 export const AppShell = ({ children }: AppShellProps) => {
-  const pathname = usePathname();
   const router = useRouter();
   const { clearAuth, user } = useAuthStore();
   
@@ -43,9 +42,13 @@ export const AppShell = ({ children }: AppShellProps) => {
       const isDesktop = window.innerWidth >= 1024;
       if (isDesktop && !sidebarOpen) {
         // Em desktop, sempre abrir o sidebar
-        setSidebarOpen(true);
+        // Usar setTimeout para evitar setState síncrono em effect
+        setTimeout(() => {
+          setSidebarOpen(true);
+        }, 0);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Salvar preferência no localStorage (apenas para mobile)

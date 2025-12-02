@@ -14,7 +14,7 @@ export async function GET() {
         'Content-Disposition': 'attachment; filename="ESTATUTO 01 ORIGINAL.pdf"',
       },
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Arquivo não encontrado' },
       { status: 404 }

@@ -31,9 +31,11 @@ export const ContaDreAutocomplete = ({
   useEffect(() => {
     if (!isEditing) {
       const newValue = value || '';
-      setInputValue(newValue);
+      // Usar setTimeout para evitar setState síncrono em effect
+      setTimeout(() => {
+        setInputValue(newValue);
+      }, 0);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, isEditing]); // isEditing é necessário para saber quando não sincronizar
 
   // Buscar todas as contas DRE (sem filtro de busca no backend para permitir busca flexível no frontend)

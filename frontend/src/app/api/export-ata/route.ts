@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
         } else {
           errorMessage = await response.text();
         }
-      } catch (e) {
+      } catch {
         errorMessage = `Status ${response.status}: ${response.statusText}`;
       }
       

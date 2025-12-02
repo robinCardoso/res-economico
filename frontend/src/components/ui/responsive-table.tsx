@@ -65,7 +65,7 @@ export function ResponsiveTable<T>({
               >
                 {columns.map((column) => (
                   <td key={column.key} className={`px-3 py-2 ${column.className || ''}`}>
-                    {column.render ? column.render(item) : String((item as any)[column.key] || '')}
+                    {column.render ? column.render(item) : String((item as Record<string, unknown>)[column.key] || '')}
                   </td>
                 ))}
               </tr>
@@ -88,7 +88,7 @@ export function ResponsiveTable<T>({
               {mobileColumns.map((column) => {
                 const content = column.render
                   ? column.render(item)
-                  : String((item as any)[column.key] || '');
+                  : String((item as Record<string, unknown>)[column.key] || '');
 
                 return (
                   <div key={column.key} className="flex flex-col gap-1">

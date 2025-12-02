@@ -45,10 +45,10 @@ export async function PUT(
     };
 
     return NextResponse.json(comentarioTransformado);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao atualizar comentário:', error);
     return NextResponse.json(
-      { error: error.message || 'Erro ao atualizar comentário' },
+      { error: error instanceof Error ? error.message : 'Erro ao atualizar comentário' },
       { status: 500 }
     );
   }
@@ -77,10 +77,10 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao deletar comentário:', error);
     return NextResponse.json(
-      { error: error.message || 'Erro ao deletar comentário' },
+      { error: error instanceof Error ? error.message : 'Erro ao deletar comentário' },
       { status: 500 }
     );
   }

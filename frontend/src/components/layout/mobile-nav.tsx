@@ -6,8 +6,8 @@ import { usePathname } from 'next/navigation';
 import { X, Home, LayoutDashboard, UploadCloud, BellRing, ClipboardList, Layers3, Building, FileText, Settings2, ChevronDown, ChevronRight, BarChart3 } from 'lucide-react';
 import { useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { useAuthStore } from '@/stores/auth.store';
-import { USER_ROLES } from '@/lib/core/roles';
+// import { useAuthStore } from '@/stores/auth.store';
+// import { USER_ROLES } from '@/lib/core/roles';
 
 type MobileNavProps = {
   isOpen: boolean;
@@ -16,8 +16,9 @@ type MobileNavProps = {
 
 export const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
   const pathname = usePathname();
-  const { user } = useAuthStore();
-  const isAdmin = user?.roles?.includes(USER_ROLES.ADMIN) ?? false;
+  // TODO: Usar user e isAdmin para filtrar menus baseado em permissões quando necessário
+  // const { user } = useAuthStore();
+  // const isAdmin = user?.roles?.includes(USER_ROLES.ADMIN) ?? false;
 
   // Estado para controlar quais menus estão abertos
   const [openMenus, setOpenMenus] = useState<string[]>(() => {

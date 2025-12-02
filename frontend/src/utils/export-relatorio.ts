@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
-import type { RelatorioResultado, ContaRelatorio, RelatorioComparativo, ContaComparativa } from '@/types/api';
+import type { RelatorioResultado, ContaRelatorio, RelatorioComparativo, ContaComparativa, TipoRelatorio, Empresa } from '@/types/api';
+import { construirTituloRelatorio } from './titulo-relatorio';
 
 // Tipo para jsPDF
 type JsPDFConstructor = new (options?: {
@@ -67,8 +68,18 @@ const coletarContasLinear = (
 
 /**
  * Exporta o relatório para Excel
+ * 
+ * @param relatorio - Dados do relatório
+ * @param tipo - Tipo do relatório (FILIAL ou CONSOLIDADO)
+ * @param empresaIds - Array de IDs das empresas selecionadas (para CONSOLIDADO)
+ * @param empresasList - Lista completa de empresas disponíveis
  */
-export const exportarParaExcel = (relatorio: RelatorioResultado): void => {
+export const exportarParaExcel = (
+  relatorio: RelatorioResultado,
+  tipo: TipoRelatorio,
+  empresaIds: string[],
+  empresasList: Empresa[]
+): void => {
   if (!relatorio || !relatorio.contas || relatorio.contas.length === 0) {
     alert('Não há dados para exportar.');
     return;
@@ -83,6 +94,11 @@ export const exportarParaExcel = (relatorio: RelatorioResultado): void => {
   // Preparar dados da planilha
   type CellValue = string | number;
   const dados: CellValue[][] = [];
+
+  // Título usando função compartilhada
+  const titulo = construirTituloRelatorio(tipo, empresaIds, empresasList, relatorio, relatorio.ano);
+  dados.push([titulo]);
+  dados.push([]); // Linha em branco após o título
 
   // Cabeçalho
   const cabecalho: CellValue[] = ['CLASSI', 'DESCRI'];
@@ -162,8 +178,18 @@ export const exportarParaExcel = (relatorio: RelatorioResultado): void => {
 
 /**
  * Exporta o relatório para PDF
+ * 
+ * @param relatorio - Dados do relatório
+ * @param tipo - Tipo do relatório (FILIAL ou CONSOLIDADO)
+ * @param empresaIds - Array de IDs das empresas selecionadas (para CONSOLIDADO)
+ * @param empresasList - Lista completa de empresas disponíveis
  */
-export const exportarParaPDF = async (relatorio: RelatorioResultado): Promise<void> => {
+export const exportarParaPDF = async (
+  relatorio: RelatorioResultado,
+  tipo: TipoRelatorio,
+  empresaIds: string[],
+  empresasList: Empresa[]
+): Promise<void> => {
   if (!relatorio || !relatorio.contas || relatorio.contas.length === 0) {
     alert('Não há dados para exportar.');
     return;
@@ -194,10 +220,10 @@ export const exportarParaPDF = async (relatorio: RelatorioResultado): Promise<vo
   const lineHeight = 6;
   const smallFontSize = 8;
 
-  // Título
+  // Título usando função compartilhada
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  const titulo = `RESULTADO ECONÔMICO ${relatorio.tipo === 'FILIAL' ? relatorio.empresaNome.toUpperCase() : 'CONSOLIDADO'}${relatorio.uf ? ` - ${relatorio.uf}` : ''} ${relatorio.ano}`;
+  const titulo = construirTituloRelatorio(tipo, empresaIds, empresasList, relatorio, relatorio.ano);
   doc.text(titulo, marginLeft, yPos);
   yPos += lineHeight * 1.5;
 

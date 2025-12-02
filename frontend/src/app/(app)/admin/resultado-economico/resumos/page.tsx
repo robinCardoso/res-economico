@@ -38,7 +38,7 @@ const ResumosPage = () => {
 
     try {
       await deleteMutation.mutateAsync(id);
-    } catch (err) {
+    } catch {
       alert('Erro ao excluir resumo');
     }
   };
@@ -71,7 +71,7 @@ const ResumosPage = () => {
         a.click();
         window.URL.revokeObjectURL(url);
       }
-    } catch (err) {
+    } catch {
       alert(`Erro ao exportar resumo em formato ${format.toUpperCase()}`);
     }
   };

@@ -188,7 +188,7 @@ const ConfiguracaoModelosNegocioPage = () => {
       setErrorMessage('Erro ao carregar configuração para edição. Tente novamente.');
       // Ainda assim, abrir o modal com os dados da lista (fallback)
       // Tentar buscar contas para encontrar nomes
-      let todasContas: any[] = [];
+      let todasContas: Array<{ classificacao: string; nomeConta: string }> = [];
       try {
         todasContas = await contasService.list({ tipoConta: '3-DRE' });
       } catch {

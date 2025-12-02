@@ -24,13 +24,17 @@ async function bootstrap() {
   );
 
   // Habilitar CORS
-  // Permitir localhost e IPs da rede local (10.1.x.x)
+  // Permitir localhost e IPs da rede local (10.1.x.x, 192.168.x.x, 172.x.x.x)
   app.enableCors({
     origin: [
       'http://localhost:3001',
       'http://localhost:3000',
       /^http:\/\/10\.1\.\d+\.\d+:3001$/, // Permite qualquer IP 10.1.x.x:3001
       /^http:\/\/10\.1\.\d+\.\d+:3000$/, // Permite qualquer IP 10.1.x.x:3000
+      /^http:\/\/192\.168\.\d+\.\d+:3001$/, // Permite qualquer IP 192.168.x.x:3001
+      /^http:\/\/192\.168\.\d+\.\d+:3000$/, // Permite qualquer IP 192.168.x.x:3000
+      /^http:\/\/172\.\d+\.\d+\.\d+:3001$/, // Permite qualquer IP 172.x.x.x:3001 (redes privadas)
+      /^http:\/\/172\.\d+\.\d+\.\d+:3000$/, // Permite qualquer IP 172.x.x.x:3000 (redes privadas)
     ],
     credentials: true,
   });
@@ -59,7 +63,9 @@ async function bootstrap() {
       if (
         addr.family === 'IPv4' &&
         !addr.internal &&
-        addr.address.startsWith('10.1.')
+        (addr.address.startsWith('10.1.') ||
+         addr.address.startsWith('192.168.') ||
+         addr.address.startsWith('172.'))
       ) {
         localIp = addr.address;
         break;

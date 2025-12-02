@@ -4,6 +4,7 @@ import {
   Query,
   UseGuards,
   ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { RelatoriosService } from './relatorios.service';
 import { TipoRelatorio } from './dto/gerar-relatorio.dto';
@@ -43,21 +44,54 @@ export class RelatoriosController {
     @Query('empresaIds') empresaIds?: string | string[],
     @Query('tipo') tipo: TipoRelatorio = TipoRelatorio.CONSOLIDADO,
     @Query('descricao') descricao?: string,
+    @Query('mesInicial') mesInicial?: string,
+    @Query('mesFinal') mesFinal?: string,
   ) {
-    // Converter empresaIds para array se for string
-    const empresaIdsArray = Array.isArray(empresaIds)
-      ? empresaIds
-      : empresaIds
-        ? [empresaIds]
-        : undefined;
+    try {
+      // Validar intervalo de meses
+      let mesInicialNum: number | undefined;
+      let mesFinalNum: number | undefined;
 
-    return this.relatoriosService.gerarRelatorioResultado(
-      ano,
-      empresaId,
-      empresaIdsArray,
-      tipo,
-      descricao,
-    );
+      if (mesInicial) {
+        mesInicialNum = parseInt(mesInicial, 10);
+        if (isNaN(mesInicialNum) || mesInicialNum < 1 || mesInicialNum > 12) {
+          throw new BadRequestException('mesInicial deve estar entre 1 e 12');
+        }
+      }
+
+      if (mesFinal) {
+        mesFinalNum = parseInt(mesFinal, 10);
+        if (isNaN(mesFinalNum) || mesFinalNum < 1 || mesFinalNum > 12) {
+          throw new BadRequestException('mesFinal deve estar entre 1 e 12');
+        }
+      }
+
+      if (mesInicialNum && mesFinalNum && mesInicialNum > mesFinalNum) {
+        throw new BadRequestException(
+          'mesInicial deve ser menor ou igual a mesFinal',
+        );
+      }
+
+      // Converter empresaIds para array se for string
+      const empresaIdsArray = Array.isArray(empresaIds)
+        ? empresaIds
+        : empresaIds
+          ? [empresaIds]
+          : undefined;
+
+      return await this.relatoriosService.gerarRelatorioResultado(
+        ano,
+        empresaId,
+        empresaIdsArray,
+        tipo,
+        descricao,
+        mesInicialNum,
+        mesFinalNum,
+      );
+    } catch (error) {
+      console.error('[RelatoriosController] Erro ao gerar relatório:', error);
+      throw error;
+    }
   }
 
   @Get('comparativo')

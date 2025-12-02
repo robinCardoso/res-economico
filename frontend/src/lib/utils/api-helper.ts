@@ -42,13 +42,14 @@ export async function fetchWithFallback(
       signal: AbortSignal.timeout(5000),
     });
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Se for erro de conexão/timeout, tentar fallback para localhost
+    const err = error as { code?: string; message?: string; name?: string; cause?: { code?: string } };
     const isConnectionError = 
-      error.code === 'UND_ERR_CONNECT_TIMEOUT' || 
-      error.message?.includes('fetch failed') ||
-      error.name === 'TimeoutError' ||
-      error.cause?.code === 'UND_ERR_CONNECT_TIMEOUT';
+      err.code === 'UND_ERR_CONNECT_TIMEOUT' || 
+      err.message?.includes('fetch failed') ||
+      err.name === 'TimeoutError' ||
+      err.cause?.code === 'UND_ERR_CONNECT_TIMEOUT';
     
     if (isConnectionError) {
       console.log(`⚠️ Erro de conexão com ${apiUrl}, tentando fallback para localhost:3000...`);

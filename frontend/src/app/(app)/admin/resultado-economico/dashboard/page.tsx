@@ -1,16 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { uploadsService } from '@/services/uploads.service';
 import { relatoriosService } from '@/services/relatorios.service';
 import { useResponsiveChart } from '@/hooks/use-responsive-chart';
 import { useEmpresas } from '@/hooks/use-empresas';
 import {
-  LineChart,
-  Line,
   BarChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -20,7 +19,6 @@ import {
   LabelList,
   Area,
   AreaChart,
-  Cell,
 } from 'recharts';
 import numeral from 'numeral';
 
@@ -41,11 +39,13 @@ const meses = [
 
 const DashboardPage = () => {
   const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
 
   const [anoFiltro, setAnoFiltro] = useState<number | undefined>(currentYear);
   const [mesFiltro, setMesFiltro] = useState<number | undefined>(undefined);
   const [empresaFiltro, setEmpresaFiltro] = useState<string | undefined>(undefined);
+  
+  // Ref para rastrear se já inicializou o anoFiltro (evita loop infinito)
+  const anoFiltroInicializado = useRef(false);
   
   // Hook para configurações responsivas dos gráficos
   const chartConfig = useResponsiveChart();
@@ -68,8 +68,10 @@ const DashboardPage = () => {
         const anos = await relatoriosService.getAnosDisponiveis();
         setAnosDisponiveis(anos);
         // Se não houver ano selecionado e houver anos disponíveis, usar o mais recente
-        if (!anoFiltro && anos.length > 0) {
+        // Usar ref para evitar loop infinito
+        if (!anoFiltroInicializado.current && anos.length > 0) {
           setAnoFiltro(anos[0]);
+          anoFiltroInicializado.current = true;
         }
       } catch (error) {
         console.error('Erro ao buscar anos disponíveis:', error);
@@ -80,7 +82,7 @@ const DashboardPage = () => {
       }
     };
     buscarAnos();
-  }, []);
+  }, [currentYear]);
 
   const formatarValor = (valor: number) => {
     // Formatar valores grandes com separador de milhar
@@ -527,7 +529,7 @@ const DashboardPage = () => {
                 <LabelList
                   dataKey="valor"
                   position="top"
-                  formatter={(value: any) => {
+                  formatter={(value: unknown) => {
                     const num = typeof value === 'number' ? value : Number(value);
                     return isNaN(num) ? '' : formatarValor(num);
                   }}
@@ -663,7 +665,7 @@ const DashboardPage = () => {
                     dataKey="valor"
                     position="right"
                     offset={5}
-                    formatter={(value: any) => {
+                    formatter={(value: unknown) => {
                       const num = typeof value === 'number' ? value : Number(value);
                       if (isNaN(num) || num === 0) return '';
                       return formatarValor(num);
@@ -783,16 +785,6 @@ const DashboardPage = () => {
                   />
                 )}
                 {empresasUnicas.map((empresa, index) => {
-                  const cores = [
-                    '#0ea5e9', // sky-500
-                    '#10b981', // emerald-500
-                    '#f59e0b', // amber-500
-                    '#ef4444', // red-500
-                    '#8b5cf6', // violet-500
-                    '#ec4899', // pink-500
-                    '#14b8a6', // teal-500
-                    '#f97316', // orange-500
-                  ];
                   return (
                     <Bar
                       key={empresa}
@@ -805,7 +797,7 @@ const DashboardPage = () => {
                       <LabelList
                         dataKey={empresa}
                         position={dadosPorEmpresa.length <= 6 ? 'top' : 'inside'}
-                        formatter={(value: any) => {
+                        formatter={(value: unknown) => {
                           const num = typeof value === 'number' ? value : Number(value);
                           if (isNaN(num) || num === 0) return '';
                           return formatarValor(num);

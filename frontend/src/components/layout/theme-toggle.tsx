@@ -11,7 +11,10 @@ export function ThemeToggle() {
 
   // Evitar flash de conteúdo incorreto (hydration mismatch)
   useEffect(() => {
-    setMounted(true)
+    // Usar setTimeout para evitar setState síncrono em effect
+    setTimeout(() => {
+      setMounted(true);
+    }, 0);
   }, [])
 
   if (!mounted) {

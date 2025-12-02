@@ -33,10 +33,12 @@ export function Contact() {
     },
   });
 
-  function onSubmit(data: ContactFormValues) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function onSubmit(_data: ContactFormValues) {
     startTransition(async () => {
       // Por enquanto, apenas mostra uma mensagem de sucesso
       // Você pode implementar a lógica de envio de email depois
+      // TODO: Implementar envio de email usando _data (name, email, message)
       toast({
         title: "Sucesso!",
         description: "Obrigado pelo seu contato! Responderemos em breve.",

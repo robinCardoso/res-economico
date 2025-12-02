@@ -24,7 +24,26 @@ export async function GET(
     const data = await response.json();
     
     // Transformar dados para o formato esperado pelo frontend
-    const comentariosTransformados = data.map((comentario: any) => ({
+    const comentariosTransformados = data.map((comentario: {
+      id: string;
+      ataId: string;
+      comentario: string;
+      tipo: string;
+      autorId: string;
+      createdAt: string;
+      comentarioPaiId?: string | null;
+      autor?: { nome: string; email: string } | null;
+      respostas?: Array<{
+        id: string;
+        ataId: string;
+        comentario: string;
+        tipo: string;
+        autorId: string;
+        createdAt: string;
+        comentarioPaiId?: string | null;
+        autor?: { nome: string; email: string } | null;
+      }>;
+    }) => ({
       id: comentario.id,
       ata_id: comentario.ataId,
       comentario: comentario.comentario,
@@ -36,7 +55,16 @@ export async function GET(
         name: comentario.autor.nome,
         email: comentario.autor.email,
       } : undefined,
-      respostas: comentario.respostas?.map((resposta: any) => ({
+      respostas: comentario.respostas?.map((resposta: {
+        id: string;
+        ataId: string;
+        comentario: string;
+        tipo: string;
+        autorId: string;
+        createdAt: string;
+        comentarioPaiId?: string | null;
+        autor?: { nome: string; email: string } | null;
+      }) => ({
         id: resposta.id,
         ata_id: resposta.ataId,
         comentario: resposta.comentario,
@@ -52,10 +80,10 @@ export async function GET(
     }));
 
     return NextResponse.json(comentariosTransformados);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao buscar comentários:', error);
     return NextResponse.json(
-      { error: error.message || 'Erro ao buscar comentários' },
+      { error: error instanceof Error ? error.message : 'Erro ao buscar comentários' },
       { status: 500 }
     );
   }
@@ -115,10 +143,10 @@ export async function POST(
     };
 
     return NextResponse.json(comentarioTransformado);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao criar comentário:', error);
     return NextResponse.json(
-      { error: error.message || 'Erro ao criar comentário' },
+      { error: error instanceof Error ? error.message : 'Erro ao criar comentário' },
       { status: 500 }
     );
   }

@@ -26,7 +26,7 @@ export function About() {
                       width="600"
                       data-ai-hint="business meeting"
                       loading="lazy"
-                      quality={80}
+                      quality={75}
                     />
                   </CardContent>
                 </Card>

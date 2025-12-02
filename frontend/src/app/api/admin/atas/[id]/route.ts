@@ -26,7 +26,7 @@ export async function GET(
     const data = await response.json();
     
     // Função auxiliar para parsear campos JSON
-    const parseJsonField = (field: any): any[] => {
+    const parseJsonField = (field: unknown): unknown[] => {
       if (!field) return [];
       try {
         if (Array.isArray(field)) {
@@ -53,7 +53,7 @@ export async function GET(
       resumo: data.resumo || null,
       status: mapStatusToFrontend(data.status),
       participantes: Array.isArray(data.participantes) 
-        ? data.participantes.map((p: any) => ({
+        ? data.participantes.map((p: { usuario?: { nome?: string }; nomeExterno?: string; cargo?: string; presente?: boolean }) => ({
             nome: p.usuario?.nome || p.nomeExterno || 'Participante',
             cargo: p.cargo || undefined,
             presente: p.presente ?? true,
@@ -84,11 +84,11 @@ export async function GET(
     };
 
     return NextResponse.json(ataTransformada);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao buscar ata:', error);
     return NextResponse.json(
       { 
-        error: error.message || 'Erro ao buscar ata',
+        error: error instanceof Error ? error.message : 'Erro ao buscar ata',
         details: 'Verifique se o backend está rodando e se a URL da API está correta.',
       },
       { status: 500 }

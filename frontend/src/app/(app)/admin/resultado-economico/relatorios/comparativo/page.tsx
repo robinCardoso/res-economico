@@ -54,7 +54,13 @@ const RelatorioComparativoPage = () => {
   const [tipoValor, setTipoValor] = useState<TipoValor>(TipoValor.ACUMULADO);
 
   // Estados para autocomplete de descrição
-  const [descricoesSugeridas, setDescricoesSugeridas] = useState<string[]>([]);
+  interface DescricaoSugerida {
+    nomeConta: string;
+    classificacao: string;
+    conta?: string;
+    subConta?: string;
+  }
+  const [descricoesSugeridas, setDescricoesSugeridas] = useState<DescricaoSugerida[]>([]);
   const [mostrarSugestoes, setMostrarSugestoes] = useState<boolean>(false);
   const [carregandoDescricoes, setCarregandoDescricoes] = useState<boolean>(false);
 
@@ -634,19 +640,33 @@ const RelatorioComparativoPage = () => {
                     {carregandoDescricoes ? (
                       <div className="px-3 py-2 text-xs text-muted-foreground">Carregando...</div>
                     ) : (
-                      descricoesSugeridas.map((desc, index) => (
-                        <button
-                          key={index}
-                          type="button"
-                          onClick={() => {
-                            setDescricaoLocal(desc);
-                            setMostrarSugestoes(false);
-                          }}
-                          className="w-full px-3 py-2 text-left text-xs hover:bg-muted"
-                        >
-                          {desc}
-                        </button>
-                      ))
+                      descricoesSugeridas.map((desc, index) => {
+                        // Construir classificação completa
+                        const classificacaoCompleta = desc.subConta 
+                          ? `${desc.classificacao}.${desc.conta}.${desc.subConta}`
+                          : desc.conta 
+                          ? `${desc.classificacao}.${desc.conta}`
+                          : desc.classificacao;
+                        
+                        return (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => {
+                              setDescricaoLocal(desc.nomeConta);
+                              setMostrarSugestoes(false);
+                            }}
+                            className="w-full px-3 py-2 text-left text-xs hover:bg-muted"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium truncate">{desc.nomeConta}</span>
+                              <span className="text-[10px] text-muted-foreground font-mono flex-shrink-0">
+                                {classificacaoCompleta}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })
                     )}
                   </div>
                 )}
