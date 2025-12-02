@@ -330,6 +330,10 @@ export class RelatoriosService {
           continue;
         }
 
+        // NÃO aplicar filtro aqui - processar TODAS as linhas
+        // O filtro será aplicado depois, na hierarquia completa
+        // Isso garante que todas as contas filhas tenham seus dados processados
+
         // Normalizar classificação
         const classificacao = normalizarClassificacaoParaChave(
           linha.classificacao || '',
@@ -359,29 +363,6 @@ export class RelatoriosService {
 
         const valoresPorMes = dadosPorMesEChaveComposta.get(chaveComposta)!;
         const valorAtual = valoresPorMes.get(mes) || 0;
-
-        // Aplicar filtro de descrição se fornecido
-        if (descricao && descricao.trim().length > 0) {
-          // Verificar se descricao é uma chave única (formato: classificacao|conta|subConta)
-          const ehChaveUnica = descricao.trim().includes('|');
-          const busca = ehChaveUnica
-            ? descricao.trim()
-            : descricao.trim().toLowerCase();
-
-          if (ehChaveUnica) {
-            // Para chave única, verificar se a linha corresponde
-            const chaveLinha = `${linha.classificacao || ''}|${linha.conta || ''}|${linha.subConta || ''}`;
-            if (chaveLinha !== busca) {
-              continue; // Pular linha se não corresponder à chave única
-            }
-          } else {
-            // Busca por nome (compatibilidade com busca manual)
-            const nomeConta = (linha.nomeConta || '').toLowerCase();
-            if (!nomeConta.includes(busca)) {
-              continue; // Pular linha se não corresponder ao filtro
-            }
-          }
-        }
 
         // Calcular valor do período (movimentação do mês)
         // Para DRE: valor do período = crédito + débito
@@ -435,11 +416,19 @@ export class RelatoriosService {
     };
 
     // Aplicar filtro por descrição se fornecido
+    // IMPORTANTE: Se for uma chave única (classificacao|conta|subConta), não filtrar o catálogo aqui
+    // porque o filtro já foi aplicado nas linhas de upload e o catálogo precisa incluir
+    // todas as contas para construir a hierarquia corretamente
     if (descricao && descricao.trim().length > 0) {
-      whereCatalogo.nomeConta = {
-        contains: descricao.trim(),
-        mode: 'insensitive',
-      };
+      const ehChaveUnica = descricao.trim().includes('|');
+      if (!ehChaveUnica) {
+        // Apenas para busca por nome, filtrar o catálogo
+        whereCatalogo.nomeConta = {
+          contains: descricao.trim(),
+          mode: 'insensitive',
+        };
+      }
+      // Se for chave única, não filtrar o catálogo - o filtro já foi aplicado nas linhas de upload
     }
 
     const contasCatalogo = await this.prisma.contaCatalogo.findMany({
@@ -972,11 +961,27 @@ export class RelatoriosService {
         contas: ContaRelatorio[],
       ): ContaRelatorio | null => {
         for (const conta of contas) {
-          const chaveConta = `${conta.classificacao}|${conta.conta || ''}|${conta.subConta || ''}`;
+          // Usar criarChaveComposta para garantir normalização consistente
+          const chaveConta = criarChaveComposta(
+            conta.classificacao,
+            conta.conta || null,
+            conta.subConta || null,
+          );
 
           let corresponde = false;
           if (ehChaveUnica) {
-            corresponde = chaveConta === busca;
+            // Normalizar a busca também usando criarChaveComposta
+            const partesBusca = busca.split('|');
+            if (partesBusca.length === 3) {
+              const buscaNormalizadaChave = criarChaveComposta(
+                partesBusca[0] || '',
+                partesBusca[1] || null,
+                partesBusca[2] || null,
+              );
+              corresponde = chaveConta === buscaNormalizadaChave;
+            } else {
+              corresponde = chaveConta === busca;
+            }
           } else {
             const nomeConta = (conta.nomeConta || '').toLowerCase();
             corresponde = nomeConta.includes(busca);

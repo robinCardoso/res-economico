@@ -195,7 +195,7 @@ export class AtasService {
 
     const [atas, total] = await Promise.all([
       this.prisma.ataReuniao.findMany({
-        where: where,
+        where: where as Prisma.AtaReuniaoWhereInput,
         include: {
           criador: {
             select: {
@@ -233,16 +233,15 @@ export class AtasService {
         take: limit,
       }),
       this.prisma.ataReuniao.count({
-        where: where,
+        where: where as Prisma.AtaReuniaoWhereInput,
       }),
     ]);
 
     return {
-      success: true,
-      message: 'Atas encontradas com sucesso',
-      atas,
+      data: atas,
       total,
       page,
+      limit,
       totalPages: Math.ceil(total / limit),
     };
   }

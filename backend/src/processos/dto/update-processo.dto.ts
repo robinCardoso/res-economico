@@ -20,6 +20,23 @@ export enum SituacaoProcesso {
   CANCELADO = 'Cancelado',
 }
 
+export class NovaEntradaHistoricoDto {
+  @IsString()
+  @IsOptional()
+  acao?: string;
+
+  @IsString()
+  @IsOptional()
+  descricao?: string;
+
+  @IsString()
+  @IsOptional()
+  usuarioNome?: string;
+
+  @IsOptional()
+  metadata?: Prisma.InputJsonValue;
+}
+
 export class UpdateProcessoDto {
   @IsUUID()
   processoId: string;
@@ -51,21 +68,4 @@ export class UpdateProcessoDto {
   @ValidateNested()
   @Type(() => NovaEntradaHistoricoDto)
   novaEntradaHistorico?: NovaEntradaHistoricoDto;
-}
-
-export class NovaEntradaHistoricoDto {
-  @IsString()
-  @IsOptional()
-  acao?: string;
-
-  @IsString()
-  @IsOptional()
-  descricao?: string;
-
-  @IsString()
-  @IsOptional()
-  usuarioNome?: string;
-
-  @IsOptional()
-  metadata?: Prisma.InputJsonValue;
 }
