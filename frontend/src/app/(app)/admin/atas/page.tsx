@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { atasService } from '@/services/atas.service';
-import { FileText, Calendar, Users, Sparkles, Upload, Filter, AlertCircle } from 'lucide-react';
+import { FileText, Calendar, Users, Sparkles, Upload, Filter, AlertCircle, Clock } from 'lucide-react';
 import Link from 'next/link';
 import type { FilterAtaDto, TipoReuniao, StatusAta, AtaReuniao } from '@/types/api';
 import { format } from 'date-fns';
@@ -360,6 +360,14 @@ export default function AtasPage() {
                         Ver Detalhes
                       </Button>
                     </Link>
+                    {ata.status === 'EM_PROCESSO' && (
+                      <Link href={`/admin/atas/${ata.id}/processo`}>
+                        <Button variant="default" size="sm" className="h-7 text-xs px-2 bg-yellow-500 hover:bg-yellow-600 text-yellow-950 dark:text-yellow-50">
+                          <Clock className="mr-1 h-3 w-3" />
+                          Gerenciar Processo
+                        </Button>
+                      </Link>
+                    )}
                     <DeleteAtaButton ataId={ata.id} ataTitulo={ata.titulo} />
                   </div>
                 </div>

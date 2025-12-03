@@ -27,8 +27,11 @@ export default function ImportarAtaPage() {
 
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [tipoAta, setTipoAta] = useState<'FINALIZADA' | 'RASCUNHO' | 'EM_PROCESSO'>('FINALIZADA');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({
     tipoReuniao: '' as TipoReuniao | '',
     dataReuniao: '',
@@ -136,13 +139,57 @@ export default function ImportarAtaPage() {
     },
   });
 
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.dataReuniao) {
+      newErrors.dataReuniao = 'Data da reunião é obrigatória';
+    }
+
+    if ((tipoAta === 'RASCUNHO' || tipoAta === 'EM_PROCESSO') && !formData.tipoReuniao) {
+      newErrors.tipoReuniao = 'Tipo de reunião é obrigatório';
+    }
+
+    if (!arquivo) {
+      newErrors.arquivo = 'Arquivo é obrigatório';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Marcar todos os campos como tocados
+    setTouched({
+      dataReuniao: true,
+      tipoReuniao: true,
+      arquivo: true,
+    });
+
+    if (!validateForm()) {
+      return;
+    }
+
     importMutation.mutate();
   };
 
   const handleFileSelect = (file: File | null) => {
     if (file) {
+      // Validar tamanho do arquivo (10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB em bytes
+      if (file.size > maxSize) {
+        toast({
+          variant: 'destructive',
+          title: 'Arquivo muito grande',
+          description: 'O arquivo deve ter no máximo 10MB.',
+        });
+        setArquivo(null);
+        setErrors((prev) => ({ ...prev, arquivo: 'O arquivo deve ter no máximo 10MB' }));
+        return;
+      }
+
       const extensao = file.name.split('.').pop()?.toLowerCase();
       if (tipoAta === 'RASCUNHO' && extensao !== 'pdf') {
         toast({
@@ -150,6 +197,8 @@ export default function ImportarAtaPage() {
           title: 'Formato inválido',
           description: 'Para rascunhos, apenas arquivos PDF são suportados.',
         });
+        setArquivo(null);
+        setErrors((prev) => ({ ...prev, arquivo: 'Para rascunhos, apenas arquivos PDF são suportados' }));
         return;
       }
       if ((tipoAta === 'FINALIZADA' || tipoAta === 'EM_PROCESSO') && extensao !== 'txt' && extensao !== 'pdf') {
@@ -158,28 +207,53 @@ export default function ImportarAtaPage() {
           title: 'Formato inválido',
           description: 'Apenas arquivos TXT e PDF são suportados.',
         });
+        setArquivo(null);
+        setErrors((prev) => ({ ...prev, arquivo: 'Apenas arquivos TXT e PDF são suportados' }));
         return;
       }
+      // Arquivo válido - atualizar estado
       setArquivo(file);
+      setTouched((prev) => ({ ...prev, arquivo: true }));
+      // Limpar erro se arquivo válido
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.arquivo;
+        return newErrors;
+      });
+    }
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
     }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
+    dragCounter.current = 0;
 
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
@@ -191,7 +265,19 @@ export default function ImportarAtaPage() {
     const files = e.target.files;
     if (files && files.length > 0) {
       handleFileSelect(files[0]);
+    } else {
+      setArquivo(null);
     }
+  };
+
+  const handleFieldChange = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value });
+    // Limpar erro do campo quando o usuário começar a digitar
+    if (errors[field]) {
+      setErrors({ ...errors, [field]: '' });
+    }
+    // Marcar campo como tocado
+    setTouched({ ...touched, [field]: true });
   };
 
   return (
@@ -260,11 +346,14 @@ export default function ImportarAtaPage() {
                   id="dataReuniao"
                   type="date"
                   value={formData.dataReuniao}
-                  onChange={(e) =>
-                    setFormData({ ...formData, dataReuniao: e.target.value })
-                  }
+                  onChange={(e) => handleFieldChange('dataReuniao', e.target.value)}
+                  onBlur={() => setTouched({ ...touched, dataReuniao: true })}
+                  className={touched.dataReuniao && errors.dataReuniao ? 'border-destructive' : ''}
                   required
                 />
+                {touched.dataReuniao && errors.dataReuniao && (
+                  <p className="text-xs text-destructive mt-1">{errors.dataReuniao}</p>
+                )}
               </div>
 
               <div>
@@ -273,12 +362,15 @@ export default function ImportarAtaPage() {
                 </Label>
                 <Select
                   value={formData.tipoReuniao}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, tipoReuniao: value as TipoReuniao })
-                  }
+                  onValueChange={(value) => handleFieldChange('tipoReuniao', value)}
+                  onOpenChange={(open) => {
+                    if (!open) {
+                      setTouched({ ...touched, tipoReuniao: true });
+                    }
+                  }}
                   required={tipoAta === 'RASCUNHO' || tipoAta === 'EM_PROCESSO'}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={touched.tipoReuniao && errors.tipoReuniao ? 'border-destructive' : ''}>
                     <SelectValue placeholder="Selecione o tipo" />
                   </SelectTrigger>
                   <SelectContent>
@@ -290,6 +382,9 @@ export default function ImportarAtaPage() {
                     <SelectItem value="OUTRO">Outro</SelectItem>
                   </SelectContent>
                 </Select>
+                {touched.tipoReuniao && errors.tipoReuniao && (
+                  <p className="text-xs text-destructive mt-1">{errors.tipoReuniao}</p>
+                )}
               </div>
             </div>
 
@@ -363,11 +458,12 @@ export default function ImportarAtaPage() {
 
             <div>
               <Label htmlFor="arquivo">
-                Arquivo * {tipoAta === 'RASCUNHO' && '(Apenas PDF)'}
+                Arquivo * {tipoAta === 'RASCUNHO' && '(Apenas PDF)'} (Máximo 10MB)
               </Label>
               <div
-                onDragOver={handleDragOver}
+                onDragEnter={handleDragEnter}
                 onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
                 className={`
@@ -375,9 +471,11 @@ export default function ImportarAtaPage() {
                   transition-all duration-200
                   ${isDragging 
                     ? 'border-primary bg-primary/5 scale-[1.02]' 
-                    : 'border-input hover:border-primary/50 hover:bg-muted/50'
+                    : touched.arquivo && errors.arquivo
+                      ? 'border-destructive bg-destructive/5'
+                      : 'border-input hover:border-primary/50 hover:bg-muted/50'
                   }
-                  ${arquivo ? 'border-primary/50 bg-primary/5' : ''}
+                  ${arquivo && !errors.arquivo ? 'border-primary/50 bg-primary/5' : ''}
                 `}
               >
                 <input
@@ -387,7 +485,6 @@ export default function ImportarAtaPage() {
                   accept={tipoAta === 'RASCUNHO' ? '.pdf' : '.txt,.pdf'}
                   onChange={handleInputChange}
                   className="hidden"
-                  required
                 />
                 <div className="flex flex-col items-center justify-center gap-2">
                   {arquivo ? (
@@ -397,7 +494,10 @@ export default function ImportarAtaPage() {
                         {arquivo.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {(arquivo.size / 1024).toFixed(2)} KB
+                        {arquivo.size > 1024 * 1024 
+                          ? `${(arquivo.size / (1024 * 1024)).toFixed(2)} MB`
+                          : `${(arquivo.size / 1024).toFixed(2)} KB`
+                        }
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Clique para trocar o arquivo
@@ -416,7 +516,24 @@ export default function ImportarAtaPage() {
                   )}
                 </div>
               </div>
+              {touched.arquivo && errors.arquivo && (
+                <p className="text-xs text-destructive mt-1">{errors.arquivo}</p>
+              )}
             </div>
+
+            {/* Mensagens de Erro Gerais */}
+            {Object.keys(errors).length > 0 && (
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <p className="text-sm font-medium text-destructive mb-2">
+                  Por favor, corrija os seguintes erros:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-destructive">
+                  {errors.dataReuniao && <li>{errors.dataReuniao}</li>}
+                  {errors.tipoReuniao && <li>{errors.tipoReuniao}</li>}
+                  {errors.arquivo && <li>{errors.arquivo}</li>}
+                </ul>
+              </div>
+            )}
 
             <div className="flex gap-4 justify-end">
               <Button

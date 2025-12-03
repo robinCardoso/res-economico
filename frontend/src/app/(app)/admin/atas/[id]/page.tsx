@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-import { Calendar, Users, FileText, Sparkles, ArrowLeft, Edit, Loader2, Download } from 'lucide-react';
+import { Calendar, Users, FileText, Sparkles, ArrowLeft, Edit, Loader2, Download, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
@@ -440,7 +440,7 @@ export default function DetalhesAtaPage() {
           <div>
             <h1 className="text-2xl font-bold">{ata.titulo}</h1>
             <div className="flex items-center gap-2 mt-1.5">
-              <Badge variant={ata.status === 'finalizada' ? 'default' : 'secondary'}>
+              <Badge variant={ata.status === 'FINALIZADA' || ata.status === 'finalizada' ? 'default' : 'secondary'}>
                 {ata.status}
               </Badge>
               {ata.gerado_por_ia && (
@@ -453,6 +453,16 @@ export default function DetalhesAtaPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          {(ata.status === 'EM_PROCESSO' || ata.status === 'em_processo') && (
+            <Button 
+              variant="default" 
+              onClick={() => router.push(`/admin/atas/${ata.id}/processo`)}
+              className="bg-yellow-500 hover:bg-yellow-600 text-yellow-950 dark:text-yellow-50"
+            >
+              <Clock className="h-4 w-4 mr-2" />
+              Gerenciar Processo
+            </Button>
+          )}
           <Button variant="outline" onClick={handleDownloadHTML}>
             <Download className="h-4 w-4 mr-2" />
             Baixar HTML

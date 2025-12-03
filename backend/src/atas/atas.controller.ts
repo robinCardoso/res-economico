@@ -100,7 +100,20 @@ export class AtasController {
   }
 
   @Post('importar/rascunho')
-  @UseInterceptors(FileInterceptor('arquivo'))
+  @UseInterceptors(
+    FileInterceptor('arquivo', {
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB
+      },
+      fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+          cb(null, true);
+        } else {
+          cb(new Error('Apenas arquivos PDF são permitidos para rascunhos'), false);
+        }
+      },
+    }),
+  )
   async importarRascunho(
     @UploadedFile() arquivo: Express.Multer.File,
     @Body() dto: ImportarRascunhoDto,
@@ -117,7 +130,21 @@ export class AtasController {
   }
 
   @Post('importar/em-processo')
-  @UseInterceptors(FileInterceptor('arquivo'))
+  @UseInterceptors(
+    FileInterceptor('arquivo', {
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB
+      },
+      fileFilter: (req, file, cb) => {
+        const allowedMimes = ['application/pdf', 'text/plain'];
+        if (allowedMimes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new Error('Apenas arquivos PDF e TXT são permitidos'), false);
+        }
+      },
+    }),
+  )
   async importarEmProcesso(
     @UploadedFile() arquivo: Express.Multer.File,
     @Body() dto: ImportarEmProcessoDto,

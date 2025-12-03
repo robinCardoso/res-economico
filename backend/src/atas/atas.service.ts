@@ -822,6 +822,10 @@ Retorne EXATAMENTE este JSON (sem texto adicional):
                 inlineData?: { mimeType: string; data: string };
               }>;
             }>;
+            generationConfig?: {
+              temperature?: number;
+              maxOutputTokens?: number;
+            };
           };
 
           if (usarGeminiDiretamente && extensao === 'pdf') {
@@ -848,6 +852,10 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
                   ],
                 },
               ],
+              generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 32000, // Máximo para gemini-2.0-flash (32k tokens)
+              },
             };
           } else {
             // TXT - enviar texto no prompt
@@ -858,6 +866,10 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
                   parts: [{ text: prompt }],
                 },
               ],
+              generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 32000, // Máximo para gemini-2.0-flash (32k tokens)
+              },
             };
           }
 
@@ -872,6 +884,24 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
               });
+
+              // Detectar erros específicos da API Gemini
+              if (response.status === 429) {
+                throw new BadRequestException(
+                  'Limite de requisições da API Gemini atingido. Tente novamente em alguns minutos.',
+                );
+              }
+              if (response.status === 403) {
+                const errorText = await response.text();
+                if (errorText.includes('quota') || errorText.includes('Quota')) {
+                  throw new BadRequestException(
+                    'Quota diária da API Gemini excedida. Tente novamente amanhã ou entre em contato com o administrador do sistema.',
+                  );
+                }
+                throw new BadRequestException(
+                  'Acesso negado pela API Gemini. Verifique as configurações da API.',
+                );
+              }
 
               if (response.ok) {
                 interface GeminiResponse {
@@ -910,10 +940,9 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
                 if (i === MAX_RETRIES - 1) {
                   // Última tentativa falhou
                   const errorText = await response.text();
-                  throw new Error(
-                    `Rate limit excedido na API Gemini após ${MAX_RETRIES} tentativas. ` +
-                      `Aguarde alguns minutos e tente novamente. ` +
-                      `Detalhes: ${errorText}`,
+                  throw new BadRequestException(
+                    `Limite de requisições da API Gemini atingido após ${MAX_RETRIES} tentativas. ` +
+                      `Aguarde alguns minutos e tente novamente.`,
                   );
                 }
 
@@ -929,9 +958,26 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
                 await new Promise((resolve) => setTimeout(resolve, delay));
                 delay *= 2; // Backoff exponencial
               } else {
+                // Outros erros HTTP (400, 401, 404, etc.)
                 const errorText = await response.text();
-                throw new Error(
-                  `Erro HTTP: ${response.status} ${response.statusText} - ${errorText}`,
+                this.logger.error(
+                  `Erro HTTP ${response.status} da API Gemini: ${errorText}`,
+                );
+                
+                if (response.status === 403) {
+                  if (errorText.includes('quota') || errorText.includes('Quota')) {
+                    throw new BadRequestException(
+                      'Quota diária da API Gemini excedida. Tente novamente amanhã ou entre em contato com o administrador do sistema.',
+                    );
+                  }
+                  throw new BadRequestException(
+                    'Acesso negado pela API Gemini. Verifique as configurações da API.',
+                  );
+                }
+                
+                throw new BadRequestException(
+                  `Erro na API Gemini (${response.status}): ${errorText || response.statusText}. ` +
+                  `Tente novamente ou entre em contato com o suporte.`,
                 );
               }
             } catch (e) {
@@ -969,28 +1015,235 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
 
       // Parsear resposta JSON
       let jsonLimpo = resposta.trim();
+      const tamanhoRespostaOriginal = resposta.length;
+      this.logger.log(`Tamanho da resposta original: ${tamanhoRespostaOriginal} caracteres`);
 
-      // Remover delimitadores markdown se existirem
-      if (jsonLimpo.startsWith('```')) {
-        jsonLimpo = jsonLimpo.replace(/^```(?:json)?\s*/, '');
-        jsonLimpo = jsonLimpo.replace(/\s*```$/, '');
+      // Remover delimitadores markdown se existirem (```json ... ```)
+      // Remover de forma mais agressiva, incluindo quebras de linha
+      jsonLimpo = jsonLimpo.replace(/^```(?:json|JSON)?\s*/i, '');
+      jsonLimpo = jsonLimpo.replace(/\s*```\s*$/i, '');
+      jsonLimpo = jsonLimpo.trim();
+
+      // Função auxiliar para recuperar JSON truncado
+      const recuperarJsonTruncado = (jsonIncompleto: string): string | null => {
+        try {
+          // Tentar fechar string não terminada
+          let jsonRecuperado = jsonIncompleto.trim();
+          
+          // Se termina com aspas não fechadas, tentar fechar
+          if (jsonRecuperado.endsWith('"') === false) {
+            // Contar aspas abertas vs fechadas
+            const aspasAbertas = (jsonRecuperado.match(/"/g) || []).length;
+            if (aspasAbertas % 2 !== 0) {
+              // String não terminada, fechar
+              jsonRecuperado += '"';
+            }
+          }
+          
+          // Tentar fechar objeto JSON se necessário
+          let profundidade = 0;
+          let dentroString = false;
+          let escape = false;
+          
+          for (let i = 0; i < jsonRecuperado.length; i++) {
+            const char = jsonRecuperado[i];
+            if (escape) {
+              escape = false;
+              continue;
+            }
+            if (char === '\\') {
+              escape = true;
+              continue;
+            }
+            if (char === '"') {
+              dentroString = !dentroString;
+              continue;
+            }
+            if (!dentroString) {
+              if (char === '{') profundidade++;
+              if (char === '}') profundidade--;
+            }
+          }
+          
+          // Fechar objetos abertos
+          while (profundidade > 0) {
+            jsonRecuperado += '}';
+            profundidade--;
+          }
+          
+          // Validar JSON recuperado
+          JSON.parse(jsonRecuperado);
+          this.logger.log('JSON truncado recuperado com sucesso');
+          return jsonRecuperado;
+        } catch {
+          return null;
+        }
+      };
+
+      // Função auxiliar para encontrar JSON completo contando chaves
+      const encontrarJsonCompleto = (texto: string): string | null => {
+        const inicio = texto.indexOf('{');
+        if (inicio === -1) {
+          this.logger.warn('Nenhuma chave de abertura { encontrada no texto');
+          return null;
+        }
+
+        let profundidade = 0;
+        let dentroString = false;
+        let escape = false;
+        let ultimaChaveFechada = -1;
+
+        for (let i = inicio; i < texto.length; i++) {
+          const char = texto[i];
+
+          if (escape) {
+            escape = false;
+            continue;
+          }
+
+          if (char === '\\') {
+            escape = true;
+            continue;
+          }
+
+          if (char === '"') {
+            dentroString = !dentroString;
+            continue;
+          }
+
+          if (!dentroString) {
+            if (char === '{') {
+              profundidade++;
+            }
+            if (char === '}') {
+              profundidade--;
+              ultimaChaveFechada = i;
+              if (profundidade === 0) {
+                const jsonCompleto = texto.substring(inicio, i + 1);
+                this.logger.log(`JSON completo encontrado: ${jsonCompleto.length} caracteres (posição ${inicio} até ${i + 1})`);
+                return jsonCompleto;
+              }
+            }
+          }
+        }
+
+        // Se chegou aqui, o JSON pode estar incompleto
+        if (profundidade > 0) {
+          this.logger.warn(
+            `JSON incompleto detectado. Profundidade: ${profundidade}, Última chave fechada na posição: ${ultimaChaveFechada}, Tamanho do texto: ${texto.length}`,
+          );
+          // Tentar recuperar JSON truncado
+          const jsonTruncado = texto.substring(inicio);
+          const jsonRecuperado = recuperarJsonTruncado(jsonTruncado);
+          if (jsonRecuperado) {
+            this.logger.log(`JSON truncado recuperado: ${jsonRecuperado.length} caracteres`);
+            return jsonRecuperado;
+          }
+          // Tentar retornar até a última chave fechada se houver
+          if (ultimaChaveFechada > inicio) {
+            const jsonParcial = texto.substring(inicio, ultimaChaveFechada + 1);
+            this.logger.warn(`Tentando usar JSON parcial: ${jsonParcial.length} caracteres`);
+            return jsonParcial;
+          }
+        }
+
+        return null;
+      };
+
+      // Tentar encontrar JSON completo
+      let jsonExtraido = encontrarJsonCompleto(jsonLimpo);
+      
+      // Se não encontrou, tentar na resposta original (pode ter markdown ainda)
+      if (!jsonExtraido) {
+        this.logger.log('Tentando encontrar JSON na resposta original (com markdown)');
+        jsonExtraido = encontrarJsonCompleto(resposta);
       }
-
-      // Extrair JSON se houver texto antes ou depois
-      const jsonMatch = jsonLimpo.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        jsonLimpo = jsonMatch[0];
-        this.logger.log(
-          `JSON extraído (primeiros 500 chars): ${jsonLimpo.substring(0, 500)}`,
-        );
-      } else {
+      
+      if (jsonExtraido) {
+        // Validar se o JSON extraído é válido antes de usar
+        try {
+          JSON.parse(jsonExtraido);
+          jsonLimpo = jsonExtraido;
+          this.logger.log(
+            `JSON extraído e validado com sucesso (${jsonLimpo.length} caracteres). Primeiros 500 chars: ${jsonLimpo.substring(0, 500)}`,
+          );
+        } catch (parseError) {
+          this.logger.error(
+            `JSON extraído não é válido. Tamanho: ${jsonExtraido.length} caracteres. Erro: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+          );
+          this.logger.error(
+            `Últimos 500 chars do JSON extraído: ${jsonExtraido.substring(Math.max(0, jsonExtraido.length - 500))}`,
+          );
+          // Tentar fazer parse da resposta limpa original
+          jsonLimpo = jsonLimpo;
+        }
+      }
+      
+      // Tentar fazer parse do JSON
+      try {
+        const parsed = JSON.parse(jsonLimpo);
+        this.logger.log('JSON parseado com sucesso');
+        // Converter de volta para string para manter o fluxo
+        jsonLimpo = JSON.stringify(parsed);
+      } catch (parseError) {
         this.logger.error(
-          'Resposta da IA não contém JSON válido. Resposta completa:',
-          resposta,
+          `Erro ao fazer parse do JSON. Tamanho da resposta original: ${tamanhoRespostaOriginal} caracteres`,
         );
-        throw new Error(
-          'Resposta da IA não contém JSON válido. A IA pode não ter processado o documento corretamente.',
+        this.logger.error(
+          `Tamanho do jsonLimpo: ${jsonLimpo.length} caracteres`,
         );
+        this.logger.error(
+          'Resposta completa (primeiros 3000 chars):',
+          resposta.substring(0, 3000),
+        );
+        this.logger.error(
+          'Resposta limpa (primeiros 3000 chars):',
+          jsonLimpo.substring(0, 3000),
+        );
+        if (jsonLimpo.length > 3000) {
+          this.logger.error(
+            'Últimos 1000 chars do jsonLimpo:',
+            jsonLimpo.substring(jsonLimpo.length - 1000),
+          );
+        }
+        this.logger.error('Erro no parse:', parseError);
+        
+        // Tentar recuperar JSON truncado como último recurso
+        const jsonRecuperado = recuperarJsonTruncado(jsonLimpo);
+        if (jsonRecuperado) {
+          try {
+            const parsed = JSON.parse(jsonRecuperado);
+            this.logger.log('JSON recuperado com sucesso após erro de parse');
+            jsonLimpo = JSON.stringify(parsed);
+            // Continuar processamento normalmente
+          } catch {
+            // Se ainda falhar, lançar erro com mensagem mais específica
+            const erroMsg = parseError instanceof Error ? parseError.message : String(parseError);
+            if (erroMsg.includes('Unterminated string') || erroMsg.includes('truncated')) {
+              throw new BadRequestException(
+                'O documento é muito grande e foi processado parcialmente. A resposta da IA foi truncada. ' +
+                'Considere dividir o documento em partes menores ou entre em contato com o suporte.',
+              );
+            }
+            throw new BadRequestException(
+              'Resposta da IA não contém JSON válido. O documento pode ser muito grande ou a resposta foi truncada. ' +
+              'Tente novamente ou divida o documento em partes menores.',
+            );
+          }
+        } else {
+          // Se não conseguiu recuperar, lançar erro
+          const erroMsg = parseError instanceof Error ? parseError.message : String(parseError);
+          if (erroMsg.includes('Unterminated string') || erroMsg.includes('truncated')) {
+            throw new BadRequestException(
+              'O documento é muito grande e foi processado parcialmente. A resposta da IA foi truncada. ' +
+              'Considere dividir o documento em partes menores ou entre em contato com o suporte.',
+            );
+          }
+          throw new BadRequestException(
+            'Resposta da IA não contém JSON válido. O documento pode ser muito grande ou a resposta foi truncada. ' +
+            'Tente novamente ou divida o documento em partes menores.',
+          );
+        }
       }
 
       interface DadosProcessados {
@@ -2461,16 +2714,70 @@ Retorne APENAS o JSON, sem texto adicional ou explicações.`;
       }> = [];
 
       try {
-        // Tentar encontrar JSON na resposta (pode estar entre ```json ... ```)
-        const jsonMatch = resposta.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          topicos = JSON.parse(jsonMatch[0]) as Array<{
+        // Limpar resposta removendo markdown code blocks
+        let respostaLimpa = resposta.trim();
+        respostaLimpa = respostaLimpa.replace(/^```(?:json|JSON)?\s*/i, '');
+        respostaLimpa = respostaLimpa.replace(/\s*```\s*$/i, '');
+        respostaLimpa = respostaLimpa.trim();
+
+        // Função auxiliar para encontrar array JSON completo contando colchetes
+        const encontrarArrayJsonCompleto = (texto: string): string | null => {
+          const inicio = texto.indexOf('[');
+          if (inicio === -1) return null;
+
+          let profundidade = 0;
+          let dentroString = false;
+          let escape = false;
+
+          for (let i = inicio; i < texto.length; i++) {
+            const char = texto[i];
+
+            if (escape) {
+              escape = false;
+              continue;
+            }
+
+            if (char === '\\') {
+              escape = true;
+              continue;
+            }
+
+            if (char === '"') {
+              dentroString = !dentroString;
+              continue;
+            }
+
+            if (!dentroString) {
+              if (char === '[') profundidade++;
+              if (char === ']') {
+                profundidade--;
+                if (profundidade === 0) {
+                  return texto.substring(inicio, i + 1);
+                }
+              }
+            }
+          }
+
+          return null;
+        };
+
+        // Tentar encontrar array JSON completo
+        let arrayJson = encontrarArrayJsonCompleto(respostaLimpa);
+        
+        // Se não encontrou, tentar na resposta original
+        if (!arrayJson) {
+          arrayJson = encontrarArrayJsonCompleto(resposta);
+        }
+
+        if (arrayJson) {
+          topicos = JSON.parse(arrayJson) as Array<{
             titulo: string;
             descricao: string;
             importancia: string;
           }>;
         } else {
-          topicos = JSON.parse(resposta) as Array<{
+          // Última tentativa: parse direto
+          topicos = JSON.parse(respostaLimpa) as Array<{
             titulo: string;
             descricao: string;
             importancia: string;
