@@ -13,18 +13,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeleteAtaButton } from './_components/delete-ata-button';
 
 const getStatusColor = (status: StatusAta) => {
   switch (status) {
+    case 'FINALIZADA':
     case 'PUBLICADA':
-      return 'bg-green-100 text-green-800 border-transparent hover:bg-primary/80';
+      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
     case 'RASCUNHO':
-      return 'bg-yellow-100 text-yellow-800 border-transparent hover:bg-primary/80';
+      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+    case 'EM_PROCESSO':
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
     case 'ARQUIVADA':
-      return 'bg-gray-100 text-gray-800 border-transparent hover:bg-primary/80';
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     default:
-      return 'bg-gray-100 text-gray-800 border-transparent hover:bg-primary/80';
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
   }
 };
 
@@ -42,14 +46,18 @@ const getTipoLabel = (tipo: TipoReuniao) => {
 
 const getStatusLabel = (status: StatusAta) => {
   switch (status) {
+    case 'FINALIZADA':
+      return 'Finalizada';
     case 'PUBLICADA':
-      return 'finalizada';
+      return 'Publicada';
     case 'RASCUNHO':
-      return 'rascunho';
+      return 'Rascunho';
+    case 'EM_PROCESSO':
+      return 'Em Processo';
     case 'ARQUIVADA':
-      return 'arquivada';
+      return 'Arquivada';
     default:
-      return status.toLowerCase();
+      return status;
   }
 };
 
@@ -59,6 +67,7 @@ export default function AtasPage() {
     limit: 20,
   });
   const [buscaInput, setBuscaInput] = useState(filters.busca || '');
+  const [filtroStatus, setFiltroStatus] = useState<StatusAta | 'TODAS'>('TODAS');
   const [filtroDecisoesPendentes, setFiltroDecisoesPendentes] = useState(false);
   const [filtroAcoesPendentes, setFiltroAcoesPendentes] = useState(false);
   
@@ -78,6 +87,15 @@ export default function AtasPage() {
       }, 0);
     }
   }, [debouncedBusca, filters.busca]);
+
+  // Atualizar filtro de status
+  useEffect(() => {
+    setFilters(prev => ({
+      ...prev,
+      status: filtroStatus === 'TODAS' ? undefined : filtroStatus,
+      page: 1,
+    }));
+  }, [filtroStatus]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['atas', filters],
@@ -148,6 +166,17 @@ export default function AtasPage() {
           </Button>
         </div>
       </div>
+
+      {/* Filtros por Status */}
+      <Tabs value={filtroStatus} onValueChange={(value) => setFiltroStatus(value as StatusAta | 'TODAS')}>
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="TODAS">Todas</TabsTrigger>
+          <TabsTrigger value="RASCUNHO">Rascunhos</TabsTrigger>
+          <TabsTrigger value="EM_PROCESSO">Em Processo</TabsTrigger>
+          <TabsTrigger value="FINALIZADA">Finalizadas</TabsTrigger>
+          <TabsTrigger value="ARQUIVADA">Arquivadas</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Filtros Rápidos */}
       <div className="flex flex-wrap gap-2">

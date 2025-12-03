@@ -419,7 +419,9 @@ export enum TipoReuniao {
 
 export enum StatusAta {
   RASCUNHO = 'RASCUNHO',
-  PUBLICADA = 'PUBLICADA',
+  EM_PROCESSO = 'EM_PROCESSO',
+  FINALIZADA = 'FINALIZADA',
+  PUBLICADA = 'PUBLICADA', // Mantido para compatibilidade
   ARQUIVADA = 'ARQUIVADA',
 }
 
@@ -463,11 +465,20 @@ export interface AtaReuniao {
   pauta?: string | null;
   conteudo?: string | null;
   decisoes?: string | null;
+  acoes?: string | null;
   observacoes?: string | null;
   criadoPor: string;
   empresaId?: string | null;
   createdAt: string;
   updatedAt: string;
+  // Novos campos para "Em Processo"
+  dataAssinatura?: string | null;
+  dataRegistro?: string | null;
+  cartorioRegistro?: string | null;
+  numeroRegistro?: string | null;
+  pendenteAssinatura?: boolean;
+  pendenteRegistro?: boolean;
+  modeloAtaId?: string | null;
   criador: {
     id: string;
     nome: string;
@@ -480,6 +491,8 @@ export interface AtaReuniao {
   } | null;
   participantes: AtaParticipante[];
   anexos?: AtaAnexo[];
+  historicoAndamento?: HistoricoAndamento[];
+  prazosAcao?: PrazoAcao[];
   _count?: {
     anexos: number;
   };
@@ -538,4 +551,97 @@ export interface FilterAtaDto {
   busca?: string;
   page?: number;
   limit?: number;
+}
+
+// =====================================================
+// TIPOS PARA SISTEMA DE 3 LINHAS DE ATAS
+// =====================================================
+
+export enum StatusPrazo {
+  PENDENTE = 'PENDENTE',
+  EM_ANDAMENTO = 'EM_ANDAMENTO',
+  CONCLUIDO = 'CONCLUIDO',
+  VENCIDO = 'VENCIDO',
+  CANCELADO = 'CANCELADO',
+}
+
+export enum TipoLembrete {
+  EMAIL = 'EMAIL',
+  NOTIFICACAO_SISTEMA = 'NOTIFICACAO_SISTEMA',
+  AMBOS = 'AMBOS',
+}
+
+export interface HistoricoAndamento {
+  id: string;
+  ataId: string;
+  data: string;
+  acao: string;
+  descricao?: string | null;
+  responsavel?: string | null;
+  criadoPor: string;
+  createdAt: string;
+  criador?: {
+    id: string;
+    nome: string;
+    email: string;
+  };
+}
+
+export interface PrazoAcao {
+  id: string;
+  ataId: string;
+  titulo: string;
+  descricao?: string | null;
+  dataPrazo: string;
+  dataConclusao?: string | null;
+  status: StatusPrazo;
+  concluido: boolean;
+  lembretesEnviados: number;
+  ultimoLembrete?: string | null;
+  criadoPor: string;
+  createdAt: string;
+  updatedAt: string;
+  ata?: {
+    id: string;
+    numero: string;
+    titulo: string;
+  };
+  criador?: {
+    id: string;
+    nome: string;
+    email: string;
+  };
+  lembretes?: LembretePrazo[];
+}
+
+export interface LembretePrazo {
+  id: string;
+  prazoId: string;
+  usuarioId: string;
+  tipo: TipoLembrete;
+  mensagem: string;
+  enviado: boolean;
+  dataEnvio?: string | null;
+  createdAt: string;
+  prazo: PrazoAcao;
+  usuario?: {
+    id: string;
+    nome: string;
+    email: string;
+  };
+}
+
+export interface ModeloAta {
+  id: string;
+  nome: string;
+  descricao?: string | null;
+  tipoReuniao: TipoReuniao;
+  estrutura: Record<string, unknown>;
+  exemplo?: Record<string, unknown> | null;
+  instrucoes?: string | null;
+  ativo: boolean;
+  criadoPor: string;
+  empresaId?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

@@ -10,11 +10,14 @@ import { UpdateAtaDto } from './dto/update-ata.dto';
 import { FilterAtaDto } from './dto/filter-ata.dto';
 import { AnalisarAtaDto } from './dto/analisar-ata.dto';
 import { ImportarAtaDto } from './dto/importar-ata.dto';
+import { ImportarRascunhoDto } from './dto/importar-rascunho.dto';
+import { ImportarEmProcessoDto } from './dto/importar-em-processo.dto';
 import { CreateComentarioDto } from './dto/create-comentario.dto';
 import { UpdateComentarioDto } from './dto/update-comentario.dto';
-import { Prisma, TipoArquivoAta, TipoReuniao } from '@prisma/client';
+import { Prisma, TipoArquivoAta, TipoReuniao, StatusAta } from '@prisma/client';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ConfigService } from '@nestjs/config';
+import { ModeloAtaService } from './modelo-ata.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -27,6 +30,7 @@ export class AtasService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
+    private modeloAtaService: ModeloAtaService,
   ) {
     const geminiApiKey = this.configService.get<string>('GEMINI_API_KEY');
     if (geminiApiKey) {
@@ -195,7 +199,7 @@ export class AtasService {
 
     const [atas, total] = await Promise.all([
       this.prisma.ataReuniao.findMany({
-        where: where as Prisma.AtaReuniaoWhereInput,
+        where: where,
         include: {
           criador: {
             select: {
@@ -233,7 +237,7 @@ export class AtasService {
         take: limit,
       }),
       this.prisma.ataReuniao.count({
-        where: where as Prisma.AtaReuniaoWhereInput,
+        where: where,
       }),
     ]);
 
@@ -1024,8 +1028,11 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
       let dadosProcessados: DadosProcessados;
       try {
         dadosProcessados = JSON.parse(jsonLimpo) as DadosProcessados;
-      } catch (parseError) {
-        this.logger.error('Erro ao fazer parse do JSON da IA:', parseError);
+      } catch (parseError: unknown) {
+        this.logger.error(
+          'Erro ao fazer parse do JSON da IA:',
+          parseError instanceof Error ? parseError.message : String(parseError),
+        );
         this.logger.error('JSON que falhou:', jsonLimpo.substring(0, 500));
         throw new Error(
           'Erro ao processar resposta da IA. O formato JSON está inválido.',
@@ -2138,5 +2145,540 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
     </div>
 </body>
 </html>`;
+  }
+
+  /**
+   * Extrai texto de um PDF usando Gemini
+   */
+  async extrairTextoPDF(
+    arquivo: Express.Multer.File,
+  ): Promise<{ texto: string; tempoProcessamento: number }> {
+    if (!this.gemini) {
+      throw new BadRequestException(
+        'Gemini AI não está configurado. Configure GEMINI_API_KEY no arquivo .env do backend.',
+      );
+    }
+
+    const startTime = Date.now();
+    this.logger.log('Extraindo texto do PDF com Gemini...');
+
+    try {
+      const geminiApiKey = this.configService.get<string>('GEMINI_API_KEY');
+      if (!geminiApiKey) {
+        throw new Error('GEMINI_API_KEY não configurada');
+      }
+
+      const API_MODEL = 'gemini-2.0-flash';
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL}:generateContent?key=${geminiApiKey}`;
+
+      // Ler arquivo e converter para base64
+      const fileBuffer = fs.readFileSync(arquivo.path);
+      const pdfBase64 = fileBuffer.toString('base64');
+
+      const prompt = `Extraia TODO o texto deste PDF de forma estruturada e completa.
+Mantenha a formatação original quando possível, incluindo quebras de linha e parágrafos.
+Retorne APENAS o texto extraído, sem comentários ou explicações adicionais.`;
+
+      const payload = {
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  mimeType: 'application/pdf',
+                  data: pdfBase64,
+                },
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.1, // Baixa temperatura para extração precisa
+          maxOutputTokens: 8000,
+        },
+      };
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Erro HTTP: ${response.status} ${response.statusText} - ${errorText}`,
+        );
+      }
+
+      interface GeminiResponse {
+        candidates?: Array<{
+          content?: {
+            parts?: Array<{ text?: string }>;
+          };
+        }>;
+      }
+
+      const result = (await response.json()) as GeminiResponse;
+      const texto = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const tempoProcessamento = Date.now() - startTime;
+
+      if (!texto) {
+        throw new Error('Nenhum texto foi extraído do PDF');
+      }
+
+      this.logger.log(
+        `Texto extraído do PDF em ${tempoProcessamento}ms (${texto.length} caracteres)`,
+      );
+
+      return { texto, tempoProcessamento };
+    } catch (error) {
+      this.logger.error('Erro ao extrair texto do PDF:', error);
+      throw new BadRequestException(
+        `Erro ao extrair texto do PDF: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+      );
+    }
+  }
+
+  /**
+   * Transcreve texto em uma ata profissional usando modelo
+   */
+  async transcreverComModelo(
+    texto: string,
+    tipoReuniao: TipoReuniao,
+    modeloAtaId?: string,
+  ): Promise<{
+    transcricao: string;
+    tempoProcessamento: number;
+    modeloUsado: string;
+  }> {
+    if (!this.gemini) {
+      throw new BadRequestException(
+        'Gemini AI não está configurado. Configure GEMINI_API_KEY no arquivo .env do backend.',
+      );
+    }
+
+    const startTime = Date.now();
+    this.logger.log('Transcrevendo texto com IA usando modelo...');
+
+    try {
+      // Buscar modelo de ata
+      let modeloAta:
+        | Awaited<ReturnType<typeof this.modeloAtaService.findOne>>
+        | Awaited<ReturnType<typeof this.modeloAtaService.findByTipoReuniao>>
+        | null = null;
+      if (modeloAtaId) {
+        modeloAta = await this.modeloAtaService.findOne(modeloAtaId);
+      } else {
+        const modeloEncontrado =
+          await this.modeloAtaService.findByTipoReuniao(tipoReuniao);
+        if (modeloEncontrado) {
+          modeloAta = await this.modeloAtaService.findOne(modeloEncontrado.id);
+        }
+      }
+
+      const geminiApiKey = this.configService.get<string>('GEMINI_API_KEY');
+      if (!geminiApiKey) {
+        throw new Error('GEMINI_API_KEY não configurada');
+      }
+
+      const API_MODEL = 'gemini-2.0-flash';
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL}:generateContent?key=${geminiApiKey}`;
+
+      // Criar prompt baseado no modelo
+      let prompt = `Você é um especialista em transcrever atas de reuniões de forma profissional.
+
+Tipo de Reunião: ${tipoReuniao}
+
+Texto extraído do documento:
+${texto}
+
+Transcreva este texto em uma ata profissional, seguindo a estrutura padrão de atas formais e usando linguagem adequada e profissional.`;
+
+      if (modeloAta) {
+        prompt = `Você é um especialista em transcrever atas de reuniões de forma profissional.
+
+Tipo de Reunião: ${tipoReuniao}
+
+Estrutura esperada (baseada no modelo "${modeloAta.nome}"):
+${JSON.stringify(modeloAta.estrutura, null, 2)}
+
+${modeloAta.instrucoes ? `Instruções do modelo:\n${modeloAta.instrucoes}\n` : ''}
+
+${modeloAta.exemplo ? `Exemplo de formato esperado:\n${JSON.stringify(modeloAta.exemplo, null, 2)}\n` : ''}
+
+Texto extraído do documento:
+${texto}
+
+Transcreva este texto em uma ata profissional, seguindo a estrutura do modelo e usando linguagem formal e adequada.`;
+      }
+
+      const payload = {
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 8000,
+        },
+      };
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Erro HTTP: ${response.status} ${response.statusText} - ${errorText}`,
+        );
+      }
+
+      interface GeminiResponse {
+        candidates?: Array<{
+          content?: {
+            parts?: Array<{ text?: string }>;
+          };
+        }>;
+      }
+
+      const result = (await response.json()) as GeminiResponse;
+      const transcricao =
+        result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const tempoProcessamento = Date.now() - startTime;
+
+      if (!transcricao) {
+        throw new Error('Nenhuma transcrição foi gerada');
+      }
+
+      this.logger.log(
+        `Transcrição gerada em ${tempoProcessamento}ms (${transcricao.length} caracteres)`,
+      );
+
+      return {
+        transcricao,
+        tempoProcessamento,
+        modeloUsado: API_MODEL,
+      };
+    } catch (error) {
+      this.logger.error('Erro ao transcrever texto:', error);
+      throw new BadRequestException(
+        `Erro ao transcrever texto: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+      );
+    }
+  }
+
+  /**
+   * Extrai tópicos importantes do texto
+   */
+  async extrairTopicosImportantes(texto: string): Promise<{
+    topicos: Array<{ titulo: string; descricao: string; importancia: string }>;
+    tempoProcessamento: number;
+  }> {
+    if (!this.gemini) {
+      throw new BadRequestException(
+        'Gemini AI não está configurado. Configure GEMINI_API_KEY no arquivo .env do backend.',
+      );
+    }
+
+    const startTime = Date.now();
+    this.logger.log('Extraindo tópicos importantes...');
+
+    try {
+      const geminiApiKey = this.configService.get<string>('GEMINI_API_KEY');
+      if (!geminiApiKey) {
+        throw new Error('GEMINI_API_KEY não configurada');
+      }
+
+      const API_MODEL = 'gemini-2.0-flash';
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL}:generateContent?key=${geminiApiKey}`;
+
+      const prompt = `Analise o seguinte texto de uma reunião e identifique os tópicos mais importantes:
+
+${texto}
+
+Retorne uma lista JSON com os tópicos no formato:
+[
+  {
+    "titulo": "Título do tópico",
+    "descricao": "Descrição breve do tópico",
+    "importancia": "alta|media|baixa"
+  }
+]
+
+Retorne APENAS o JSON, sem texto adicional ou explicações.`;
+
+      const payload = {
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.5,
+          maxOutputTokens: 2000,
+        },
+      };
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Erro HTTP: ${response.status} ${response.statusText} - ${errorText}`,
+        );
+      }
+
+      interface GeminiResponse {
+        candidates?: Array<{
+          content?: {
+            parts?: Array<{ text?: string }>;
+          };
+        }>;
+      }
+
+      const result = (await response.json()) as GeminiResponse;
+      const resposta = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const tempoProcessamento = Date.now() - startTime;
+
+      // Tentar extrair JSON da resposta
+      let topicos: Array<{
+        titulo: string;
+        descricao: string;
+        importancia: string;
+      }> = [];
+
+      try {
+        // Tentar encontrar JSON na resposta (pode estar entre ```json ... ```)
+        const jsonMatch = resposta.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          topicos = JSON.parse(jsonMatch[0]) as Array<{
+            titulo: string;
+            descricao: string;
+            importancia: string;
+          }>;
+        } else {
+          topicos = JSON.parse(resposta) as Array<{
+            titulo: string;
+            descricao: string;
+            importancia: string;
+          }>;
+        }
+      } catch (parseError: unknown) {
+        this.logger.warn(
+          'Erro ao fazer parse dos tópicos, retornando lista vazia',
+          parseError instanceof Error ? parseError.message : String(parseError),
+        );
+        topicos = [];
+      }
+
+      this.logger.log(
+        `Tópicos extraídos em ${tempoProcessamento}ms (${topicos.length} tópicos)`,
+      );
+
+      return { topicos, tempoProcessamento };
+    } catch (error) {
+      this.logger.error('Erro ao extrair tópicos:', error);
+      throw new BadRequestException(
+        `Erro ao extrair tópicos: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+      );
+    }
+  }
+
+  /**
+   * Processa um rascunho: extrai texto, transcreve e extrai tópicos
+   */
+  async processarRascunhoComIA(
+    arquivo: Express.Multer.File,
+    dto: ImportarRascunhoDto,
+    userId: string,
+  ) {
+    this.logger.log(
+      `Processando rascunho: ${arquivo.originalname} - Tipo: ${dto.tipoReuniao}`,
+    );
+
+    // 1. Extrair texto do PDF
+    const { texto, tempoProcessamento: tempoExtracao } =
+      await this.extrairTextoPDF(arquivo);
+
+    // 2. Transcrever com IA
+    const {
+      transcricao,
+      tempoProcessamento: tempoTranscricao,
+      modeloUsado,
+    } = await this.transcreverComModelo(
+      texto,
+      dto.tipoReuniao,
+      dto.modeloAtaId,
+    );
+
+    // 3. Extrair tópicos importantes
+    const { topicos, tempoProcessamento: tempoTopicos } =
+      await this.extrairTopicosImportantes(texto);
+
+    // 4. Criar ata como RASCUNHO
+    const numero = await this.generateNumeroAta();
+    const dataReuniao = new Date(dto.dataReuniao);
+
+    // Salvar arquivo
+    const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'atas');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const hashArquivo = crypto
+      .createHash('md5')
+      .update(arquivo.buffer)
+      .digest('hex');
+    const nomeArquivo = `${hashArquivo}-${arquivo.originalname}`;
+    const arquivoPath = path.join(uploadsDir, nomeArquivo);
+    fs.writeFileSync(arquivoPath, arquivo.buffer);
+    const arquivoUrl = `/uploads/atas/${nomeArquivo}`;
+
+    const ata = await this.prisma.ataReuniao.create({
+      data: {
+        numero,
+        titulo: `Ata de ${dto.tipoReuniao} - ${dataReuniao.toLocaleDateString('pt-BR')}`,
+        tipo: dto.tipoReuniao,
+        dataReuniao,
+        status: StatusAta.RASCUNHO,
+        conteudo: transcricao,
+        descricao: `Rascunho processado automaticamente com IA`,
+        geradoPorIa: true,
+        iaUsada: 'Google Gemini',
+        modeloIa: modeloUsado,
+        tempoProcessamentoIa: tempoExtracao + tempoTranscricao + tempoTopicos,
+        arquivoOriginalUrl: arquivoUrl,
+        arquivoOriginalNome: arquivo.originalname,
+        arquivoOriginalTipo: arquivo.mimetype || 'application/pdf',
+        modeloAtaId: dto.modeloAtaId,
+        criadoPor: userId,
+      },
+      include: {
+        criador: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+        empresa: {
+          select: {
+            id: true,
+            razaoSocial: true,
+            nomeFantasia: true,
+          },
+        },
+        modeloAta: {
+          include: {
+            criador: {
+              select: {
+                id: true,
+                nome: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    this.logger.log(
+      `Rascunho criado com sucesso: ${ata.numero} (ID: ${ata.id})`,
+    );
+
+    return {
+      ata,
+      textoExtraido: texto,
+      transcricao,
+      topicos,
+      metadados: {
+        tempoExtracao,
+        tempoTranscricao,
+        tempoTopicos,
+        tempoTotal: tempoExtracao + tempoTranscricao + tempoTopicos,
+        modeloUsado,
+      },
+    };
+  }
+
+  /**
+   * Importa uma ata como "Em Processo"
+   */
+  async importarEmProcesso(
+    arquivo: Express.Multer.File,
+    dto: ImportarEmProcessoDto,
+    userId: string,
+  ) {
+    this.logger.log(
+      `Importando ata em processo: ${arquivo.originalname} - Tipo: ${dto.tipoReuniao}`,
+    );
+
+    // Processar arquivo normalmente (similar ao importarAta)
+    const importarDto: ImportarAtaDto = {
+      nomeArquivo: arquivo.originalname,
+      tipoArquivo: arquivo.mimetype || 'application/pdf',
+      conteudoBase64: arquivo.buffer.toString('base64'),
+      dataReuniao: dto.dataReuniao,
+      tipoReuniao: dto.tipoReuniao,
+    };
+
+    // Importar a ata normalmente
+    const ata = await this.importarAta(importarDto, userId);
+
+    // Atualizar status para EM_PROCESSO e adicionar dados específicos
+    const updateData: Prisma.AtaReuniaoUpdateInput = {
+      status: StatusAta.EM_PROCESSO,
+    };
+
+    if (dto.dataAssinatura) {
+      updateData.dataAssinatura = new Date(dto.dataAssinatura);
+      updateData.pendenteAssinatura = false;
+    } else {
+      updateData.pendenteAssinatura = true;
+    }
+
+    if (dto.observacoes) {
+      updateData.observacoes = dto.observacoes;
+    }
+
+    const ataAtualizada = await this.prisma.ataReuniao.update({
+      where: { id: ata.id },
+      data: updateData,
+      include: {
+        criador: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+        empresa: {
+          select: {
+            id: true,
+            razaoSocial: true,
+            nomeFantasia: true,
+          },
+        },
+      },
+    });
+
+    this.logger.log(
+      `Ata importada como "Em Processo": ${ataAtualizada.numero}`,
+    );
+
+    return ataAtualizada;
   }
 }

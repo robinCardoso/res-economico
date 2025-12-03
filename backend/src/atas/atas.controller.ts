@@ -11,22 +11,43 @@ import {
   Request,
   ParseIntPipe,
   Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AtasService } from './atas.service';
+import { ModeloAtaService } from './modelo-ata.service';
 import { CreateAtaDto } from './dto/create-ata.dto';
 import { UpdateAtaDto } from './dto/update-ata.dto';
 import { FilterAtaDto } from './dto/filter-ata.dto';
 import { AnalisarAtaDto } from './dto/analisar-ata.dto';
 import { ImportarAtaDto } from './dto/importar-ata.dto';
+import { ImportarRascunhoDto } from './dto/importar-rascunho.dto';
+import { ImportarEmProcessoDto } from './dto/importar-em-processo.dto';
+import { CreateModeloAtaDto } from './dto/create-modelo-ata.dto';
+import { UpdateModeloAtaDto } from './dto/update-modelo-ata.dto';
+import { FilterModeloAtaDto } from './dto/filter-modelo-ata.dto';
+import { CreateHistoricoAndamentoDto } from './dto/create-historico-andamento.dto';
+import { CreatePrazoAcaoDto } from './dto/create-prazo-acao.dto';
+import { UpdatePrazoAcaoDto } from './dto/update-prazo-acao.dto';
 import { CreateComentarioDto } from './dto/create-comentario.dto';
 import { UpdateComentarioDto } from './dto/update-comentario.dto';
+import { HistoricoAndamentoService } from './historico-andamento.service';
+import { PrazoAcaoService } from './prazo-acao.service';
+import { LembretePrazoService } from './lembrete-prazo.service';
 
 @Controller('atas')
 @UseGuards(JwtAuthGuard)
 export class AtasController {
-  constructor(private readonly atasService: AtasService) {}
+  constructor(
+    private readonly atasService: AtasService,
+    private readonly modeloAtaService: ModeloAtaService,
+    private readonly historicoAndamentoService: HistoricoAndamentoService,
+    private readonly prazoAcaoService: PrazoAcaoService,
+    private readonly lembretePrazoService: LembretePrazoService,
+  ) {}
 
   @Post()
   async create(
@@ -76,6 +97,196 @@ export class AtasController {
       throw new Error('Usuário não autenticado');
     }
     return this.atasService.importarAta(dto, userId);
+  }
+
+  @Post('importar/rascunho')
+  @UseInterceptors(FileInterceptor('arquivo'))
+  async importarRascunho(
+    @UploadedFile() arquivo: Express.Multer.File,
+    @Body() dto: ImportarRascunhoDto,
+    @Request() req: { user?: { id?: string } },
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('Usuário não autenticado');
+    }
+    if (!arquivo) {
+      throw new Error('Arquivo não fornecido');
+    }
+    return this.atasService.processarRascunhoComIA(arquivo, dto, userId);
+  }
+
+  @Post('importar/em-processo')
+  @UseInterceptors(FileInterceptor('arquivo'))
+  async importarEmProcesso(
+    @UploadedFile() arquivo: Express.Multer.File,
+    @Body() dto: ImportarEmProcessoDto,
+    @Request() req: { user?: { id?: string } },
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('Usuário não autenticado');
+    }
+    if (!arquivo) {
+      throw new Error('Arquivo não fornecido');
+    }
+    return this.atasService.importarEmProcesso(arquivo, dto, userId);
+  }
+
+  // =====================================================
+  // ENDPOINTS DE MODELOS DE ATAS
+  // =====================================================
+
+  @Post('modelos')
+  async createModelo(
+    @Body() dto: CreateModeloAtaDto,
+    @Request() req: { user?: { id?: string } },
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('Usuário não autenticado');
+    }
+    return this.modeloAtaService.create(dto, userId);
+  }
+
+  @Get('modelos')
+  async findAllModelos(
+    @Query('tipoReuniao') tipoReuniao?: string,
+    @Query('ativo') ativo?: string,
+    @Query('empresaId') empresaId?: string,
+    @Query('search') search?: string,
+  ) {
+    const filters: FilterModeloAtaDto = {
+      tipoReuniao: tipoReuniao as FilterModeloAtaDto['tipoReuniao'],
+      ativo: ativo === 'true' ? true : ativo === 'false' ? false : undefined,
+      empresaId,
+      search,
+    };
+    return this.modeloAtaService.findAll(filters);
+  }
+
+  @Get('modelos/:id')
+  async findOneModelo(@Param('id') id: string) {
+    return this.modeloAtaService.findOne(id);
+  }
+
+  @Put('modelos/:id')
+  async updateModelo(@Param('id') id: string, @Body() dto: UpdateModeloAtaDto) {
+    return this.modeloAtaService.update(id, dto);
+  }
+
+  @Delete('modelos/:id')
+  async removeModelo(@Param('id') id: string) {
+    return this.modeloAtaService.remove(id);
+  }
+
+  // =====================================================
+  // ENDPOINTS DE HISTÓRICO E PRAZOS (antes de :id para evitar conflito)
+  // =====================================================
+
+  @Get('prazos/vencidos')
+  async prazosVencidos() {
+    return this.prazoAcaoService.verificarPrazosVencidos();
+  }
+
+  @Get('prazos/proximos')
+  async prazosProximos() {
+    return this.prazoAcaoService.verificarPrazosProximos();
+  }
+
+  @Get('lembretes')
+  async findLembretes(
+    @Request() req: { user?: { id?: string } },
+    @Query('enviados') enviados?: string,
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('Usuário não autenticado');
+    }
+    return this.lembretePrazoService.findByUsuario(
+      userId,
+      enviados === 'true' ? true : enviados === 'false' ? false : undefined,
+    );
+  }
+
+  @Put('lembretes/:lembreteId/lido')
+  async marcarLembreteComoLido(@Param('lembreteId') lembreteId: string) {
+    return this.lembretePrazoService.marcarComoLido(lembreteId);
+  }
+
+  @Get(':id/historico')
+  async findHistorico(@Param('id') id: string) {
+    return this.historicoAndamentoService.findByAta(id);
+  }
+
+  @Post(':id/historico')
+  async createHistorico(
+    @Param('id') id: string,
+    @Body() dto: CreateHistoricoAndamentoDto,
+    @Request() req: { user?: { id?: string } },
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('Usuário não autenticado');
+    }
+    return this.historicoAndamentoService.create(id, dto, userId);
+  }
+
+  @Delete(':id/historico/:historicoId')
+  async removeHistorico(
+    @Param('id') id: string,
+    @Param('historicoId') historicoId: string,
+    @Request() req: { user?: { id?: string } },
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('Usuário não autenticado');
+    }
+    return this.historicoAndamentoService.remove(historicoId, userId);
+  }
+
+  @Get(':id/prazos')
+  async findPrazos(@Param('id') id: string) {
+    return this.prazoAcaoService.findByAta(id);
+  }
+
+  @Post(':id/prazos')
+  async createPrazo(
+    @Param('id') id: string,
+    @Body() dto: CreatePrazoAcaoDto,
+    @Request() req: { user?: { id?: string } },
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('Usuário não autenticado');
+    }
+    return this.prazoAcaoService.create(id, dto, userId);
+  }
+
+  @Get('prazos/:prazoId')
+  async findOnePrazo(@Param('prazoId') prazoId: string) {
+    return this.prazoAcaoService.findOne(prazoId);
+  }
+
+  @Put('prazos/:prazoId')
+  async updatePrazo(
+    @Param('prazoId') prazoId: string,
+    @Body() dto: UpdatePrazoAcaoDto,
+  ) {
+    return this.prazoAcaoService.update(prazoId, dto);
+  }
+
+  @Delete(':id/prazos/:prazoId')
+  async removePrazo(
+    @Param('id') id: string,
+    @Param('prazoId') prazoId: string,
+    @Request() req: { user?: { id?: string } },
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('Usuário não autenticado');
+    }
+    return this.prazoAcaoService.remove(prazoId, userId);
   }
 
   // =====================================================

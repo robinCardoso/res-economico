@@ -1,9 +1,37 @@
 'use client';
 
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { resumosService } from '@/services/resumos.service';
 import { ArrowLeft, Download, Calendar, Building2, User, Loader2, AlertCircle } from 'lucide-react';
+
+const ResumoSection = ({ texto }: { texto: string }) => (
+  <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+    <h2 className="mb-4 text-lg font-semibold text-foreground">Resumo</h2>
+    <p className="whitespace-pre-wrap text-sm text-muted-foreground">{texto}</p>
+  </div>
+);
+
+interface Insight {
+  tipo: string;
+  titulo: string;
+  descricao?: string;
+  recomendacao?: string;
+  confianca?: number | string;
+}
+
+interface PadraoAnomalo {
+  tipo: string;
+  descricao: string;
+  severidade: string;
+}
+
+interface ResultadoAnalise {
+  resumo?: string;
+  insights?: Insight[];
+  padroesAnomalos?: PadraoAnomalo[];
+}
 
 const ResumoDetailPage = () => {
   const params = useParams();
@@ -77,7 +105,8 @@ const ResumoDetailPage = () => {
     );
   }
 
-  const resultado = resumo.resultado as Record<string, unknown>;
+  const resultado = (resumo.resultado || {}) as ResultadoAnalise;
+  const resumoTexto: string | null = typeof resultado.resumo === 'string' ? resultado.resumo : null;
 
   return (
     <div className="space-y-6">
@@ -156,19 +185,16 @@ const ResumoDetailPage = () => {
       </header>
 
       {/* Resumo */}
-      {resultado?.resumo && (
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-foreground">Resumo</h2>
-          <p className="whitespace-pre-wrap text-sm text-muted-foreground">{resultado.resumo}</p>
-        </div>
-      )}
+      {resumoTexto !== null && resumoTexto.length > 0 ? (
+        <ResumoSection texto={resumoTexto} />
+      ) : null}
 
       {/* Insights */}
       {resultado?.insights && Array.isArray(resultado.insights) && resultado.insights.length > 0 && (
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold text-foreground">Insights</h2>
           <div className="space-y-4">
-            {resultado.insights.map((insight: { tipo: string; titulo: string; descricao: string; recomendacao?: string }, index: number) => (
+            {resultado.insights.map((insight: Insight, index: number) => (
               <div
                 key={index}
                 className="rounded-md border border-border bg-muted p-4"
@@ -189,7 +215,7 @@ const ResumoDetailPage = () => {
                   </span>
                   {insight.confianca && (
                     <span className="text-xs text-muted-foreground">
-                      Confiança: {insight.confianca}%
+                      Confiança: {String(insight.confianca)}%
                     </span>
                   )}
                 </div>
@@ -213,7 +239,7 @@ const ResumoDetailPage = () => {
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold text-foreground">Padrões Anômalos</h2>
           <div className="space-y-2">
-            {resultado.padroesAnomalos.map((padrao: { tipo: string; descricao: string; severidade: string }, index: number) => (
+            {resultado.padroesAnomalos.map((padrao: PadraoAnomalo, index: number) => (
               <div
                 key={index}
                 className="rounded-md border border-border bg-muted p-3"

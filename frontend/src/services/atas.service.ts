@@ -83,5 +83,163 @@ export const atasService = {
     });
     return data;
   },
+
+  async importarRascunho(
+    arquivo: File,
+    dataReuniao: string,
+    tipoReuniao: string,
+    modeloAtaId?: string,
+  ): Promise<{
+    ata: AtaReuniao;
+    textoExtraido: string;
+    transcricao: string;
+    topicos: Array<{ titulo: string; descricao: string; importancia: string }>;
+    metadados: {
+      tempoExtracao: number;
+      tempoTranscricao: number;
+      tempoTopicos: number;
+      tempoTotal: number;
+      modeloUsado: string;
+    };
+  }> {
+    const formData = new FormData();
+    formData.append('arquivo', arquivo);
+    formData.append('tipoReuniao', tipoReuniao);
+    formData.append('dataReuniao', dataReuniao);
+    if (modeloAtaId) {
+      formData.append('modeloAtaId', modeloAtaId);
+    }
+
+    const { data } = await api.post('/atas/importar/rascunho', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return data;
+  },
+
+  async listarModelos(filters?: {
+    tipoReuniao?: string;
+    ativo?: boolean;
+    empresaId?: string;
+    search?: string;
+  }): Promise<unknown[]> {
+    const params = new URLSearchParams();
+    if (filters?.tipoReuniao) params.append('tipoReuniao', filters.tipoReuniao);
+    if (filters?.ativo !== undefined) params.append('ativo', filters.ativo.toString());
+    if (filters?.empresaId) params.append('empresaId', filters.empresaId);
+    if (filters?.search) params.append('search', filters.search);
+
+    const { data } = await api.get(`/atas/modelos?${params.toString()}`);
+    return data;
+  },
+
+  async importarEmProcesso(
+    arquivo: File,
+    dataReuniao: string,
+    tipoReuniao: string,
+    dataAssinatura?: string,
+    observacoes?: string,
+  ): Promise<AtaReuniao> {
+    const formData = new FormData();
+    formData.append('arquivo', arquivo);
+    formData.append('tipoReuniao', tipoReuniao);
+    formData.append('dataReuniao', dataReuniao);
+    if (dataAssinatura) formData.append('dataAssinatura', dataAssinatura);
+    if (observacoes) formData.append('observacoes', observacoes);
+
+    const { data } = await api.post('/atas/importar/em-processo', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return data;
+  },
+
+  async listarHistorico(ataId: string): Promise<unknown[]> {
+    const { data } = await api.get(`/atas/${ataId}/historico`);
+    return data;
+  },
+
+  async adicionarHistorico(
+    ataId: string,
+    acao: string,
+    descricao?: string,
+    responsavel?: string,
+    data?: string,
+  ): Promise<unknown> {
+    const { data: responseData } = await api.post(`/atas/${ataId}/historico`, {
+      acao,
+      descricao,
+      responsavel,
+      data,
+    });
+    return responseData;
+  },
+
+  async removerHistorico(ataId: string, historicoId: string): Promise<void> {
+    await api.delete(`/atas/${ataId}/historico/${historicoId}`);
+  },
+
+  async listarPrazos(ataId: string): Promise<unknown[]> {
+    const { data } = await api.get(`/atas/${ataId}/prazos`);
+    return data;
+  },
+
+  async criarPrazo(
+    ataId: string,
+    titulo: string,
+    dataPrazo: string,
+    descricao?: string,
+    acaoId?: string,
+  ): Promise<unknown> {
+    const { data } = await api.post(`/atas/${ataId}/prazos`, {
+      titulo,
+      dataPrazo,
+      descricao,
+      acaoId,
+    });
+    return data;
+  },
+
+  async atualizarPrazo(
+    prazoId: string,
+    updates: {
+      titulo?: string;
+      dataPrazo?: string;
+      descricao?: string;
+      status?: string;
+      concluido?: boolean;
+      dataConclusao?: string;
+    },
+  ): Promise<unknown> {
+    const { data } = await api.put(`/atas/prazos/${prazoId}`, updates);
+    return data;
+  },
+
+  async removerPrazo(ataId: string, prazoId: string): Promise<void> {
+    await api.delete(`/atas/${ataId}/prazos/${prazoId}`);
+  },
+
+  async prazosVencidos(): Promise<unknown[]> {
+    const { data } = await api.get('/atas/prazos/vencidos');
+    return data;
+  },
+
+  async prazosProximos(): Promise<unknown[]> {
+    const { data } = await api.get('/atas/prazos/proximos');
+    return data;
+  },
+
+  async listarLembretes(enviados?: boolean): Promise<unknown[]> {
+    const params = new URLSearchParams();
+    if (enviados !== undefined) params.append('enviados', enviados.toString());
+    const { data } = await api.get(`/atas/lembretes?${params.toString()}`);
+    return data;
+  },
+
+  async marcarLembreteComoLido(lembreteId: string): Promise<void> {
+    await api.put(`/atas/lembretes/${lembreteId}/lido`);
+  },
 };
 

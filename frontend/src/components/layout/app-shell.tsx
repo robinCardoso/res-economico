@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { MobileNav } from './mobile-nav';
 import { ThemeToggle } from './theme-toggle';
 import { AdminSidebar } from './admin-sidebar';
+import { NotificacoesLembretes } from '@/components/atas/notificacoes-lembretes';
 
 type AppShellProps = {
   children: ReactNode;
@@ -141,6 +142,7 @@ export const AppShell = ({ children }: AppShellProps) => {
                     {user.email}
                   </p>
                 </div>
+                <NotificacoesLembretes />
                 <ThemeToggle />
                 <button
                   onClick={handleLogout}

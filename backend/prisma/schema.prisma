@@ -33,6 +33,7 @@ model Empresa {
   usuarios              Usuario[]
   processos             Processo[]
   atas                  AtaReuniao[]
+  modelosAtas           ModeloAta[]
 }
 
 model ConfiguracaoModeloNegocio {
@@ -50,14 +51,14 @@ model ConfiguracaoModeloNegocio {
 }
 
 model Usuario {
-  id                String            @id @default(uuid())
-  email             String            @unique
+  id                String               @id @default(uuid())
+  email             String               @unique
   senha             String
   nome              String
-  roles             String[]          @default(["user"])
+  roles             String[]             @default(["user"])
   empresaId         String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
   departamento      Departamento?
   logs              LogAuditoria[]
   resumos           ResumoEconomico[]
@@ -65,7 +66,11 @@ model Usuario {
   atas              AtaReuniao[]
   participantesAtas AtaParticipante[]
   comentariosAtas   AtaComentario[]
-  empresa           Empresa?          @relation(fields: [empresaId], references: [id])
+  modelosAtas       ModeloAta[]
+  historicoAtas     HistoricoAndamento[]
+  prazosAtas        PrazoAcao[]
+  lembretesPrazos   LembretePrazo[]
+  empresa           Empresa?             @relation(fields: [empresaId], references: [id])
 }
 
 model TemplateImportacao {
@@ -467,6 +472,17 @@ model AtaReuniao {
   arquivoOriginalNome String? // Nome do arquivo original
   arquivoOriginalTipo String? // Tipo/MIME do arquivo original
 
+  // Novos campos para "Em Processo"
+  dataAssinatura     DateTime?
+  dataRegistro       DateTime?
+  cartorioRegistro   String?
+  numeroRegistro     String?
+  pendenteAssinatura Boolean   @default(false)
+  pendenteRegistro   Boolean   @default(false)
+
+  // Relacionamento com modelo de ata
+  modeloAtaId String?
+
   // Relacionamentos
   criadoPor String
   empresaId String?
@@ -476,11 +492,14 @@ model AtaReuniao {
   updatedAt DateTime @updatedAt
 
   // Relacionamentos
-  criador       Usuario           @relation(fields: [criadoPor], references: [id], onDelete: Cascade)
-  empresa       Empresa?          @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  criador       Usuario              @relation(fields: [criadoPor], references: [id], onDelete: Cascade)
+  empresa       Empresa?             @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  modeloAta     ModeloAta?           @relation(fields: [modeloAtaId], references: [id], onDelete: SetNull)
   participantes AtaParticipante[]
   anexos        AtaAnexo[]
   comentarios   AtaComentario[]
+  historico     HistoricoAndamento[]
+  prazos        PrazoAcao[]
 
   @@index([dataReuniao])
   @@index([status])
@@ -561,9 +580,11 @@ enum TipoReuniao {
 }
 
 enum StatusAta {
-  RASCUNHO
-  PUBLICADA
-  ARQUIVADA
+  RASCUNHO // Ata em processo de transcrição
+  EM_PROCESSO // Ata com histórico de andamento
+  FINALIZADA // Ata assinada e registrada
+  PUBLICADA // Mantido para compatibilidade (legado)
+  ARQUIVADA // Ata arquivada
 }
 
 enum TipoArquivoAta {
@@ -579,4 +600,126 @@ enum TipoComentario {
   SUGESTAO
   APROVACAO
   REPROVACAO
+}
+
+// =====================================================
+// MODELOS PARA SISTEMA DE 3 LINHAS DE ATAS
+// =====================================================
+
+model ModeloAta {
+  id          String      @id @default(uuid())
+  nome        String
+  descricao   String?
+  tipoReuniao TipoReuniao
+
+  // Estrutura do template
+  estrutura  Json // Estrutura esperada da ata (campos, seções)
+  exemplo    Json? // Exemplo de ata formatada
+  instrucoes String? // Instruções para a IA usar este template
+
+  // Metadados
+  ativo     Boolean  @default(true)
+  criadoPor String
+  empresaId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  criador Usuario      @relation(fields: [criadoPor], references: [id], onDelete: Cascade)
+  empresa Empresa?     @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  atas    AtaReuniao[]
+
+  @@index([tipoReuniao])
+  @@index([empresaId])
+  @@index([ativo])
+}
+
+model HistoricoAndamento {
+  id    String @id @default(uuid())
+  ataId String
+
+  // Dados do histórico
+  data        DateTime @default(now())
+  acao        String // Ex: "Enviado para assinatura", "Registrado em cartório"
+  descricao   String?
+  responsavel String? // Nome do responsável pela ação
+
+  // Metadados
+  criadoPor String
+  createdAt DateTime @default(now())
+
+  ata     AtaReuniao @relation(fields: [ataId], references: [id], onDelete: Cascade)
+  criador Usuario    @relation(fields: [criadoPor], references: [id], onDelete: Cascade)
+
+  @@index([ataId])
+  @@index([data])
+}
+
+model PrazoAcao {
+  id    String @id @default(uuid())
+  ataId String
+
+  // Dados do prazo
+  acaoId        String? // ID da ação relacionada (se houver)
+  titulo        String
+  descricao     String?
+  dataPrazo     DateTime
+  dataConclusao DateTime?
+
+  // Status
+  status    StatusPrazo @default(PENDENTE)
+  concluido Boolean     @default(false)
+
+  // Lembretes
+  lembretesEnviados Int       @default(0)
+  ultimoLembrete    DateTime?
+
+  // Metadados
+  criadoPor String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ata       AtaReuniao      @relation(fields: [ataId], references: [id], onDelete: Cascade)
+  criador   Usuario         @relation(fields: [criadoPor], references: [id], onDelete: Cascade)
+  lembretes LembretePrazo[]
+
+  @@index([ataId])
+  @@index([dataPrazo])
+  @@index([status])
+  @@index([concluido])
+}
+
+model LembretePrazo {
+  id        String @id @default(uuid())
+  prazoId   String
+  usuarioId String
+
+  // Dados do lembrete
+  tipo      TipoLembrete
+  mensagem  String
+  enviado   Boolean      @default(false)
+  dataEnvio DateTime?
+
+  // Metadados
+  createdAt DateTime @default(now())
+
+  prazo   PrazoAcao @relation(fields: [prazoId], references: [id], onDelete: Cascade)
+  usuario Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([prazoId])
+  @@index([usuarioId])
+  @@index([enviado])
+}
+
+enum StatusPrazo {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDO
+  VENCIDO
+  CANCELADO
+}
+
+enum TipoLembrete {
+  EMAIL
+  NOTIFICACAO_SISTEMA
+  AMBOS
 }
