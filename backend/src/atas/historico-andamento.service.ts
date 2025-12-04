@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
 import { CreateHistoricoAndamentoDto } from './dto/create-historico-andamento.dto';
+import { UpdateHistoricoAndamentoDto } from './dto/update-historico-andamento.dto';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
@@ -104,6 +105,50 @@ export class HistoricoAndamentoService {
     }
 
     return historico;
+  }
+
+  /**
+   * Atualiza uma entrada do histórico
+   */
+  async update(id: string, dto: UpdateHistoricoAndamentoDto, userId: string) {
+    const historico = await this.findOne(id);
+
+    // Verificar se o usuário tem permissão (pode ser o criador ou admin)
+    if (historico.criadoPor !== userId) {
+      throw new NotFoundException(
+        'Você não tem permissão para editar este histórico',
+      );
+    }
+
+    const updateData: Prisma.HistoricoAndamentoUpdateInput = {};
+
+    if (dto.acao !== undefined) updateData.acao = dto.acao;
+    if (dto.descricao !== undefined) updateData.descricao = dto.descricao;
+    if (dto.responsavel !== undefined) updateData.responsavel = dto.responsavel;
+    if (dto.data !== undefined) updateData.data = new Date(dto.data);
+
+    const historicoAtualizado = await this.prisma.historicoAndamento.update({
+      where: { id },
+      data: updateData,
+      include: {
+        criador: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+        ata: {
+          select: {
+            id: true,
+            numero: true,
+            titulo: true,
+          },
+        },
+      },
+    });
+
+    return historicoAtualizado;
   }
 
   /**

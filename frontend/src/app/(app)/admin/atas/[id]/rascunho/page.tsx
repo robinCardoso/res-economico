@@ -12,7 +12,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import type { AtaReuniao } from '@/types/api';
 import { StatusAta } from '@/types/api';
 
 interface Topico {
@@ -48,10 +47,11 @@ export default function RascunhoPage() {
 
   // Carregar dados do processamento se disponíveis
   useEffect(() => {
-    if (ata) {
-      setTranscricao(ata.conteudo || '');
-      
-      // Tentar carregar dados do processamento do localStorage
+    if (!ata) return;
+
+    // Usar callback para evitar setState síncrono
+    const carregarDados = () => {
+      // Tentar carregar dados do processamento do localStorage primeiro
       const dadosSalvos = localStorage.getItem(`rascunho-${id}`);
       if (dadosSalvos) {
         try {
@@ -62,18 +62,23 @@ export default function RascunhoPage() {
             metadados: typeof metadados;
           };
           setTextoExtraido(dados.textoExtraido);
-          if (dados.transcricao && !ata.conteudo) {
-            setTranscricao(dados.transcricao);
-          }
+          setTranscricao(dados.transcricao || ata.conteudo || '');
           setTopicos(dados.topicos);
           setMetadados(dados.metadados);
           // Limpar do localStorage após carregar
           localStorage.removeItem(`rascunho-${id}`);
         } catch (error) {
           console.error('Erro ao carregar dados do rascunho:', error);
+          setTranscricao(ata.conteudo || '');
         }
+      } else {
+        setTranscricao(ata.conteudo || '');
       }
-    }
+    };
+
+    // Usar setTimeout para evitar setState síncrono em effect
+    const timeoutId = setTimeout(carregarDados, 0);
+    return () => clearTimeout(timeoutId);
   }, [ata, id]);
 
   const saveMutation = useMutation({

@@ -346,7 +346,9 @@ const RelatorioResultadoPage = () => {
       for (const conta of contas) {
         if (ehChaveUnica) {
           // Buscar por chave única (identificação precisa)
-          const chaveConta = `${conta.classificacao}|${(conta as any).conta || ''}|${(conta as any).subConta || ''}`;
+          const contaNumero = conta.conta || '';
+          const subConta = conta.subConta || '';
+          const chaveConta = `${conta.classificacao}|${contaNumero}|${subConta}`;
           if (chaveConta === descricao) {
             return conta;
           }

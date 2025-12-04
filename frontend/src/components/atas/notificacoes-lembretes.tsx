@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { atasService } from '@/services/atas.service';
 import { Bell, X, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -12,7 +12,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
 interface Lembrete {
@@ -36,7 +35,6 @@ interface Lembrete {
 }
 
 export function NotificacoesLembretes() {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 

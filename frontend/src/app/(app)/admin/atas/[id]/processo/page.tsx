@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useParams } from 'next/navigation';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { atasService } from '@/services/atas.service';
 import {
   ArrowLeft,
-  Save,
   Loader2,
   Clock,
   CheckCircle2,
@@ -14,6 +13,8 @@ import {
   Plus,
   Calendar,
   User,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,9 +37,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import type { AtaReuniao } from '@/types/api';
 
 interface HistoricoItem {
   id: string;
@@ -72,13 +78,15 @@ interface PrazoItem {
 
 export default function ProcessoPage() {
   const params = useParams();
-  const router = useRouter();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const id = params.id as string;
 
   const [dialogHistoricoOpen, setDialogHistoricoOpen] = useState(false);
   const [dialogPrazoOpen, setDialogPrazoOpen] = useState(false);
+  const [dialogEditarHistoricoOpen, setDialogEditarHistoricoOpen] = useState(false);
+  const [dialogEditarPrazoOpen, setDialogEditarPrazoOpen] = useState(false);
+  const [historicoEditando, setHistoricoEditando] = useState<HistoricoItem | null>(null);
+  const [prazoEditando, setPrazoEditando] = useState<PrazoItem | null>(null);
   const [formHistorico, setFormHistorico] = useState({
     acao: '',
     descricao: '',
@@ -196,8 +204,133 @@ export default function ProcessoPage() {
     },
   });
 
+  const atualizarHistoricoMutation = useMutation({
+    mutationFn: () => {
+      if (!historicoEditando) throw new Error('Nenhum histórico selecionado');
+      return atasService.atualizarHistorico(
+        id,
+        historicoEditando.id,
+        formHistorico.acao,
+        formHistorico.descricao,
+        formHistorico.responsavel,
+        formHistorico.data,
+      );
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Sucesso!',
+        description: 'Histórico atualizado com sucesso.',
+      });
+      setDialogEditarHistoricoOpen(false);
+      setHistoricoEditando(null);
+      setFormHistorico({
+        acao: '',
+        descricao: '',
+        responsavel: '',
+        data: new Date().toISOString().split('T')[0],
+      });
+      refetchHistorico();
+    },
+    onError: (err) => {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: err instanceof Error ? err.message : 'Erro ao atualizar histórico',
+      });
+    },
+  });
+
+  const atualizarPrazoMutation = useMutation({
+    mutationFn: () => {
+      if (!prazoEditando) throw new Error('Nenhum prazo selecionado');
+      return atasService.atualizarPrazo(prazoEditando.id, {
+        titulo: formPrazo.titulo,
+        descricao: formPrazo.descricao,
+        dataPrazo: formPrazo.dataPrazo,
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Sucesso!',
+        description: 'Prazo atualizado com sucesso.',
+      });
+      setDialogEditarPrazoOpen(false);
+      setPrazoEditando(null);
+      setFormPrazo({
+        titulo: '',
+        descricao: '',
+        dataPrazo: '',
+      });
+      refetchPrazos();
+    },
+    onError: (err) => {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: err instanceof Error ? err.message : 'Erro ao atualizar prazo',
+      });
+    },
+  });
+
+  const removerHistoricoMutation = useMutation({
+    mutationFn: (historicoId: string) => atasService.removerHistorico(id, historicoId),
+    onSuccess: () => {
+      toast({
+        title: 'Sucesso!',
+        description: 'Histórico removido com sucesso.',
+      });
+      refetchHistorico();
+    },
+    onError: (err) => {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: err instanceof Error ? err.message : 'Erro ao remover histórico',
+      });
+    },
+  });
+
+  const removerPrazoMutation = useMutation({
+    mutationFn: (prazoId: string) => atasService.removerPrazo(id, prazoId),
+    onSuccess: () => {
+      toast({
+        title: 'Sucesso!',
+        description: 'Prazo removido com sucesso.',
+      });
+      refetchPrazos();
+    },
+    onError: (err) => {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: err instanceof Error ? err.message : 'Erro ao remover prazo',
+      });
+    },
+  });
+
   const handleConcluirPrazo = (prazoId: string) => {
     concluirPrazoMutation.mutate(prazoId);
+  };
+
+  const handleEditarHistorico = (item: HistoricoItem) => {
+    setHistoricoEditando(item);
+    setFormHistorico({
+      acao: item.acao,
+      descricao: item.descricao || '',
+      responsavel: item.responsavel || '',
+      data: new Date(item.data).toISOString().split('T')[0],
+    });
+    setDialogEditarHistoricoOpen(true);
+  };
+
+  const handleEditarPrazo = (item: PrazoItem) => {
+    setPrazoEditando(item);
+    setFormPrazo({
+      titulo: item.titulo,
+      descricao: item.descricao || '',
+      dataPrazo: new Date(item.dataPrazo).toISOString().split('T')[0],
+    });
+    setDialogEditarPrazoOpen(true);
   };
 
   if (isLoading) {
@@ -256,7 +389,8 @@ export default function ProcessoPage() {
   });
 
   return (
-    <div className="container mx-auto py-8 max-w-6xl">
+    <TooltipProvider>
+      <div className="container mx-auto py-8 max-w-6xl">
       <div className="mb-6">
         <Link href="/admin/atas">
           <Button variant="ghost" size="sm" className="mb-4">
@@ -397,7 +531,7 @@ export default function ProcessoPage() {
                       </div>
                       <div className="flex-1 space-y-1">
                         <div className="flex items-start justify-between">
-                          <div>
+                          <div className="flex-1">
                             <p className="font-semibold">{item.acao}</p>
                             <p className="text-sm text-muted-foreground">
                               {new Date(item.data).toLocaleDateString('pt-BR', {
@@ -408,6 +542,43 @@ export default function ProcessoPage() {
                                 minute: '2-digit',
                               })}
                             </p>
+                          </div>
+                          <div className="flex gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleEditarHistorico(item)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Editar histórico</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    if (confirm('Tem certeza que deseja remover este histórico?')) {
+                                      removerHistoricoMutation.mutate(item.id);
+                                    }
+                                  }}
+                                  disabled={removerHistoricoMutation.isPending}
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Remover histórico</p>
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
                         </div>
                         {item.responsavel && (
@@ -588,16 +759,60 @@ export default function ProcessoPage() {
                               <p className="text-sm mt-2">{prazo.descricao}</p>
                             )}
                           </div>
-                          {!prazo.concluido && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleConcluirPrazo(prazo.id)}
-                              disabled={concluirPrazoMutation.isPending}
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <div className="flex gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleEditarPrazo(prazo)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Editar prazo</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            {!prazo.concluido && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleConcluirPrazo(prazo.id)}
+                                    disabled={concluirPrazoMutation.isPending}
+                                  >
+                                    <CheckCircle2 className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Clique para Concluir!</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    if (confirm('Tem certeza que deseja remover este prazo?')) {
+                                      removerPrazoMutation.mutate(prazo.id);
+                                    }
+                                  }}
+                                  disabled={removerPrazoMutation.isPending}
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Remover prazo</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
                         </div>
                       </div>
                     );
@@ -741,7 +956,167 @@ export default function ProcessoPage() {
           </Card>
         </div>
       </div>
+
+      {/* Dialog de Editar Histórico */}
+      <Dialog open={dialogEditarHistoricoOpen} onOpenChange={setDialogEditarHistoricoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Histórico</DialogTitle>
+            <DialogDescription>
+              Atualize as informações do histórico de andamento
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="edit-acao">Ação *</Label>
+              <Input
+                id="edit-acao"
+                value={formHistorico.acao}
+                onChange={(e) =>
+                  setFormHistorico({ ...formHistorico, acao: e.target.value })
+                }
+                placeholder="Ex: Enviado para assinatura"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-data">Data *</Label>
+              <Input
+                id="edit-data"
+                type="date"
+                value={formHistorico.data}
+                onChange={(e) =>
+                  setFormHistorico({ ...formHistorico, data: e.target.value })
+                }
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-responsavel">Responsável</Label>
+              <Input
+                id="edit-responsavel"
+                value={formHistorico.responsavel}
+                onChange={(e) =>
+                  setFormHistorico({ ...formHistorico, responsavel: e.target.value })
+                }
+                placeholder="Nome do responsável"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-descricao">Descrição</Label>
+              <Textarea
+                id="edit-descricao"
+                value={formHistorico.descricao}
+                onChange={(e) =>
+                  setFormHistorico({ ...formHistorico, descricao: e.target.value })
+                }
+                placeholder="Detalhes adicionais..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogEditarHistoricoOpen(false);
+                setHistoricoEditando(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => atualizarHistoricoMutation.mutate()}
+              disabled={atualizarHistoricoMutation.isPending || !formHistorico.acao}
+            >
+              {atualizarHistoricoMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                'Salvar Alterações'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Editar Prazo */}
+      <Dialog open={dialogEditarPrazoOpen} onOpenChange={setDialogEditarPrazoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Prazo</DialogTitle>
+            <DialogDescription>
+              Atualize as informações do prazo
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="edit-titulo">Título *</Label>
+              <Input
+                id="edit-titulo"
+                value={formPrazo.titulo}
+                onChange={(e) =>
+                  setFormPrazo({ ...formPrazo, titulo: e.target.value })
+                }
+                placeholder="Ex: Prazo para assinatura"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-dataPrazo">Data do Prazo *</Label>
+              <Input
+                id="edit-dataPrazo"
+                type="date"
+                value={formPrazo.dataPrazo}
+                onChange={(e) =>
+                  setFormPrazo({ ...formPrazo, dataPrazo: e.target.value })
+                }
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-descricaoPrazo">Descrição</Label>
+              <Textarea
+                id="edit-descricaoPrazo"
+                value={formPrazo.descricao}
+                onChange={(e) =>
+                  setFormPrazo({ ...formPrazo, descricao: e.target.value })
+                }
+                placeholder="Detalhes do prazo..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogEditarPrazoOpen(false);
+                setPrazoEditando(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => atualizarPrazoMutation.mutate()}
+              disabled={atualizarPrazoMutation.isPending || !formPrazo.titulo || !formPrazo.dataPrazo}
+            >
+              {atualizarPrazoMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                'Salvar Alterações'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+    </TooltipProvider>
   );
 }
 

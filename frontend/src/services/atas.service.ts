@@ -177,6 +177,26 @@ export const atasService = {
     return responseData;
   },
 
+  async atualizarHistorico(
+    ataId: string,
+    historicoId: string,
+    acao?: string,
+    descricao?: string,
+    responsavel?: string,
+    data?: string,
+  ): Promise<unknown> {
+    const { data: responseData } = await api.put(
+      `/atas/${ataId}/historico/${historicoId}`,
+      {
+        acao,
+        descricao,
+        responsavel,
+        data,
+      },
+    );
+    return responseData;
+  },
+
   async removerHistorico(ataId: string, historicoId: string): Promise<void> {
     await api.delete(`/atas/${ataId}/historico/${historicoId}`);
   },

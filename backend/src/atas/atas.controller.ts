@@ -30,6 +30,7 @@ import { CreateModeloAtaDto } from './dto/create-modelo-ata.dto';
 import { UpdateModeloAtaDto } from './dto/update-modelo-ata.dto';
 import { FilterModeloAtaDto } from './dto/filter-modelo-ata.dto';
 import { CreateHistoricoAndamentoDto } from './dto/create-historico-andamento.dto';
+import { UpdateHistoricoAndamentoDto } from './dto/update-historico-andamento.dto';
 import { CreatePrazoAcaoDto } from './dto/create-prazo-acao.dto';
 import { UpdatePrazoAcaoDto } from './dto/update-prazo-acao.dto';
 import { CreateComentarioDto } from './dto/create-comentario.dto';
@@ -257,6 +258,20 @@ export class AtasController {
       throw new Error('Usuário não autenticado');
     }
     return this.historicoAndamentoService.create(id, dto, userId);
+  }
+
+  @Put(':id/historico/:historicoId')
+  async updateHistorico(
+    @Param('id') id: string,
+    @Param('historicoId') historicoId: string,
+    @Body() dto: UpdateHistoricoAndamentoDto,
+    @Request() req: { user?: { id?: string } },
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('Usuário não autenticado');
+    }
+    return this.historicoAndamentoService.update(historicoId, dto, userId);
   }
 
   @Delete(':id/historico/:historicoId')

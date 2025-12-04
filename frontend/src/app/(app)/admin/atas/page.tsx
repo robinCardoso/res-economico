@@ -90,11 +90,15 @@ export default function AtasPage() {
 
   // Atualizar filtro de status
   useEffect(() => {
-    setFilters(prev => ({
-      ...prev,
-      status: filtroStatus === 'TODAS' ? undefined : filtroStatus,
-      page: 1,
-    }));
+    // Usar setTimeout para evitar setState síncrono em effect
+    const timeoutId = setTimeout(() => {
+      setFilters(prev => ({
+        ...prev,
+        status: filtroStatus === 'TODAS' ? undefined : filtroStatus,
+        page: 1,
+      }));
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [filtroStatus]);
 
   const { data, isLoading, error } = useQuery({
