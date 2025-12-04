@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUpload } from '@/hooks/use-uploads';
 import { useUploadProgress } from '@/hooks/use-upload-progress';
@@ -26,6 +26,25 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReprocessing, setIsReprocessing] = useState(false);
+
+  // Resetar estado de reprocessamento quando o processamento terminar
+  // O hook useUpload já atualiza automaticamente, então só precisamos resetar quando não estiver mais processando
+  useEffect(() => {
+    if (!upload || !isReprocessing) return;
+    
+    // Se o upload não está mais processando, resetar o estado
+    if (upload.status !== 'PROCESSANDO') {
+      // Aguardar um pouco para garantir que não é apenas um refresh temporário
+      const timer = setTimeout(() => {
+        // Verificar novamente antes de resetar (o upload pode ter mudado)
+        if (upload && upload.status !== 'PROCESSANDO' && isReprocessing) {
+          console.log(`[Reprocessar] Processamento concluído. Status: ${upload.status}. Resetando estado...`);
+          setIsReprocessing(false);
+        }
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [upload, isReprocessing]);
 
   if (isLoading) {
     return (
@@ -67,18 +86,77 @@ const UploadDetalhePage = ({ params }: UploadDetalheProps) => {
     setIsReprocessing(true);
     try {
       console.log(`[Reprocessar] Iniciando reprocessamento do upload ${id}...`);
-      await uploadsService.reprocessar(id);
-      console.log(`[Reprocessar] Reprocessamento iniciado com sucesso. Aguardando processamento...`);
+      const uploadAtualizado = await uploadsService.reprocessar(id);
+      console.log(`[Reprocessar] Reprocessamento iniciado com sucesso. Status: ${uploadAtualizado.status}`);
       
-      // Aguardar um pouco antes de recarregar para dar tempo do backend processar
-      setTimeout(() => {
-        console.log(`[Reprocessar] Recarregando página...`);
-        window.location.reload();
-      }, 1000);
+      // Verificar se o status mudou para PROCESSANDO
+      if (uploadAtualizado.status === 'PROCESSANDO') {
+        console.log(`[Reprocessar] Status confirmado como PROCESSANDO. Aguardando estabilização...`);
+        
+        // Aguardar um pouco para garantir que a limpeza foi concluída e o processamento iniciou
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Verificar uma vez se o processamento ainda está rodando
+        try {
+          const uploadVerificacao = await uploadsService.getById(id);
+          console.log(`[Reprocessar] Verificação final: Status = ${uploadVerificacao.status}`);
+          
+          if (uploadVerificacao.status === 'PROCESSANDO') {
+            // Processamento está rodando, deixar o hook useUpload cuidar da atualização
+            // O useEffect vai resetar o estado quando terminar
+            console.log(`[Reprocessar] Processamento confirmado. Monitorando até conclusão...`);
+            router.refresh();
+            // Não resetar isReprocessing aqui - deixar o useEffect cuidar quando terminar
+            return;
+          } else if (uploadVerificacao.status === 'CONCLUIDO' || uploadVerificacao.status === 'COM_ALERTAS') {
+            // Processamento já terminou (muito rápido!)
+            console.log(`[Reprocessar] ✅ Processamento já concluído. Status: ${uploadVerificacao.status}`);
+            setIsReprocessing(false);
+            router.refresh();
+            return;
+          } else if (uploadVerificacao.status === 'CANCELADO' || uploadVerificacao.status === 'ERRO') {
+            // Processamento falhou
+            console.error(`[Reprocessar] ❌ Processamento falhou. Status: ${uploadVerificacao.status}`);
+            setIsReprocessing(false);
+            throw new Error(`O processamento falhou. Status: ${uploadVerificacao.status}`);
+          }
+        } catch (err) {
+          console.error(`[Reprocessar] Erro ao verificar status:`, err);
+          // Continuar mesmo assim - o useEffect vai cuidar do reset
+          router.refresh();
+          return;
+        }
+      } else {
+        // Se o status não mudou para PROCESSANDO, algo deu errado
+        setIsReprocessing(false);
+        throw new Error(`O reprocessamento não iniciou corretamente. Status atual: ${uploadAtualizado.status}`);
+      }
     } catch (err) {
       console.error('[Reprocessar] Erro ao reprocessar upload:', err);
-      alert(`Erro ao reprocessar upload: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
+      
+      // Mensagem de erro mais detalhada
+      let mensagemErro = 'Erro desconhecido ao reprocessar upload';
+      if (err instanceof Error) {
+        mensagemErro = err.message;
+        // Melhorar mensagens de erro comuns
+        if (err.message.includes('Upload não encontrado')) {
+          mensagemErro = 'Upload não encontrado. A página será recarregada.';
+        } else if (err.message.includes('Arquivo não encontrado')) {
+          mensagemErro = 'Arquivo Excel não encontrado no servidor. Não é possível reprocessar.';
+        } else if (err.message.includes('processamento falhou')) {
+          mensagemErro = 'O processamento falhou ao iniciar. Verifique os logs do servidor.';
+        } else if (err.message.includes('timeout') || err.message.includes('Network')) {
+          mensagemErro = 'Erro de conexão com o servidor. Verifique sua conexão e tente novamente.';
+        }
+      }
+      
+      alert(`Erro ao reprocessar upload:\n\n${mensagemErro}\n\nPor favor, tente novamente ou verifique os logs do servidor.`);
       setIsReprocessing(false);
+      
+      // Recarregar a página para garantir que os dados estejam atualizados
+      setTimeout(() => {
+        router.refresh();
+      }, 2000);
     }
   };
 

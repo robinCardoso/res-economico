@@ -116,8 +116,17 @@ export class RelatoriosService {
     }>
   > {
     // 1. Buscar do catálogo
+    // Inclui contas 3-DRE e 2-Passivo relacionadas a resultado (2.07.*)
     const whereCatalogo: Record<string, unknown> = {
-      tipoConta: '3-DRE', // Apenas contas DRE
+      OR: [
+        { tipoConta: '3-DRE' },
+        {
+          AND: [
+            { tipoConta: '2-Passivo' },
+            { classificacao: { startsWith: '2.07' } },
+          ],
+        },
+      ],
     };
 
     if (busca && busca.trim().length > 0) {
@@ -142,8 +151,17 @@ export class RelatoriosService {
     });
 
     // 2. Buscar também das linhas de upload (para incluir contas que não estão no catálogo)
+    // Inclui contas 3-DRE e 2-Passivo relacionadas a resultado (2.07.*)
     const whereLinhas: Record<string, unknown> = {
-      tipoConta: '3-DRE',
+      OR: [
+        { tipoConta: '3-DRE' },
+        {
+          AND: [
+            { tipoConta: '2-Passivo' },
+            { classificacao: { startsWith: '2.07' } },
+          ],
+        },
+      ],
     };
 
     if (busca && busca.trim().length > 0) {
@@ -323,16 +341,37 @@ export class RelatoriosService {
       return `${classificacaoNorm}|${contaStr}|${subContaStr}`;
     };
 
+    // Função auxiliar para verificar se uma conta deve ser incluída no relatório
+    // Inclui: todas as contas 3-DRE + contas 2-Passivo relacionadas a resultado (2.07.*)
+    const deveIncluirNoRelatorio = (
+      tipoConta: string | null,
+      classificacao: string | null,
+    ): boolean => {
+      if (!tipoConta || !classificacao) {
+        return false;
+      }
+
+      // Incluir todas as contas DRE
+      if (tipoConta === '3-DRE') {
+        return true;
+      }
+
+      // Incluir contas 2-Passivo relacionadas a resultado (Patrimônio Líquido)
+      // Classificações que começam com "2.07" são relacionadas a resultado
+      if (tipoConta === '2-Passivo') {
+        const classificacaoNorm = classificacao.trim();
+        return classificacaoNorm.startsWith('2.07');
+      }
+
+      return false;
+    };
+
     for (const upload of uploads) {
       for (const linha of upload.linhas) {
-        // IMPORTANTE: Filtrar apenas linhas DRE
-        if (linha.tipoConta !== '3-DRE') {
+        // Filtrar contas: 3-DRE ou 2-Passivo com classificação 2.07.*
+        if (!deveIncluirNoRelatorio(linha.tipoConta, linha.classificacao)) {
           continue;
         }
-
-        // NÃO aplicar filtro aqui - processar TODAS as linhas
-        // O filtro será aplicado depois, na hierarquia completa
-        // Isso garante que todas as contas filhas tenham seus dados processados
 
         // Normalizar classificação
         const classificacao = normalizarClassificacaoParaChave(
@@ -364,55 +403,28 @@ export class RelatoriosService {
         const valoresPorMes = dadosPorMesEChaveComposta.get(chaveComposta)!;
         const valorAtual = valoresPorMes.get(mes) || 0;
 
-        // Calcular valor do período (movimentação do mês)
-        // Para DRE: valor do período = crédito + débito
-        // IMPORTANTE: No Excel, o débito já vem com sinal (negativo para redução, positivo para aumento)
-        // Então devemos SOMAR (não subtrair) para obter o valor correto do período
-        // Exemplo: Crédito: 2.540,67, Débito: -320,78 → Resultado: 2.540,67 + (-320,78) = 2.219,89
-        const debito = Number(linha.debito) || 0;
-        const credito = Number(linha.credito) || 0;
-        let valorLinha = credito + debito;
-
-        // Verificar se a conta é uma despesa/custo/dedução pelo nome
-        // Contas com prefixo "(-)" ou palavras-chave devem ser negativas
-        const nomeConta = (linha.nomeConta || '').toUpperCase();
-        const isDespesaCusto =
-          nomeConta.includes('(-)') ||
-          nomeConta.includes('DEDUÇÃO') ||
-          nomeConta.includes('DEDUÇÕES') ||
-          nomeConta.includes('CUSTO') ||
-          nomeConta.includes('DESPESA') ||
-          nomeConta.startsWith('(-');
-
-        // Usar o saldoAtual como referência para determinar o sinal correto
-        // Se o saldoAtual tem sinal diferente do valor calculado, usar o sinal do saldoAtual
-        const saldoAtual = Number(linha.saldoAtual) || 0;
-        if (saldoAtual !== 0 && valorLinha !== 0) {
-          const saldoAtualNegativo = saldoAtual < 0;
-          const valorCalculadoNegativo = valorLinha < 0;
-
-          // Se os sinais são diferentes, usar o sinal do saldoAtual como referência
-          // Isso preserva a lógica contábil correta do Excel
-          if (saldoAtualNegativo !== valorCalculadoNegativo) {
-            valorLinha = saldoAtualNegativo
-              ? -Math.abs(valorLinha)
-              : Math.abs(valorLinha);
-          }
-        } else if (isDespesaCusto && valorLinha > 0) {
-          // Se não temos saldoAtual como referência, mas a conta é claramente uma despesa,
-          // inverter o sinal para garantir que apareça como negativa
-          valorLinha = -valorLinha;
-        }
+        // IMPORTANTE: Não fazer cálculos, apenas replicar o saldoAtual do banco
+        // O sistema deve apenas replicar os dados que já estão no banco de dados
+        // Apenas a agregação hierárquica (soma de filhos para pais) será mantida
+        const valorLinha = Number(linha.saldoAtual) || 0;
 
         valoresPorMes.set(mes, valorAtual + valorLinha);
       }
     }
 
-    // 4. Buscar todas as contas DRE do catálogo para construir hierarquia
-    // IMPORTANTE: DRE usa apenas contas com tipoConta = "3-DRE"
+    // 4. Buscar todas as contas do catálogo para construir hierarquia
+    // IMPORTANTE: Inclui contas 3-DRE e 2-Passivo relacionadas a resultado (2.07.*)
     // Mas também incluímos contas que têm dados nos uploads, mesmo que não estejam no catálogo
     const whereCatalogo: Record<string, unknown> = {
-      tipoConta: '3-DRE', // Filtrar apenas contas DRE
+      OR: [
+        { tipoConta: '3-DRE' },
+        {
+          AND: [
+            { tipoConta: '2-Passivo' },
+            { classificacao: { startsWith: '2.07' } },
+          ],
+        },
+      ],
     };
 
     // Aplicar filtro por descrição se fornecido
@@ -440,13 +452,22 @@ export class RelatoriosService {
     // Isso garante que todas as contas com dados apareçam no relatório
     // Nota: chavesCompostasComDados não é mais necessário, mas mantido para referência
 
-    // Buscar TODAS as classificações DRE dos uploads (não apenas as que têm dados)
+    // Buscar TODAS as classificações dos uploads (não apenas as que têm dados)
     // Isso inclui contas que podem ter valores zerados mas existem nos uploads
     // IMPORTANTE: Incluir conta e subConta para garantir que todas as contas sejam consideradas
+    // Inclui: 3-DRE e 2-Passivo relacionadas a resultado (2.07.*)
     const todasClassificacoesUploads = await this.prisma.linhaUpload.findMany({
       where: {
         uploadId: { in: uploads.map((u) => u.id) },
-        tipoConta: '3-DRE',
+        OR: [
+          { tipoConta: '3-DRE' },
+          {
+            AND: [
+              { tipoConta: '2-Passivo' },
+              { classificacao: { startsWith: '2.07' } },
+            ],
+          },
+        ],
       },
       select: {
         classificacao: true,
@@ -618,7 +639,8 @@ export class RelatoriosService {
       let nivel = (classificacao.match(/\./g) || []).length + 1;
 
       // Buscar linha correspondente nos uploads
-      const linhaEncontrada = todasClassificacoesUploads.find((linha) => {
+      // Primeiro, tentar buscar pela chave composta completa
+      let linhaEncontrada = todasClassificacoesUploads.find((linha) => {
         const linhaChave = criarChaveComposta(
           linha.classificacao || '',
           linha.conta,
@@ -627,12 +649,22 @@ export class RelatoriosService {
         return linhaChave === chaveComposta;
       });
 
+      // Se não encontrou pela chave composta, tentar buscar apenas pela classificação
+      // (útil para contas pai como "2" e "3" que podem não ter conta/subConta específicos)
+      if (!linhaEncontrada) {
+        linhaEncontrada = todasClassificacoesUploads.find((linha) => {
+          const classificacaoLinhaNormalizada =
+            normalizarClassificacaoParaChave(linha.classificacao || '');
+          return classificacaoLinhaNormalizada === classificacaoNormalizada;
+        });
+      }
+
       if (linhaEncontrada) {
         nomeConta = linhaEncontrada.nomeConta || classificacao;
         nivel = linhaEncontrada.nivel || nivel;
       } else {
-        // Tentar encontrar no catálogo
-        const contaCatalogo = contasCatalogo.find((c) => {
+        // Tentar encontrar no catálogo pela chave composta
+        let contaCatalogo = contasCatalogo.find((c) => {
           const catChave = criarChaveComposta(
             c.classificacao,
             c.conta,
@@ -641,9 +673,28 @@ export class RelatoriosService {
           return catChave === chaveComposta;
         });
 
+        // Se não encontrou pela chave composta, tentar buscar apenas pela classificação
+        if (!contaCatalogo) {
+          contaCatalogo = contasCatalogo.find((c) => {
+            const classificacaoCatalogoNormalizada =
+              normalizarClassificacaoParaChave(c.classificacao);
+            return classificacaoCatalogoNormalizada === classificacaoNormalizada;
+          });
+        }
+
         if (contaCatalogo) {
           nomeConta = contaCatalogo.nomeConta || classificacao;
           nivel = contaCatalogo.nivel || nivel;
+        } else {
+          // Se não encontrou em lugar nenhum, usar descrições padrão para classificações conhecidas
+          if (classificacaoNormalizada === '2') {
+            nomeConta = 'PASSIVO';
+          } else if (classificacaoNormalizada === '3') {
+            nomeConta = 'DEMONSTRAÇÃO DO RESULTADO DO EXERCÍCIO';
+          } else if (classificacaoNormalizada === '1') {
+            nomeConta = 'ATIVO';
+          }
+          // Para outras classificações, manter a própria classificação como nome
         }
       }
 
@@ -720,6 +771,7 @@ export class RelatoriosService {
         let nivel = (classificacaoPai.match(/\./g) || []).length + 1;
 
         // Tentar encontrar no catálogo (usar normalização para comparação)
+        // Para contas pai, buscar qualquer conta com essa classificação (ignorar conta/subConta)
         const contaCatalogo = contasCatalogo.find((c) => {
           const classificacaoCatalogoNormalizada =
             normalizarClassificacaoParaChave(c.classificacao);
@@ -733,6 +785,7 @@ export class RelatoriosService {
           nivel = contaCatalogo.nivel || nivel;
         } else {
           // Tentar encontrar nos uploads (usar normalização para comparação)
+          // Para contas pai, buscar qualquer linha com essa classificação (ignorar conta/subConta)
           const linhaEncontrada = todasClassificacoesUploads.find((linha) => {
             const classificacaoLinhaNormalizada =
               normalizarClassificacaoParaChave(linha.classificacao || '');
@@ -744,6 +797,16 @@ export class RelatoriosService {
           if (linhaEncontrada) {
             nomeConta = linhaEncontrada.nomeConta || classificacaoPai;
             nivel = linhaEncontrada.nivel || nivel;
+          } else {
+            // Se não encontrou, usar descrições padrão para classificações conhecidas
+            if (classificacaoPaiNormalizada === '2') {
+              nomeConta = 'PASSIVO';
+            } else if (classificacaoPaiNormalizada === '3') {
+              nomeConta = 'DEMONSTRAÇÃO DO RESULTADO DO EXERCÍCIO';
+            } else if (classificacaoPaiNormalizada === '1') {
+              nomeConta = 'ATIVO';
+            }
+            // Para outras classificações, manter a própria classificação como nome
           }
         }
 
@@ -1181,10 +1244,34 @@ export class RelatoriosService {
     // Aplicar filtro por descrição se fornecido
     const descricaoLower = descricao?.trim().toLowerCase() || '';
 
+    // Função auxiliar para verificar se uma conta deve ser incluída no relatório
+    const deveIncluirNoRelatorio = (
+      tipoConta: string | null,
+      classificacao: string | null,
+    ): boolean => {
+      if (!tipoConta || !classificacao) {
+        return false;
+      }
+
+      // Incluir todas as contas DRE
+      if (tipoConta === '3-DRE') {
+        return true;
+      }
+
+      // Incluir contas 2-Passivo relacionadas a resultado (Patrimônio Líquido)
+      // Classificações que começam com "2.07" são relacionadas a resultado
+      if (tipoConta === '2-Passivo') {
+        const classificacaoNorm = classificacao.trim();
+        return classificacaoNorm.startsWith('2.07');
+      }
+
+      return false;
+    };
+
     for (const upload of uploads) {
       for (const linha of upload.linhas) {
-        // Filtrar apenas linhas DRE
-        if (linha.tipoConta !== '3-DRE') {
+        // Filtrar contas: 3-DRE ou 2-Passivo com classificação 2.07.*
+        if (!deveIncluirNoRelatorio(linha.tipoConta, linha.classificacao)) {
           continue;
         }
 
@@ -1208,18 +1295,9 @@ export class RelatoriosService {
           linha.subConta,
         );
 
-        let valorLinha: number;
-        if (tipoValor === 'PERIODO') {
-          // Valor do período: movimentação do mês
-          // Para DRE: crédito - débito
-          // (crédito já vem com sinal do Excel, débito também)
-          const debito = Number(linha.debito) || 0;
-          const credito = Number(linha.credito) || 0;
-          valorLinha = credito - debito;
-        } else {
-          // Valor acumulado (padrão)
-          valorLinha = Number(linha.saldoAtual) || 0;
-        }
+        // IMPORTANTE: Não fazer cálculos, apenas replicar o saldoAtual do banco
+        // O sistema deve apenas replicar os dados que já estão no banco de dados
+        const valorLinha = Number(linha.saldoAtual) || 0;
 
         // Somar valores se já existe a chave
         const valorAtual = dadosPorChaveComposta.get(chaveComposta) || 0;
@@ -1316,9 +1394,18 @@ export class RelatoriosService {
     });
 
     // 4. Buscar informações das contas no catálogo
+    // Inclui contas 3-DRE e 2-Passivo relacionadas a resultado (2.07.*)
     const contasCatalogo = await this.prisma.contaCatalogo.findMany({
       where: {
-        tipoConta: '3-DRE',
+        OR: [
+          { tipoConta: '3-DRE' },
+          {
+            AND: [
+              { tipoConta: '2-Passivo' },
+              { classificacao: { startsWith: '2.07' } },
+            ],
+          },
+        ],
         ...(descricao && descricao.trim().length > 0
           ? {
               nomeConta: {
@@ -1377,8 +1464,17 @@ export class RelatoriosService {
         // Buscar nos uploads
         // Nota: conta é obrigatória no schema, então sempre deve ter valor
         // Se conta estiver vazia, buscar apenas por classificação
+        // Inclui contas 3-DRE e 2-Passivo relacionadas a resultado (2.07.*)
         const whereLinhaUpload: Record<string, unknown> = {
-          tipoConta: '3-DRE',
+          OR: [
+            { tipoConta: '3-DRE' },
+            {
+              AND: [
+                { tipoConta: '2-Passivo' },
+                { classificacao: { startsWith: '2.07' } },
+              ],
+            },
+          ],
           classificacao: { contains: classificacao },
         };
 

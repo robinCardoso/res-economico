@@ -33,7 +33,11 @@
     "check-users": "ts-node scripts/check-users.ts",
     "test-login": "ts-node scripts/test-login.ts",
     "test-api": "ts-node scripts/test-api.ts",
-    "create-empresa": "ts-node scripts/create-empresa.ts"
+    "create-empresa": "ts-node scripts/create-empresa.ts",
+    "identificar-duplicados": "ts-node scripts/identificar-linhas-duplicadas.ts",
+    "limpar-duplicados": "ts-node scripts/limpar-linhas-duplicadas.ts",
+    "verificar-tipo-conta": "ts-node scripts/verificar-tipo-conta-resultado.ts",
+    "corrigir-tipo-conta": "ts-node scripts/corrigir-tipo-conta-resultado.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

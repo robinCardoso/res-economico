@@ -296,28 +296,60 @@ export class UploadsService {
       `[${uploadId}] Iniciando limpeza de processamento anterior...`,
     );
 
-    // Deletar linhas e alertas existentes
-    const linhasDeletadas = await this.prisma.linhaUpload.deleteMany({
+    // Usar transação para garantir atomicidade
+    await this.prisma.$transaction(async (tx) => {
+      // Deletar linhas e alertas existentes
+      const linhasDeletadas = await tx.linhaUpload.deleteMany({
+        where: { uploadId },
+      });
+      this.logger.log(`[${uploadId}] ${linhasDeletadas.count} linhas deletadas`);
+
+      const alertasDeletados = await tx.alerta.deleteMany({
+        where: { uploadId },
+      });
+      this.logger.log(
+        `[${uploadId}] ${alertasDeletados.count} alertas deletados`,
+      );
+
+      // Resetar status
+      await tx.upload.update({
+        where: { id: uploadId },
+        data: {
+          status: 'PROCESSANDO',
+          totalLinhas: 0,
+        },
+      });
+      this.logger.log(`[${uploadId}] Status resetado para PROCESSANDO`);
+    });
+
+    // Verificação final: garantir que não há dados restantes
+    const linhasRestantes = await this.prisma.linhaUpload.count({
       where: { uploadId },
     });
-    this.logger.log(`[${uploadId}] ${linhasDeletadas.count} linhas deletadas`);
-
-    const alertasDeletados = await this.prisma.alerta.deleteMany({
+    const alertasRestantes = await this.prisma.alerta.count({
       where: { uploadId },
     });
-    this.logger.log(
-      `[${uploadId}] ${alertasDeletados.count} alertas deletados`,
-    );
 
-    // Resetar status
-    await this.prisma.upload.update({
-      where: { id: uploadId },
-      data: {
-        status: 'PROCESSANDO',
-        totalLinhas: 0,
-      },
-    });
-    this.logger.log(`[${uploadId}] Status resetado para PROCESSANDO`);
+    if (linhasRestantes > 0 || alertasRestantes > 0) {
+      this.logger.warn(
+        `[${uploadId}] ⚠️ Ainda há dados restantes após limpeza: ${linhasRestantes} linhas, ${alertasRestantes} alertas`,
+      );
+      // Tentar limpar novamente se houver dados restantes
+      if (linhasRestantes > 0) {
+        await this.prisma.linhaUpload.deleteMany({
+          where: { uploadId },
+        });
+        this.logger.log(`[${uploadId}] Limpeza adicional: ${linhasRestantes} linhas removidas`);
+      }
+      if (alertasRestantes > 0) {
+        await this.prisma.alerta.deleteMany({
+          where: { uploadId },
+        });
+        this.logger.log(`[${uploadId}] Limpeza adicional: ${alertasRestantes} alertas removidos`);
+      }
+    } else {
+      this.logger.log(`[${uploadId}] ✅ Limpeza completa confirmada: nenhum dado restante`);
+    }
   }
 
   async reprocessar(uploadId: string, userId?: string) {
@@ -356,31 +388,85 @@ export class UploadsService {
     // Limpar processamento anterior
     this.logger.log(`[${uploadId}] Limpando dados anteriores...`);
     await this.limparProcessamento(uploadId);
+    
+    // Aguardar um pouco para garantir que a limpeza foi completamente processada pelo banco
+    // Isso evita race conditions onde o novo processamento pode iniciar antes da limpeza terminar
+    this.logger.log(`[${uploadId}] Aguardando conclusão da limpeza...`);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    this.logger.log(`[${uploadId}] Limpeza concluída e confirmada`);
 
-    // Verificar e remover job existente (qualquer estado)
+    // Verificar e remover TODOS os jobs relacionados a este upload (qualquer estado)
+    // Isso inclui jobs com ID exato e jobs com ID que começa com uploadId (ex: uploadId-timestamp)
     try {
-      const existingJob = await this.uploadQueue.getJob(uploadId);
-      if (existingJob) {
-        const state = await existingJob.getState();
-        this.logger.warn(
-          `[${uploadId}] Job existente encontrado com estado: ${state}`,
+      this.logger.log(`[${uploadId}] Buscando jobs existentes relacionados...`);
+      
+      // Buscar job com ID exato (se existir)
+      const existingJobExato = await this.uploadQueue.getJob(uploadId);
+      
+      // Buscar todos os jobs em diferentes estados
+      const waitingJobs = await this.uploadQueue.getWaiting();
+      const activeJobs = await this.uploadQueue.getActive();
+      const delayedJobs = await this.uploadQueue.getDelayed();
+      const completedJobs = await this.uploadQueue.getCompleted(0, 100); // Últimos 100
+      const failedJobs = await this.uploadQueue.getFailed(0, 100); // Últimos 100
+      
+      // Combinar todos os jobs
+      const allJobs = [
+        existingJobExato,
+        ...waitingJobs,
+        ...activeJobs,
+        ...delayedJobs,
+        ...completedJobs,
+        ...failedJobs,
+      ].filter((job): job is NonNullable<typeof job> => job !== null && job !== undefined);
+      
+      // Filtrar jobs relacionados a este upload
+      const jobsRelacionados = allJobs.filter((job) => {
+        const jobData = job.data as { uploadId?: string };
+        const jobId = job.id?.toString() || '';
+        // Verificar se o job é relacionado a este upload
+        return (
+          jobData.uploadId === uploadId ||
+          jobId === uploadId ||
+          jobId.startsWith(`${uploadId}-`)
         );
-
-        // Remover job independente do estado (completed, failed, etc.)
+      });
+      
+      if (jobsRelacionados.length > 0) {
         this.logger.warn(
-          `[${uploadId}] Removendo job existente (estado: ${state})...`,
+          `[${uploadId}] Encontrados ${jobsRelacionados.length} job(s) relacionado(s) ao upload`,
         );
-        await existingJob.remove();
-        this.logger.log(`[${uploadId}] Job existente removido com sucesso`);
-
-        // Aguardar um pouco para garantir que o Redis processou a remoção
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        
+        // Remover todos os jobs relacionados
+        for (const job of jobsRelacionados) {
+          try {
+            const state = await job.getState();
+            this.logger.warn(
+              `[${uploadId}] Removendo job ${job.id} (estado: ${state})...`,
+            );
+            await job.remove();
+            this.logger.log(`[${uploadId}] Job ${job.id} removido com sucesso`);
+          } catch (error) {
+            this.logger.warn(
+              `[${uploadId}] Erro ao remover job ${job.id}: ${error}`,
+            );
+            // Continuar removendo outros jobs mesmo se um falhar
+          }
+        }
+        
+        // Aguardar um pouco para garantir que o Redis processou todas as remoções
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        this.logger.log(
+          `[${uploadId}] Todos os jobs relacionados foram removidos`,
+        );
+      } else {
+        this.logger.log(`[${uploadId}] Nenhum job relacionado encontrado`);
       }
     } catch (error) {
       this.logger.warn(
-        `[${uploadId}] Erro ao verificar/remover job existente: ${error}`,
+        `[${uploadId}] Erro ao verificar/remover jobs existentes: ${error}`,
       );
-      // Continuar mesmo se houver erro
+      // Continuar mesmo se houver erro, mas logar o problema
     }
 
     // Adicionar job na fila para reprocessamento
