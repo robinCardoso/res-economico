@@ -723,3 +723,50 @@ enum TipoLembrete {
   NOTIFICACAO_SISTEMA
   AMBOS
 }
+
+// =====================================================
+// CONFIGURAÇÕES E E-MAIL
+// =====================================================
+
+model ConfiguracaoEmail {
+  id         String          @id @default(uuid())
+  nome       String // Nome da configuração (ex: "Principal", "Backup")
+  host       String // smtp.gmail.com
+  porta      Int // 587, 465, 25
+  autenticar Boolean         @default(true)
+  usuario    String // e-mail
+  senha      String // senha criptografada
+  copiasPara String? // e-mails separados por ponto e vírgula
+  ativo      Boolean         @default(true)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  logsEnvio  LogEnvioEmail[]
+
+  @@index([ativo])
+}
+
+model LogEnvioEmail {
+  id             String            @id @default(uuid())
+  configuracaoId String
+  destinatario   String
+  assunto        String
+  corpo          String? // HTML ou texto
+  status         StatusEnvioEmail  @default(PENDENTE)
+  erro           String?
+  tentativas     Int               @default(0)
+  enviadoEm      DateTime?
+  createdAt      DateTime          @default(now())
+  configuracao   ConfiguracaoEmail @relation(fields: [configuracaoId], references: [id], onDelete: Cascade)
+
+  @@index([configuracaoId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([destinatario])
+}
+
+enum StatusEnvioEmail {
+  PENDENTE
+  ENVIADO
+  FALHA
+  CANCELADO
+}

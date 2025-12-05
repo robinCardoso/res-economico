@@ -79,6 +79,13 @@ const atasItem: NavItem = {
   icon: FileCheck,
 };
 
+// Menu Configurações (link simples)
+const configuracoesItem: NavItem = {
+  label: 'Configurações',
+  href: '/admin/configuracoes/email',
+  icon: Settings2,
+};
+
 type AdminSidebarProps = {
   sidebarOpen: boolean;
   onNavClick: () => void;
@@ -284,6 +291,25 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
             >
               <atasItem.icon className="h-4 w-4 flex-shrink-0" aria-hidden />
               <span className="whitespace-nowrap">{atasItem.label}</span>
+            </Link>
+          )}
+
+          {/* Configurações - apenas para admin */}
+          {isAdmin && (
+            <Link
+              href={configuracoesItem.href}
+              onClick={() => {
+                closeAllMenus();
+                onNavClick();
+              }}
+              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition ${
+                isActive(configuracoesItem.href) || pathname?.startsWith('/admin/configuracoes')
+                  ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                  : 'text-foreground/90 hover:bg-secondary'
+              }`}
+            >
+              <configuracoesItem.icon className="h-4 w-4 flex-shrink-0" aria-hidden />
+              <span className="whitespace-nowrap">{configuracoesItem.label}</span>
             </Link>
           )}
         </nav>

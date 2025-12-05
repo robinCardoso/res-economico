@@ -2988,4 +2988,61 @@ Retorne APENAS o JSON, sem texto adicional ou explicações.`;
 
     return ataAtualizada;
   }
+
+  /**
+   * Obtém o arquivo original da ata para download
+   */
+  async downloadArquivoOriginal(id: string): Promise<{
+    filePath: string;
+    fileName: string;
+    mimeType: string;
+  }> {
+    const ata = await this.findOne(id);
+
+    if (!ata.arquivoOriginalUrl) {
+      throw new NotFoundException('Arquivo original não encontrado para esta ata');
+    }
+
+    // Extrair o nome do arquivo da URL (ex: /uploads/atas/abc123.pdf)
+    const fileName = ata.arquivoOriginalUrl.split('/').pop();
+    if (!fileName) {
+      throw new NotFoundException('Nome do arquivo não encontrado');
+    }
+
+    const filePath = path.join(
+      process.cwd(),
+      'uploads',
+      'atas',
+      fileName,
+    );
+
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundException('Arquivo físico não encontrado no servidor');
+    }
+
+    // Determinar o tipo MIME baseado na extensão ou no tipo armazenado
+    let mimeType = ata.arquivoOriginalTipo || 'application/octet-stream';
+    if (!mimeType || mimeType === 'application/octet-stream') {
+      const ext = fileName.split('.').pop()?.toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        pdf: 'application/pdf',
+        txt: 'text/plain',
+        doc: 'application/msword',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        xls: 'application/vnd.ms-excel',
+        xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        gif: 'image/gif',
+      };
+      mimeType = ext ? mimeTypes[ext] || 'application/octet-stream' : 'application/octet-stream';
+    }
+
+    return {
+      filePath,
+      fileName: ata.arquivoOriginalNome || fileName,
+      mimeType,
+    };
+  }
 }

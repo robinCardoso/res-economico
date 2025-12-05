@@ -17,6 +17,7 @@ import { ResumosModule } from './resumos/resumos.module';
 import { ConfiguracaoModeloNegocioModule } from './configuracao-modelo-negocio/configuracao-modelo-negocio.module';
 import { ProcessosModule } from './processos/processos.module';
 import { AtasModule } from './atas/atas.module';
+import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AtasModule } from './atas/atas.module';
     ConfiguracaoModeloNegocioModule,
     ProcessosModule,
     AtasModule,
+    ConfiguracoesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

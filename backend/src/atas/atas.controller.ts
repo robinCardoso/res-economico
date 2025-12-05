@@ -385,6 +385,44 @@ export class AtasController {
     return this.atasService.analisarAta(id, dto);
   }
 
+  // Rotas de download devem vir ANTES de @Get(':id') para evitar conflito
+  @Get(':id/download/arquivo-original')
+  async downloadArquivoOriginal(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    try {
+      const { filePath, fileName, mimeType } =
+        await this.atasService.downloadArquivoOriginal(id);
+
+      // Criar versão ASCII-safe do nome para compatibilidade
+      const fileNameAscii = fileName
+        .replace(/[^\x20-\x7E]/g, '_')
+        .replace(/[^a-zA-Z0-9._-]/g, '_');
+
+      // Codificar nome do arquivo em UTF-8 usando percent-encoding (RFC 5987)
+      const fileNameEncoded = encodeURIComponent(fileName)
+        .replace(/'/g, '%27')
+        .replace(/\(/g, '%28')
+        .replace(/\)/g, '%29');
+
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${fileNameAscii}"; filename*=UTF-8''${fileNameEncoded}`,
+      );
+
+      const fileStream = require('fs').createReadStream(filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      console.error('Erro ao fazer download do arquivo:', error);
+      res.status(500).json({
+        error: 'Erro ao fazer download do arquivo',
+        message: error instanceof Error ? error.message : 'Erro desconhecido',
+      });
+    }
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.atasService.findOne(id);

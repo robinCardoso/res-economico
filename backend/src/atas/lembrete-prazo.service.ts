@@ -1,16 +1,25 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
 import { PrazoAcaoService } from './prazo-acao.service';
+import { EmailService } from '../configuracoes/email.service';
 import { Prisma, TipoLembrete, StatusPrazo } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class LembretePrazoService {
   private readonly logger = new Logger(LembretePrazoService.name);
+  private readonly frontendUrl: string;
 
   constructor(
     private prisma: PrismaService,
     private prazoAcaoService: PrazoAcaoService,
-  ) {}
+    private emailService: EmailService,
+    private configService: ConfigService,
+  ) {
+    this.frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ||
+      'http://localhost:3001';
+  }
 
   /**
    * Cria um lembrete para um prazo
@@ -155,20 +164,36 @@ export class LembretePrazoService {
 
   /**
    * Envia lembrete para um prazo específico
+   * @param prazoId ID do prazo
+   * @param usuarioId ID do usuário que receberá o lembrete (criador do prazo ou da ata)
+   * @param tipoLembrete Tipo do lembrete (VENCIDO, 3_DIAS, 1_DIA, HOJE)
+   * @param enviarPara 'PRAZO' para enviar ao criador do prazo, 'ATA' para criador da ata, ou ambos
    */
   async enviarLembretePrazo(
     prazoId: string,
     usuarioId: string,
     tipoLembrete: 'VENCIDO' | '3_DIAS' | '1_DIA' | 'HOJE',
+    enviarPara: 'PRAZO' | 'ATA' | 'AMBOS' = 'PRAZO',
   ) {
     const prazo = await this.prisma.prazoAcao.findUnique({
       where: { id: prazoId },
       include: {
-        ata: {
+        criador: {
           select: {
             id: true,
-            numero: true,
-            titulo: true,
+            nome: true,
+            email: true,
+          },
+        },
+        ata: {
+          include: {
+            criador: {
+              select: {
+                id: true,
+                nome: true,
+                email: true,
+              },
+            },
           },
         },
       },
@@ -217,11 +242,15 @@ export class LembretePrazoService {
         break;
     }
 
-    // Criar lembrete
+    // Determinar tipo de lembrete baseado em configuração
+    // Por padrão, usar AMBOS (e-mail + notificação) se e-mail estiver configurado
+    const tipoLembreteEnum = TipoLembrete.AMBOS;
+
+    // Criar lembrete (por padrão, usar AMBOS para enviar e-mail + notificação)
     const lembrete = await this.criarLembrete(
       prazoId,
       usuarioId,
-      TipoLembrete.NOTIFICACAO_SISTEMA,
+      TipoLembrete.AMBOS,
       mensagem,
     );
 
@@ -245,12 +274,139 @@ export class LembretePrazoService {
 
     this.logger.log(`Lembrete enviado para prazo ${prazoId} (${tipoLembrete})`);
 
-    // TODO: Enviar email se configurado
-    // if (lembrete.tipo === TipoLembrete.EMAIL || lembrete.tipo === TipoLembrete.AMBOS) {
-    //   await this.emailService.enviarLembrete(lembrete);
-    // }
+    // Enviar e-mail se configurado
+    if (
+      lembrete.tipo === TipoLembrete.EMAIL ||
+      lembrete.tipo === TipoLembrete.AMBOS
+    ) {
+      try {
+        // Determinar destinatários baseado em enviarPara
+        const destinatarios: string[] = [];
+
+        if (enviarPara === 'PRAZO' || enviarPara === 'AMBOS') {
+          if (prazo.criador?.email) {
+            destinatarios.push(prazo.criador.email);
+          }
+        }
+
+        if (enviarPara === 'ATA' || enviarPara === 'AMBOS') {
+          // Usar criador da ata já carregado no include
+          if (prazo.ata.criador?.email) {
+            const emailAta = prazo.ata.criador.email;
+            // Evitar duplicatas
+            if (!destinatarios.includes(emailAta)) {
+              destinatarios.push(emailAta);
+            }
+          }
+        }
+
+        // Se não encontrou e-mail, usar o e-mail do usuário do lembrete
+        if (destinatarios.length === 0 && lembrete.usuario?.email) {
+          destinatarios.push(lembrete.usuario.email);
+        }
+
+        if (destinatarios.length > 0) {
+          // Criar template HTML do e-mail
+          const html = this.criarTemplateEmail(lembrete, tipoLembrete);
+
+          // Enviar e-mail
+          const resultado = await this.emailService.enviarEmail({
+            to: destinatarios,
+            subject: `Lembrete de Prazo: ${prazo.titulo}`,
+            html: html,
+          });
+
+          if (resultado.success) {
+            this.logger.log(
+              `E-mail de lembrete enviado para ${destinatarios.join(', ')}`,
+            );
+          } else {
+            this.logger.error(
+              `Erro ao enviar e-mail de lembrete: ${resultado.error}`,
+            );
+          }
+        } else {
+          this.logger.warn(
+            `Nenhum e-mail encontrado para enviar lembrete do prazo ${prazoId}`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Erro ao enviar e-mail de lembrete: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        );
+        // Não falhar o processo se o e-mail falhar
+      }
+    }
 
     return lembrete;
+  }
+
+  /**
+   * Cria template HTML para e-mail de lembrete
+   */
+  private criarTemplateEmail(
+    lembrete: any,
+    tipoLembrete: 'VENCIDO' | '3_DIAS' | '1_DIA' | 'HOJE',
+  ): string {
+    const prazo = lembrete.prazo;
+    const ata = prazo.ata;
+    const dataPrazo = new Date(prazo.dataPrazo).toLocaleDateString('pt-BR');
+
+    let corBorda = '#dc2626'; // Vermelho para vencido
+    let icone = '⚠️';
+    let titulo = 'Prazo Vencido';
+
+    switch (tipoLembrete) {
+      case '3_DIAS':
+        corBorda = '#f59e0b'; // Amarelo
+        icone = '📅';
+        titulo = 'Lembrete: Prazo em 3 dias';
+        break;
+      case '1_DIA':
+        corBorda = '#f97316'; // Laranja
+        icone = '⏰';
+        titulo = 'URGENTE: Prazo vence amanhã';
+        break;
+      case 'HOJE':
+        corBorda = '#ef4444'; // Vermelho claro
+        icone = '🔔';
+        titulo = 'ATENÇÃO: Prazo vence hoje';
+        break;
+    }
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="border-left: 4px solid ${corBorda}; padding-left: 20px; margin-bottom: 20px;">
+    <h2 style="color: ${corBorda}; margin-top: 0;">${icone} ${titulo}</h2>
+  </div>
+  
+  <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+    <h3 style="margin-top: 0; color: #1f2937;">${prazo.titulo}</h3>
+    <p style="margin: 10px 0;"><strong>Ata:</strong> ${ata.numero} - ${ata.titulo}</p>
+    <p style="margin: 10px 0;"><strong>Data do Prazo:</strong> ${dataPrazo}</p>
+    ${prazo.descricao ? `<p style="margin: 10px 0;"><strong>Descrição:</strong> ${prazo.descricao}</p>` : ''}
+  </div>
+
+  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+    <a href="${this.frontendUrl}/admin/atas/${ata.id}/processo" 
+       style="display: inline-block; background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+      Acessar Ata no Sistema
+    </a>
+  </div>
+
+  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">
+    <p>Este é um e-mail automático do sistema de gestão de atas.</p>
+    <p>Por favor, não responda este e-mail.</p>
+  </div>
+</body>
+</html>
+    `.trim();
   }
 
   /**

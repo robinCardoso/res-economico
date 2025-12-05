@@ -330,27 +330,85 @@ export default function DetalhesAtaPage() {
 
   // Função para baixar arquivo original
   const handleDownloadArquivo = async () => {
-    if (!ata?.arquivo_original_url) {
+    if (!ata?.id) {
       toast({
-        title: 'Aviso',
-        description: 'Arquivo original não disponível para download.',
+        title: 'Erro',
+        description: 'ID da ata não encontrado.',
         variant: 'destructive',
       });
       return;
     }
 
     try {
-      // Abrir em nova aba para download
-      window.open(ata.arquivo_original_url, '_blank');
+      // Pegar token do localStorage
+      const authStorage = localStorage.getItem('auth-storage');
+      let token = '';
+      if (authStorage) {
+        try {
+          const auth = JSON.parse(authStorage);
+          token = auth?.state?.token || '';
+        } catch {
+          // Ignora erros de parsing
+        }
+      }
+
+      const response = await fetch(`/api/admin/atas/${ata.id}/download/arquivo-original`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao fazer download do arquivo');
+      }
+
+      // Criar blob e fazer download
+      const blob = await response.blob();
+      
+      // Obter o nome do arquivo do header Content-Disposition
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = ata.arquivo_original_nome || 'arquivo-original';
+      
+      if (contentDisposition) {
+        // Tentar obter o filename* (RFC 5987) primeiro, que tem o encoding correto
+        const filenameStarMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/);
+        if (filenameStarMatch) {
+          try {
+            filename = decodeURIComponent(filenameStarMatch[1]);
+          } catch {
+            // Se falhar, tentar o filename normal
+            const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/);
+            if (filenameMatch) {
+              filename = filenameMatch[1];
+            }
+          }
+        } else {
+          // Fallback para filename normal
+          const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/);
+          if (filenameMatch) {
+            filename = filenameMatch[1];
+          }
+        }
+      }
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
       
       toast({
         title: 'Download iniciado',
         description: `Baixando ${ata.arquivo_original_nome || 'arquivo'}...`,
       });
-    } catch {
+    } catch (error) {
+      console.error('Erro ao baixar arquivo:', error);
       toast({
         title: 'Erro',
-        description: 'Erro ao fazer download do arquivo.',
+        description: error instanceof Error ? error.message : 'Erro ao fazer download do arquivo.',
         variant: 'destructive',
       });
     }
