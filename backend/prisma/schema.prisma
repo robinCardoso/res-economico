@@ -51,26 +51,29 @@ model ConfiguracaoModeloNegocio {
 }
 
 model Usuario {
-  id                String               @id @default(uuid())
-  email             String               @unique
-  senha             String
-  nome              String
-  roles             String[]             @default(["user"])
-  empresaId         String?
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-  departamento      Departamento?
-  logs              LogAuditoria[]
-  resumos           ResumoEconomico[]
-  processos         Processo[]
-  atas              AtaReuniao[]
-  participantesAtas AtaParticipante[]
-  comentariosAtas   AtaComentario[]
-  modelosAtas       ModeloAta[]
-  historicoAtas     HistoricoAndamento[]
-  prazosAtas        PrazoAcao[]
-  lembretesPrazos   LembretePrazo[]
-  empresa           Empresa?             @relation(fields: [empresaId], references: [id])
+  id                     String                  @id @default(uuid())
+  email                  String                  @unique
+  senha                  String
+  nome                   String
+  roles                  String[]                @default(["user"])
+  empresaId              String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  departamento           Departamento?
+  logs                   LogAuditoria[]
+  resumos                ResumoEconomico[]
+  processos              Processo[]
+  atas                   AtaReuniao[]
+  participantesAtas      AtaParticipante[]
+  comentariosAtas        AtaComentario[]
+  modelosAtas            ModeloAta[]
+  historicoAtas          HistoricoAndamento[]
+  prazosAtas             PrazoAcao[]
+  lembretesPrazos        LembretePrazo[]
+  preferenciaNotificacao PreferenciaNotificacao?
+  pushSubscriptions      PushSubscription[]
+  logsAlteracoesAtas     LogAlteracaoAta[]
+  empresa                Empresa?                @relation(fields: [empresaId], references: [id])
 }
 
 model TemplateImportacao {
@@ -492,14 +495,15 @@ model AtaReuniao {
   updatedAt DateTime @updatedAt
 
   // Relacionamentos
-  criador       Usuario              @relation(fields: [criadoPor], references: [id], onDelete: Cascade)
-  empresa       Empresa?             @relation(fields: [empresaId], references: [id], onDelete: SetNull)
-  modeloAta     ModeloAta?           @relation(fields: [modeloAtaId], references: [id], onDelete: SetNull)
-  participantes AtaParticipante[]
-  anexos        AtaAnexo[]
-  comentarios   AtaComentario[]
-  historico     HistoricoAndamento[]
-  prazos        PrazoAcao[]
+  criador        Usuario              @relation(fields: [criadoPor], references: [id], onDelete: Cascade)
+  empresa        Empresa?             @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  modeloAta      ModeloAta?           @relation(fields: [modeloAtaId], references: [id], onDelete: SetNull)
+  participantes  AtaParticipante[]
+  anexos         AtaAnexo[]
+  comentarios    AtaComentario[]
+  historico      HistoricoAndamento[]
+  prazos         PrazoAcao[]
+  logsAlteracoes LogAlteracaoAta[]
 
   @@index([dataReuniao])
   @@index([status])
@@ -722,6 +726,110 @@ enum TipoLembrete {
   EMAIL
   NOTIFICACAO_SISTEMA
   AMBOS
+}
+
+enum TipoAlteracaoAta {
+  CRIACAO
+  EDICAO
+  EXCLUSAO
+  MUDANCA_STATUS
+  ADICAO_HISTORICO
+  EDICAO_HISTORICO
+  EXCLUSAO_HISTORICO
+  ADICAO_PRAZO
+  EDICAO_PRAZO
+  EXCLUSAO_PRAZO
+  CONCLUSAO_PRAZO
+  ADICAO_COMENTARIO
+  EDICAO_COMENTARIO
+  EXCLUSAO_COMENTARIO
+  UPLOAD_ARQUIVO
+  DOWNLOAD_ARQUIVO
+}
+
+// =====================================================
+// PREFERÊNCIAS DE NOTIFICAÇÃO
+// =====================================================
+
+model PreferenciaNotificacao {
+  id           String  @id @default(uuid())
+  usuarioId    String  @unique
+  emailAtivo   Boolean @default(true)
+  sistemaAtivo Boolean @default(true)
+  pushAtivo    Boolean @default(false)
+
+  // Frequência de lembretes
+  lembrete3Dias   Boolean @default(true)
+  lembrete1Dia    Boolean @default(true)
+  lembreteHoje    Boolean @default(true)
+  lembreteVencido Boolean @default(true)
+
+  // Horários de notificação
+  horarioInicio String   @default("08:00")
+  horarioFim    String   @default("18:00")
+  diasSemana    String[] @default(["segunda", "terca", "quarta", "quinta", "sexta"])
+
+  // Tipos de eventos
+  notificarPrazos      Boolean @default(true)
+  notificarHistorico   Boolean @default(false)
+  notificarComentarios Boolean @default(false)
+  notificarStatus      Boolean @default(true)
+
+  // Resumos
+  resumoDiario         Boolean @default(false)
+  resumoSemanal        Boolean @default(true)
+  diaResumoSemanal     String  @default("segunda")
+  horarioResumoSemanal String  @default("09:00")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+// =====================================================
+// PUSH NOTIFICATIONS
+// =====================================================
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  usuarioId String
+  endpoint  String
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, endpoint])
+  @@index([usuarioId])
+}
+
+// =====================================================
+// LOG DE ALTERAÇÕES
+// =====================================================
+
+model LogAlteracaoAta {
+  id            String           @id @default(uuid())
+  ataId         String
+  usuarioId     String
+  tipoAlteracao TipoAlteracaoAta
+  campo         String? // Nome do campo alterado
+  valorAnterior String? // Valor antes da alteração (JSON se necessário)
+  valorNovo     String? // Valor após alteração (JSON se necessário)
+  descricao     String? // Descrição da alteração
+  metadata      Json? // Dados adicionais (IP, user agent, etc.)
+  createdAt     DateTime         @default(now())
+
+  ata     AtaReuniao @relation(fields: [ataId], references: [id], onDelete: Cascade)
+  usuario Usuario    @relation(fields: [usuarioId], references: [id])
+
+  @@index([ataId])
+  @@index([usuarioId])
+  @@index([tipoAlteracao])
+  @@index([createdAt])
 }
 
 // =====================================================

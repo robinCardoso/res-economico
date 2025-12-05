@@ -18,6 +18,8 @@ import { ConfiguracaoModeloNegocioModule } from './configuracao-modelo-negocio/c
 import { ProcessosModule } from './processos/processos.module';
 import { AtasModule } from './atas/atas.module';
 import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
+import { PreferenciasNotificacaoModule } from './preferencias-notificacao/preferencias-notificacao.module';
+import { LogAlteracoesModule } from './log-alteracoes/log-alteracoes.module';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
     ProcessosModule,
     AtasModule,
     ConfiguracoesModule,
+    PreferenciasNotificacaoModule,
+    LogAlteracoesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

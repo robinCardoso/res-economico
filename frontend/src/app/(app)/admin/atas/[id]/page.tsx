@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-import { Calendar, Users, FileText, Sparkles, ArrowLeft, Edit, Loader2, Download, Clock } from 'lucide-react';
+import { Calendar, Users, FileText, Sparkles, ArrowLeft, Edit, Loader2, Download, Clock, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
@@ -521,6 +521,13 @@ export default function DetalhesAtaPage() {
               Gerenciar Processo
             </Button>
           )}
+          <Button 
+            variant="outline" 
+            onClick={() => router.push(`/admin/atas/${ata.id}/logs`)}
+          >
+            <History className="h-4 w-4 mr-2" />
+            Log de Alterações
+          </Button>
           <Button variant="outline" onClick={handleDownloadHTML}>
             <Download className="h-4 w-4 mr-2" />
             Baixar HTML

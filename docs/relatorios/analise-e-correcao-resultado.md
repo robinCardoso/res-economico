@@ -22,20 +22,18 @@ const valorLinha = Number(linha.saldoAtual) || 0;
 
 O código está usando `saldoAtual`, que é o **saldo acumulado** até aquele mês, não a movimentação do período.
 
-#### Solução Implementada
+#### Solução Implementada ✅
 Calcular o valor do período usando a movimentação do mês:
 ```typescript
-// Para DRE: valor do período = crédito + débito
-// IMPORTANTE: No Excel, o débito já vem com sinal (negativo para redução)
-// Exemplo: Crédito: 2.540,67, Débito: -320,78 → Resultado: 2.540,67 + (-320,78) = 2.219,89
+// Fórmula do Excel: saldoAtual = saldoAnterior + debito + credito
+// Valor do período = saldoAtual - saldoAnterior = debito + credito
+// O debito e credito já vêm com sinal do Excel (positivo/negativo)
 const debito = Number(linha.debito) || 0;
 const credito = Number(linha.credito) || 0;
-let valorLinha = credito + debito;
-
-// Lógica adicional para preservar sinal correto (ver código completo na seção de implementação)
+const valorLinha = debito + credito;
 ```
 
-**Nota:** ✅ Implementado com lógica de preservação de sinal usando `saldoAtual` como referência e identificação automática de despesas/custos.
+**Nota:** ✅ **IMPLEMENTADO E VALIDADO** - A fórmula correta é `debito + credito` (não `credito - debito`), pois ambos os valores já vêm com sinal do Excel.
 
 ---
 
@@ -68,54 +66,26 @@ Aplicar o filtro de descrição em **todos os pontos** onde as contas são proce
 
 **Arquivo:** `backend/src/relatorios/relatorios.service.ts`
 
-**Mudança na linha ~348-353:**
+**Mudança na linha ~406-412:**
 ```typescript
 // ANTES:
-const valorLinha = Number(linha.saldoAtual) || 0;
+const valorLinha = Number(linha.saldoAtual) || 0; // ❌ Valor acumulado
 
-// DEPOIS (IMPLEMENTADO):
-// Calcular valor do período (movimentação do mês)
-// Para DRE: crédito + débito
-// IMPORTANTE: No Excel, o débito já vem com sinal (negativo para redução, positivo para aumento)
-// Então devemos SOMAR (não subtrair) para obter o valor correto do período
-// Exemplo: Crédito: 2.540,67, Débito: -320,78 → Resultado: 2.540,67 + (-320,78) = 2.219,89
+// DEPOIS (IMPLEMENTADO E VALIDADO):
+// IMPORTANTE: Usar valor do período (movimentação do mês), não saldo acumulado
+// Fórmula do Excel: saldoAtual = saldoAnterior + debito + credito
+// Valor do período = saldoAtual - saldoAnterior = debito + credito
+// O debito e credito já vêm com sinal do Excel (positivo/negativo)
 const debito = Number(linha.debito) || 0;
 const credito = Number(linha.credito) || 0;
-let valorLinha = credito + debito;
-
-// Lógica adicional para preservar sinal correto:
-// Verificar se a conta é uma despesa/custo/dedução pelo nome
-const nomeConta = (linha.nomeConta || '').toUpperCase();
-const isDespesaCusto = 
-  nomeConta.includes('(-)') ||
-  nomeConta.includes('DEDUÇÃO') ||
-  nomeConta.includes('DEDUÇÕES') ||
-  nomeConta.includes('CUSTO') ||
-  nomeConta.includes('DESPESA') ||
-  nomeConta.startsWith('(-');
-
-// Usar o saldoAtual como referência para determinar o sinal correto
-const saldoAtual = Number(linha.saldoAtual) || 0;
-if (saldoAtual !== 0 && valorLinha !== 0) {
-  const saldoAtualNegativo = saldoAtual < 0;
-  const valorCalculadoNegativo = valorLinha < 0;
-  
-  // Se os sinais são diferentes, usar o sinal do saldoAtual como referência
-  if (saldoAtualNegativo !== valorCalculadoNegativo) {
-    valorLinha = saldoAtualNegativo ? -Math.abs(valorLinha) : Math.abs(valorLinha);
-  }
-} else if (isDespesaCusto && valorLinha > 0) {
-  // Se não temos saldoAtual como referência, mas a conta é claramente uma despesa,
-  // inverter o sinal para garantir que apareça como negativa
-  valorLinha = -valorLinha;
-}
+const valorLinha = debito + credito; // ✅ Movimentação do período
 ```
 
 **Considerações Implementadas:**
-- ✅ Verificado que `debito` já vem com sinal do Excel (negativo para redução)
-- ✅ Fórmula corrigida para `credito + debito` (soma porque débito já tem sinal)
-- ✅ Lógica adicional implementada para preservar sinal correto usando `saldoAtual` como referência
-- ✅ Identificação automática de despesas/custos pelo nome da conta
+- ✅ Verificado que `debito` e `credito` já vêm com sinal do Excel
+- ✅ Fórmula corrigida para `debito + credito` (movimentação do período)
+- ✅ Aplicado em dois métodos: `gerarRelatorioResultado` e `buscarDadosPeriodo`
+- ✅ Validação realizada com dados reais do usuário
 
 ---
 
@@ -250,16 +220,16 @@ Adicionar checkbox ou select para escolher entre:
 - `credito`: Movimentação a crédito do período
 - `saldoAtual`: Saldo acumulado (saldoAnterior + movimentação)
 
-### Lógica Contábil para DRE (Implementada)
-- **Receitas:** Aumentam com crédito (positivo)
-- **Despesas/Custos:** Aumentam com débito (negativo)
-- **Valor do Período:** `credito + debito` ✅ **CORRIGIDO**
-  - **Motivo:** No Excel, o débito já vem com sinal (negativo para redução, positivo para aumento)
-  - **Exemplo:** Crédito: `2.540,67`, Débito: `-320,78` → `2.540,67 + (-320,78) = 2.219,89`
+### Lógica Contábil para DRE (Implementada e Validada) ✅
+- **Fórmula do Excel:** `saldoAtual = saldoAnterior + debito + credito`
+- **Valor do Período:** `debito + credito` ✅ **CORRIGIDO E VALIDADO**
+  - **Motivo:** O valor do período é a diferença entre `saldoAtual` e `saldoAnterior`
+  - **Exemplo:** 
+    - Débito: `-863.579,62`, Crédito: `808.337,10`
+    - Valor do período: `-863.579,62 + 808.337,10 = -55.242,52` ✅
   - Se positivo: Receita líquida do período
   - Se negativo: Despesa líquida do período
-- **Preservação de Sinal:** Usa `saldoAtual` do Excel como referência para garantir sinal correto
-- **Identificação Automática:** Detecta despesas/custos por palavras-chave no nome da conta
+- **Ambos os valores (`debito` e `credito`) já vêm com sinal do Excel**
 
 ### Verificações Necessárias
 1. ✅ Verificar se `credito` já vem com sinal correto do Excel - **Implementado com lógica de preservação de sinal**
@@ -271,16 +241,16 @@ Adicionar checkbox ou select para escolher entre:
 ## ✅ Resumo das Correções Implementadas
 
 ### 1. Cálculo de Valores do Período
-**Status:** ✅ **IMPLEMENTADO E TESTADO**
+**Status:** ✅ **IMPLEMENTADO, TESTADO E VALIDADO**
 
 **Mudança:**
-- **Antes:** Usava `saldoAtual` (valor acumulado)
-- **Depois:** Calcula `credito + debito` (movimentação do período)
-- **Correção Final:** Ajustado para `credito + debito` porque no Excel o débito já vem com sinal (negativo para redução)
+- **Antes:** Usava `saldoAtual` (valor acumulado) ❌
+- **Depois:** Calcula `debito + credito` (movimentação do período) ✅
+- **Fórmula:** `valorPeríodo = saldoAtual - saldoAnterior = debito + credito`
 
-**Arquivo:** `backend/src/relatorios/relatorios.service.ts` (linha ~348-353)
+**Arquivo:** `backend/src/relatorios/relatorios.service.ts` (linhas ~406-412 e ~1303-1309)
 
-**Resultado:** Agora cada mês mostra apenas a movimentação daquele período, não o acumulado.
+**Resultado:** Agora cada mês mostra apenas a movimentação daquele período, não o acumulado. Validação realizada com dados reais do usuário.
 
 ---
 
@@ -298,25 +268,19 @@ Adicionar checkbox ou select para escolher entre:
 
 ---
 
-### 3. Tratamento de Valores Negativos
-**Status:** ✅ **IMPLEMENTADO E TESTADO**
+### 3. Inclusão de Contas 2-Passivo Relacionadas a Resultado
+**Status:** ✅ **IMPLEMENTADO**
 
 **Mudança:**
-- Implementada lógica para identificar despesas/custos pelo nome da conta
-- Usa `saldoAtual` como referência para preservar o sinal correto
-- Valores negativos agora aparecem em vermelho no frontend
+- Incluídas contas com `tipoConta = '2-Passivo'` e `classificacao` começando com `'2.07'`
+- Essas contas representam o Patrimônio Líquido e Resultado do Exercício
+- Necessárias para mostrar o resultado final da empresa no relatório DRE
 
-**Arquivo:** `backend/src/relatorios/relatorios.service.ts` (linha ~348-375)
-
-**Lógica Implementada:**
-1. Identifica despesas/custos por palavras-chave: `(-)`, `DEDUÇÃO`, `CUSTO`, `DESPESA`
-2. Compara o sinal do valor calculado com o `saldoAtual` do Excel
-3. Se os sinais forem diferentes, usa o sinal do `saldoAtual` como referência
-4. Fallback: Se a conta é claramente uma despesa, inverte o sinal
+**Arquivo:** `backend/src/relatorios/relatorios.service.ts` (função `deveIncluirNoRelatorio`)
 
 **Resultado:** 
-- Contas de receita: valores positivos (verde) ✅
-- Contas de despesa/custo: valores negativos (vermelho) ✅
+- Contas 2-Passivo com classificação `2.07.*` agora aparecem no relatório ✅
+- Exemplo: "Resultado do Exercício-Período do Balanço" (classificação `2.07.05.01.01`) ✅
 
 ---
 
@@ -341,7 +305,9 @@ Adicionar checkbox ou select para escolher entre:
 1. **Cálculo de Valores do Período** - ✅ Corrigido e validado
 2. **Filtro de Descrição** - ✅ Funcionando corretamente
 3. **Tratamento de Valores Negativos** - ✅ Valores negativos aparecem em vermelho
-4. **Correção da Fórmula Contábil** - ✅ Ajustado para `credito + debito` (débito já vem com sinal do Excel)
+4. **Correção da Fórmula Contábil** - ✅ Ajustado para `debito + credito` (ambos já vêm com sinal do Excel)
+5. **Inclusão de Contas 2-Passivo Relacionadas a Resultado** - ✅ Implementado
+6. **Correção da Busca de Descrições para Contas Pai** - ✅ Implementado descrições padrão para classificações "2" e "3"
 
 ### 📋 Próximos Passos (Opcional)
 
@@ -358,8 +324,9 @@ Adicionar checkbox ou select para escolher entre:
 ### ✨ Conclusão
 
 **Todas as correções solicitadas foram implementadas e validadas!** O sistema está funcionando corretamente para:
-- ✅ Mostrar valores do período (não acumulados)
+- ✅ Mostrar valores do período (não acumulados) - usando `debito + credito`
 - ✅ Filtrar por descrição corretamente
 - ✅ Exibir valores negativos em vermelho
-- ✅ Calcular corretamente usando a fórmula `credito + debito`
+- ✅ Incluir contas 2-Passivo relacionadas a resultado (classificações `2.07.*`)
+- ✅ Buscar descrições corretamente para contas pai (classificações "2" e "3")
 

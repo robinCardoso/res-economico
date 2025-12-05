@@ -10,6 +10,7 @@ import { UpdateConfiguracaoEmailDto } from './dto/update-configuracao-email.dto'
 import { FilterLogsEmailDto } from './dto/filter-logs-email.dto';
 import { EmailService } from './email.service';
 import { TestarEmailDto } from './dto/testar-email.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class ConfiguracoesService {
@@ -131,7 +132,7 @@ export class ConfiguracoesService {
       });
     }
 
-    const updateData: any = {};
+    const updateData: Prisma.ConfiguracaoEmailUpdateInput = {};
 
     if (dto.nome !== undefined) updateData.nome = dto.nome;
     if (dto.host !== undefined) updateData.host = dto.host;
@@ -222,7 +223,7 @@ export class ConfiguracoesService {
    * Lista logs de envio
    */
   async listarLogs(filters: FilterLogsEmailDto) {
-    const where: any = {};
+    const where: Prisma.LogEnvioEmailWhereInput = {};
 
     if (filters.configuracaoId) {
       where.configuracaoId = filters.configuracaoId;
@@ -298,4 +299,3 @@ export class ConfiguracoesService {
     return { message: 'Conexão SMTP testada com sucesso' };
   }
 }
-

@@ -144,10 +144,14 @@ A página `/admin/atas/[id]/processo` existe e está funcional, mas **não há f
 
 ## Implementação Recomendada
 
-### Fase 1 (Imediato) - Prioridade ALTA
-1. ✅ Adicionar botão "Gerenciar Processo" na listagem (apenas para `EM_PROCESSO`)
-2. ✅ Adicionar botão "Gerenciar Processo" na página de detalhes (apenas para `EM_PROCESSO`)
-3. ✅ Adicionar badge clicável na listagem
+### Fase 1 (Imediato) - Prioridade ALTA ✅ **CONCLUÍDA**
+1. ✅ Adicionar botão "Gerenciar Processo" na listagem (apenas para `EM_PROCESSO`) - **IMPLEMENTADO**
+2. ✅ Adicionar botão "Gerenciar Processo" na página de detalhes (apenas para `EM_PROCESSO`) - **IMPLEMENTADO**
+3. ✅ Adicionar badge clicável na listagem - **IMPLEMENTADO**
+
+**Arquivos:**
+- `frontend/src/app/(app)/admin/atas/page.tsx` (linha 367-374)
+- `frontend/src/app/(app)/admin/atas/[id]/page.tsx` (linha 514-523)
 
 ### Fase 2 (Próxima Sprint) - Prioridade MÉDIA
 4. ⚠️ Card de resumo na página de detalhes

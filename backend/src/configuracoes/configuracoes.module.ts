@@ -12,4 +12,3 @@ import { EmailService } from './email.service';
   exports: [EmailService, ConfiguracoesService],
 })
 export class ConfiguracoesModule {}
-

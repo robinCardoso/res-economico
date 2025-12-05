@@ -10,9 +10,16 @@ import { LembretePrazoScheduler } from './lembrete-prazo.scheduler';
 import { CoreModule } from '../core/core.module';
 import { ConfigModule } from '@nestjs/config';
 import { ConfiguracoesModule } from '../configuracoes/configuracoes.module';
+import { LogAlteracoesModule } from '../log-alteracoes/log-alteracoes.module';
 
 @Module({
-  imports: [CoreModule, ConfigModule, ScheduleModule.forRoot(), ConfiguracoesModule],
+  imports: [
+    CoreModule,
+    ConfigModule,
+    ScheduleModule.forRoot(),
+    ConfiguracoesModule,
+    LogAlteracoesModule,
+  ],
   controllers: [AtasController],
   providers: [
     AtasService,

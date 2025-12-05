@@ -302,7 +302,9 @@ export class UploadsService {
       const linhasDeletadas = await tx.linhaUpload.deleteMany({
         where: { uploadId },
       });
-      this.logger.log(`[${uploadId}] ${linhasDeletadas.count} linhas deletadas`);
+      this.logger.log(
+        `[${uploadId}] ${linhasDeletadas.count} linhas deletadas`,
+      );
 
       const alertasDeletados = await tx.alerta.deleteMany({
         where: { uploadId },
@@ -339,16 +341,22 @@ export class UploadsService {
         await this.prisma.linhaUpload.deleteMany({
           where: { uploadId },
         });
-        this.logger.log(`[${uploadId}] Limpeza adicional: ${linhasRestantes} linhas removidas`);
+        this.logger.log(
+          `[${uploadId}] Limpeza adicional: ${linhasRestantes} linhas removidas`,
+        );
       }
       if (alertasRestantes > 0) {
         await this.prisma.alerta.deleteMany({
           where: { uploadId },
         });
-        this.logger.log(`[${uploadId}] Limpeza adicional: ${alertasRestantes} alertas removidos`);
+        this.logger.log(
+          `[${uploadId}] Limpeza adicional: ${alertasRestantes} alertas removidos`,
+        );
       }
     } else {
-      this.logger.log(`[${uploadId}] ✅ Limpeza completa confirmada: nenhum dado restante`);
+      this.logger.log(
+        `[${uploadId}] ✅ Limpeza completa confirmada: nenhum dado restante`,
+      );
     }
   }
 
@@ -388,7 +396,7 @@ export class UploadsService {
     // Limpar processamento anterior
     this.logger.log(`[${uploadId}] Limpando dados anteriores...`);
     await this.limparProcessamento(uploadId);
-    
+
     // Aguardar um pouco para garantir que a limpeza foi completamente processada pelo banco
     // Isso evita race conditions onde o novo processamento pode iniciar antes da limpeza terminar
     this.logger.log(`[${uploadId}] Aguardando conclusão da limpeza...`);
@@ -399,17 +407,17 @@ export class UploadsService {
     // Isso inclui jobs com ID exato e jobs com ID que começa com uploadId (ex: uploadId-timestamp)
     try {
       this.logger.log(`[${uploadId}] Buscando jobs existentes relacionados...`);
-      
+
       // Buscar job com ID exato (se existir)
       const existingJobExato = await this.uploadQueue.getJob(uploadId);
-      
+
       // Buscar todos os jobs em diferentes estados
       const waitingJobs = await this.uploadQueue.getWaiting();
       const activeJobs = await this.uploadQueue.getActive();
       const delayedJobs = await this.uploadQueue.getDelayed();
       const completedJobs = await this.uploadQueue.getCompleted(0, 100); // Últimos 100
       const failedJobs = await this.uploadQueue.getFailed(0, 100); // Últimos 100
-      
+
       // Combinar todos os jobs
       const allJobs = [
         existingJobExato,
@@ -418,8 +426,11 @@ export class UploadsService {
         ...delayedJobs,
         ...completedJobs,
         ...failedJobs,
-      ].filter((job): job is NonNullable<typeof job> => job !== null && job !== undefined);
-      
+      ].filter(
+        (job): job is NonNullable<typeof job> =>
+          job !== null && job !== undefined,
+      );
+
       // Filtrar jobs relacionados a este upload
       const jobsRelacionados = allJobs.filter((job) => {
         const jobData = job.data as { uploadId?: string };
@@ -431,12 +442,12 @@ export class UploadsService {
           jobId.startsWith(`${uploadId}-`)
         );
       });
-      
+
       if (jobsRelacionados.length > 0) {
         this.logger.warn(
           `[${uploadId}] Encontrados ${jobsRelacionados.length} job(s) relacionado(s) ao upload`,
         );
-        
+
         // Remover todos os jobs relacionados
         for (const job of jobsRelacionados) {
           try {
@@ -453,7 +464,7 @@ export class UploadsService {
             // Continuar removendo outros jobs mesmo se um falhar
           }
         }
-        
+
         // Aguardar um pouco para garantir que o Redis processou todas as remoções
         await new Promise((resolve) => setTimeout(resolve, 500));
         this.logger.log(

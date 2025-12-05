@@ -893,7 +893,10 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
               }
               if (response.status === 403) {
                 const errorText = await response.text();
-                if (errorText.includes('quota') || errorText.includes('Quota')) {
+                if (
+                  errorText.includes('quota') ||
+                  errorText.includes('Quota')
+                ) {
                   throw new BadRequestException(
                     'Quota diária da API Gemini excedida. Tente novamente amanhã ou entre em contato com o administrador do sistema.',
                   );
@@ -939,7 +942,7 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
 
                 if (i === MAX_RETRIES - 1) {
                   // Última tentativa falhou
-                  const errorText = await response.text();
+                  await response.text(); // Ler resposta para limpar buffer
                   throw new BadRequestException(
                     `Limite de requisições da API Gemini atingido após ${MAX_RETRIES} tentativas. ` +
                       `Aguarde alguns minutos e tente novamente.`,
@@ -963,9 +966,12 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
                 this.logger.error(
                   `Erro HTTP ${response.status} da API Gemini: ${errorText}`,
                 );
-                
+
                 if (response.status === 403) {
-                  if (errorText.includes('quota') || errorText.includes('Quota')) {
+                  if (
+                    errorText.includes('quota') ||
+                    errorText.includes('Quota')
+                  ) {
                     throw new BadRequestException(
                       'Quota diária da API Gemini excedida. Tente novamente amanhã ou entre em contato com o administrador do sistema.',
                     );
@@ -974,10 +980,10 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
                     'Acesso negado pela API Gemini. Verifique as configurações da API.',
                   );
                 }
-                
+
                 throw new BadRequestException(
                   `Erro na API Gemini (${response.status}): ${errorText || response.statusText}. ` +
-                  `Tente novamente ou entre em contato com o suporte.`,
+                    `Tente novamente ou entre em contato com o suporte.`,
                 );
               }
             } catch (e) {
@@ -1016,7 +1022,9 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
       // Parsear resposta JSON
       let jsonLimpo = resposta.trim();
       const tamanhoRespostaOriginal = resposta.length;
-      this.logger.log(`Tamanho da resposta original: ${tamanhoRespostaOriginal} caracteres`);
+      this.logger.log(
+        `Tamanho da resposta original: ${tamanhoRespostaOriginal} caracteres`,
+      );
 
       // Remover delimitadores markdown se existirem (```json ... ```)
       // Remover de forma mais agressiva, incluindo quebras de linha
@@ -1029,7 +1037,7 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
         try {
           // Tentar fechar string não terminada
           let jsonRecuperado = jsonIncompleto.trim();
-          
+
           // Se termina com aspas não fechadas, tentar fechar
           if (jsonRecuperado.endsWith('"') === false) {
             // Contar aspas abertas vs fechadas
@@ -1039,12 +1047,12 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
               jsonRecuperado += '"';
             }
           }
-          
+
           // Tentar fechar objeto JSON se necessário
           let profundidade = 0;
           let dentroString = false;
           let escape = false;
-          
+
           for (let i = 0; i < jsonRecuperado.length; i++) {
             const char = jsonRecuperado[i];
             if (escape) {
@@ -1064,13 +1072,13 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
               if (char === '}') profundidade--;
             }
           }
-          
+
           // Fechar objetos abertos
           while (profundidade > 0) {
             jsonRecuperado += '}';
             profundidade--;
           }
-          
+
           // Validar JSON recuperado
           JSON.parse(jsonRecuperado);
           this.logger.log('JSON truncado recuperado com sucesso');
@@ -1120,7 +1128,9 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
               ultimaChaveFechada = i;
               if (profundidade === 0) {
                 const jsonCompleto = texto.substring(inicio, i + 1);
-                this.logger.log(`JSON completo encontrado: ${jsonCompleto.length} caracteres (posição ${inicio} até ${i + 1})`);
+                this.logger.log(
+                  `JSON completo encontrado: ${jsonCompleto.length} caracteres (posição ${inicio} até ${i + 1})`,
+                );
                 return jsonCompleto;
               }
             }
@@ -1136,13 +1146,17 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
           const jsonTruncado = texto.substring(inicio);
           const jsonRecuperado = recuperarJsonTruncado(jsonTruncado);
           if (jsonRecuperado) {
-            this.logger.log(`JSON truncado recuperado: ${jsonRecuperado.length} caracteres`);
+            this.logger.log(
+              `JSON truncado recuperado: ${jsonRecuperado.length} caracteres`,
+            );
             return jsonRecuperado;
           }
           // Tentar retornar até a última chave fechada se houver
           if (ultimaChaveFechada > inicio) {
             const jsonParcial = texto.substring(inicio, ultimaChaveFechada + 1);
-            this.logger.warn(`Tentando usar JSON parcial: ${jsonParcial.length} caracteres`);
+            this.logger.warn(
+              `Tentando usar JSON parcial: ${jsonParcial.length} caracteres`,
+            );
             return jsonParcial;
           }
         }
@@ -1152,13 +1166,15 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
 
       // Tentar encontrar JSON completo
       let jsonExtraido = encontrarJsonCompleto(jsonLimpo);
-      
+
       // Se não encontrou, tentar na resposta original (pode ter markdown ainda)
       if (!jsonExtraido) {
-        this.logger.log('Tentando encontrar JSON na resposta original (com markdown)');
+        this.logger.log(
+          'Tentando encontrar JSON na resposta original (com markdown)',
+        );
         jsonExtraido = encontrarJsonCompleto(resposta);
       }
-      
+
       if (jsonExtraido) {
         // Validar se o JSON extraído é válido antes de usar
         try {
@@ -1174,13 +1190,13 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
           this.logger.error(
             `Últimos 500 chars do JSON extraído: ${jsonExtraido.substring(Math.max(0, jsonExtraido.length - 500))}`,
           );
-          // Tentar fazer parse da resposta limpa original
-          jsonLimpo = jsonLimpo;
+          // Manter jsonLimpo como está (linha removida - era auto-atribuição)
         }
       }
-      
+
       // Tentar fazer parse do JSON
       try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const parsed = JSON.parse(jsonLimpo);
         this.logger.log('JSON parseado com sucesso');
         // Converter de volta para string para manter o fluxo
@@ -1207,41 +1223,54 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
           );
         }
         this.logger.error('Erro no parse:', parseError);
-        
+
         // Tentar recuperar JSON truncado como último recurso
         const jsonRecuperado = recuperarJsonTruncado(jsonLimpo);
         if (jsonRecuperado) {
           try {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             const parsed = JSON.parse(jsonRecuperado);
             this.logger.log('JSON recuperado com sucesso após erro de parse');
             jsonLimpo = JSON.stringify(parsed);
             // Continuar processamento normalmente
           } catch {
             // Se ainda falhar, lançar erro com mensagem mais específica
-            const erroMsg = parseError instanceof Error ? parseError.message : String(parseError);
-            if (erroMsg.includes('Unterminated string') || erroMsg.includes('truncated')) {
+            const erroMsg =
+              parseError instanceof Error
+                ? parseError.message
+                : String(parseError);
+            if (
+              erroMsg.includes('Unterminated string') ||
+              erroMsg.includes('truncated')
+            ) {
               throw new BadRequestException(
                 'O documento é muito grande e foi processado parcialmente. A resposta da IA foi truncada. ' +
-                'Considere dividir o documento em partes menores ou entre em contato com o suporte.',
+                  'Considere dividir o documento em partes menores ou entre em contato com o suporte.',
               );
             }
             throw new BadRequestException(
               'Resposta da IA não contém JSON válido. O documento pode ser muito grande ou a resposta foi truncada. ' +
-              'Tente novamente ou divida o documento em partes menores.',
+                'Tente novamente ou divida o documento em partes menores.',
             );
           }
         } else {
           // Se não conseguiu recuperar, lançar erro
-          const erroMsg = parseError instanceof Error ? parseError.message : String(parseError);
-          if (erroMsg.includes('Unterminated string') || erroMsg.includes('truncated')) {
+          const erroMsg =
+            parseError instanceof Error
+              ? parseError.message
+              : String(parseError);
+          if (
+            erroMsg.includes('Unterminated string') ||
+            erroMsg.includes('truncated')
+          ) {
             throw new BadRequestException(
               'O documento é muito grande e foi processado parcialmente. A resposta da IA foi truncada. ' +
-              'Considere dividir o documento em partes menores ou entre em contato com o suporte.',
+                'Considere dividir o documento em partes menores ou entre em contato com o suporte.',
             );
           }
           throw new BadRequestException(
             'Resposta da IA não contém JSON válido. O documento pode ser muito grande ou a resposta foi truncada. ' +
-            'Tente novamente ou divida o documento em partes menores.',
+              'Tente novamente ou divida o documento em partes menores.',
           );
         }
       }
@@ -2763,7 +2792,7 @@ Retorne APENAS o JSON, sem texto adicional ou explicações.`;
 
         // Tentar encontrar array JSON completo
         let arrayJson = encontrarArrayJsonCompleto(respostaLimpa);
-        
+
         // Se não encontrou, tentar na resposta original
         if (!arrayJson) {
           arrayJson = encontrarArrayJsonCompleto(resposta);
@@ -3000,7 +3029,9 @@ Retorne APENAS o JSON, sem texto adicional ou explicações.`;
     const ata = await this.findOne(id);
 
     if (!ata.arquivoOriginalUrl) {
-      throw new NotFoundException('Arquivo original não encontrado para esta ata');
+      throw new NotFoundException(
+        'Arquivo original não encontrado para esta ata',
+      );
     }
 
     // Extrair o nome do arquivo da URL (ex: /uploads/atas/abc123.pdf)
@@ -3009,12 +3040,7 @@ Retorne APENAS o JSON, sem texto adicional ou explicações.`;
       throw new NotFoundException('Nome do arquivo não encontrado');
     }
 
-    const filePath = path.join(
-      process.cwd(),
-      'uploads',
-      'atas',
-      fileName,
-    );
+    const filePath = path.join(process.cwd(), 'uploads', 'atas', fileName);
 
     if (!fs.existsSync(filePath)) {
       throw new NotFoundException('Arquivo físico não encontrado no servidor');
@@ -3036,7 +3062,9 @@ Retorne APENAS o JSON, sem texto adicional ou explicações.`;
         png: 'image/png',
         gif: 'image/gif',
       };
-      mimeType = ext ? mimeTypes[ext] || 'application/octet-stream' : 'application/octet-stream';
+      mimeType = ext
+        ? mimeTypes[ext] || 'application/octet-stream'
+        : 'application/octet-stream';
     }
 
     return {

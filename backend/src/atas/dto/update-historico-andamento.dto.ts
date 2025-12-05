@@ -4,4 +4,3 @@ import { CreateHistoricoAndamentoDto } from './create-historico-andamento.dto';
 export class UpdateHistoricoAndamentoDto extends PartialType(
   CreateHistoricoAndamentoDto,
 ) {}
-

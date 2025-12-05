@@ -54,10 +54,7 @@ export class ConfiguracoesController {
   }
 
   @Post('email/:id/testar')
-  async testarEmail(
-    @Param('id') id: string,
-    @Body() dto: TestarEmailDto,
-  ) {
+  async testarEmail(@Param('id') id: string, @Body() dto: TestarEmailDto) {
     return this.configuracoesService.testarEmail(id, dto);
   }
 
@@ -71,4 +68,3 @@ export class ConfiguracoesController {
     return this.configuracoesService.listarLogs(filters);
   }
 }
-

@@ -1,18 +1,18 @@
 import { IsOptional, IsString, IsEnum, IsDateString } from 'class-validator';
-import { StatusEnvioEmail } from '@prisma/client';
+import { TipoAlteracaoAta } from '@prisma/client';
 
-export class FilterLogsEmailDto {
+export class FilterLogsDto {
   @IsOptional()
   @IsString()
-  configuracaoId?: string;
-
-  @IsOptional()
-  @IsEnum(StatusEnvioEmail)
-  status?: StatusEnvioEmail;
+  ataId?: string;
 
   @IsOptional()
   @IsString()
-  destinatario?: string;
+  usuarioId?: string;
+
+  @IsOptional()
+  @IsEnum(TipoAlteracaoAta)
+  tipoAlteracao?: TipoAlteracaoAta;
 
   @IsOptional()
   @IsDateString()
@@ -24,9 +24,5 @@ export class FilterLogsEmailDto {
 
   @IsOptional()
   @IsString()
-  page?: string;
-
-  @IsOptional()
-  @IsString()
-  limit?: string;
+  busca?: string; // Busca por descrição ou campo
 }

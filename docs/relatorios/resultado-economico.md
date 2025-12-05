@@ -4,12 +4,12 @@
 
 ### ⚠️ IMPORTANTE: Identificação de Contas DRE
 
-O sistema identifica contas DRE através do campo `tipoConta = "3-DRE"` presente no arquivo Excel enviado pela contabilidade. Apenas contas com este tipo devem ser incluídas no relatório DRE.
+O sistema identifica contas DRE através do campo `tipoConta = "3-DRE"` presente no arquivo Excel enviado pela contabilidade. Além disso, **contas 2-Passivo relacionadas a resultado** (classificações que começam com `2.07`) também são incluídas no relatório.
 
 **Campos utilizados:**
-- `tipoConta`: Deve ser "3-DRE" para contas do DRE
+- `tipoConta`: Deve ser "3-DRE" para contas do DRE, ou "2-Passivo" para contas de resultado (classificações `2.07.*`)
 - `nivel`: Indica a hierarquia (1, 2, 3, 4, 5, etc.)
-- `classificacao`: Código hierárquico (ex: "3.", "3.01", "3.01.01")
+- `classificacao`: Código hierárquico (ex: "3.", "3.01", "3.01.01", "2.07.05.01.01")
 
 ### Estrutura Identificada
 
@@ -38,7 +38,7 @@ O arquivo `Resultado Por Empresa.xlsx` contém um relatório consolidado com a s
 | **Estrutura** | Débito, Crédito, Saldo | Valores consolidados por mês |
 | **Período** | Um mês por upload | Múltiplos meses (ano completo) |
 | **Visualização** | Por upload | Consolidado/por filial |
-| **Cálculo** | Saldo = Anterior + Débito + Crédito | Soma hierárquica de contas |
+| **Cálculo** | Saldo = Anterior + Débito + Crédito | Valor do período = Débito + Crédito (não acumulado) |
 
 ---
 
@@ -401,12 +401,14 @@ export class RelatoriosController {
 
 ### Fase 2: Lógica de Agregação
 - [x] Buscar uploads por ano e empresa(s)
-- [x] **Filtrar apenas contas com tipoConta = "3-DRE"** ✅
+- [x] **Filtrar contas com tipoConta = "3-DRE"** ✅
+- [x] **Incluir contas 2-Passivo relacionadas a resultado (classificações 2.07.*)** ✅
 - [x] Agrupar dados por mês (1-12)
 - [x] Agrupar por classificação de conta
 - [x] Construir hierarquia de contas (árvore) respeitando níveis
 - [x] Calcular totais hierárquicos (recursivo)
 - [x] Calcular coluna Total (soma anual)
+- [x] **Usar valor do período (debito + credito) em vez de saldoAtual acumulado** ✅
 
 ### Fase 3: Frontend
 - [ ] Página frontend `/relatorios/resultado`

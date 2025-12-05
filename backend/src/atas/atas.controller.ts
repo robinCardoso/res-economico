@@ -38,6 +38,9 @@ import { UpdateComentarioDto } from './dto/update-comentario.dto';
 import { HistoricoAndamentoService } from './historico-andamento.service';
 import { PrazoAcaoService } from './prazo-acao.service';
 import { LembretePrazoService } from './lembrete-prazo.service';
+import { LogAlteracoesService } from '../log-alteracoes/log-alteracoes.service';
+import { TipoAlteracaoAta } from '@prisma/client';
+import * as fs from 'fs';
 
 @Controller('atas')
 @UseGuards(JwtAuthGuard)
@@ -48,6 +51,7 @@ export class AtasController {
     private readonly historicoAndamentoService: HistoricoAndamentoService,
     private readonly prazoAcaoService: PrazoAcaoService,
     private readonly lembretePrazoService: LembretePrazoService,
+    private readonly logAlteracoesService: LogAlteracoesService,
   ) {}
 
   @Post()
@@ -59,7 +63,23 @@ export class AtasController {
     if (!userId) {
       throw new Error('Usuário não autenticado');
     }
-    return this.atasService.create(dto, userId);
+    const ata = await this.atasService.create(dto, userId);
+
+    // Registrar log de criação
+    try {
+      await this.logAlteracoesService.registrarAlteracao(
+        ata.id,
+        userId,
+        TipoAlteracaoAta.CRIACAO,
+        {
+          descricao: `Ata "${ata.titulo}" criada`,
+        },
+      );
+    } catch (error) {
+      console.error('Erro ao registrar log de criação:', error);
+    }
+
+    return ata;
   }
 
   @Get()
@@ -110,7 +130,10 @@ export class AtasController {
         if (file.mimetype === 'application/pdf') {
           cb(null, true);
         } else {
-          cb(new Error('Apenas arquivos PDF são permitidos para rascunhos'), false);
+          cb(
+            new Error('Apenas arquivos PDF são permitidos para rascunhos'),
+            false,
+          );
         }
       },
     }),
@@ -257,7 +280,27 @@ export class AtasController {
     if (!userId) {
       throw new Error('Usuário não autenticado');
     }
-    return this.historicoAndamentoService.create(id, dto, userId);
+    const historico = await this.historicoAndamentoService.create(
+      id,
+      dto,
+      userId,
+    );
+
+    // Registrar log
+    try {
+      await this.logAlteracoesService.registrarAlteracao(
+        id,
+        userId,
+        TipoAlteracaoAta.ADICAO_HISTORICO,
+        {
+          descricao: `Histórico adicionado: ${dto.acao}`,
+        },
+      );
+    } catch (error) {
+      console.error('Erro ao registrar log de histórico:', error);
+    }
+
+    return historico;
   }
 
   @Put(':id/historico/:historicoId')
@@ -271,7 +314,27 @@ export class AtasController {
     if (!userId) {
       throw new Error('Usuário não autenticado');
     }
-    return this.historicoAndamentoService.update(historicoId, dto, userId);
+    const historico = await this.historicoAndamentoService.update(
+      historicoId,
+      dto,
+      userId,
+    );
+
+    // Registrar log
+    try {
+      await this.logAlteracoesService.registrarAlteracao(
+        id,
+        userId,
+        TipoAlteracaoAta.EDICAO_HISTORICO,
+        {
+          descricao: `Histórico atualizado`,
+        },
+      );
+    } catch (error) {
+      console.error('Erro ao registrar log de histórico:', error);
+    }
+
+    return historico;
   }
 
   @Delete(':id/historico/:historicoId')
@@ -284,7 +347,26 @@ export class AtasController {
     if (!userId) {
       throw new Error('Usuário não autenticado');
     }
-    return this.historicoAndamentoService.remove(historicoId, userId);
+    const resultado = await this.historicoAndamentoService.remove(
+      historicoId,
+      userId,
+    );
+
+    // Registrar log
+    try {
+      await this.logAlteracoesService.registrarAlteracao(
+        id,
+        userId,
+        TipoAlteracaoAta.EXCLUSAO_HISTORICO,
+        {
+          descricao: `Histórico removido`,
+        },
+      );
+    } catch (error) {
+      console.error('Erro ao registrar log de histórico:', error);
+    }
+
+    return resultado;
   }
 
   @Get(':id/prazos')
@@ -302,7 +384,23 @@ export class AtasController {
     if (!userId) {
       throw new Error('Usuário não autenticado');
     }
-    return this.prazoAcaoService.create(id, dto, userId);
+    const prazo = await this.prazoAcaoService.create(id, dto, userId);
+
+    // Registrar log
+    try {
+      await this.logAlteracoesService.registrarAlteracao(
+        id,
+        userId,
+        TipoAlteracaoAta.ADICAO_PRAZO,
+        {
+          descricao: `Prazo adicionado: ${dto.titulo}`,
+        },
+      );
+    } catch (error) {
+      console.error('Erro ao registrar log de prazo:', error);
+    }
+
+    return prazo;
   }
 
   @Get('prazos/:prazoId')
@@ -314,8 +412,32 @@ export class AtasController {
   async updatePrazo(
     @Param('prazoId') prazoId: string,
     @Body() dto: UpdatePrazoAcaoDto,
+    @Request() req: { user?: { id?: string } },
   ) {
-    return this.prazoAcaoService.update(prazoId, dto);
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    // Buscar prazo para obter ataId
+    const prazoAntes = await this.prazoAcaoService.findOne(prazoId);
+    const prazo = await this.prazoAcaoService.update(prazoId, dto);
+
+    // Registrar log
+    try {
+      await this.logAlteracoesService.registrarAlteracao(
+        prazoAntes.ataId,
+        userId,
+        TipoAlteracaoAta.EDICAO_PRAZO,
+        {
+          descricao: `Prazo atualizado: ${prazo.titulo}`,
+        },
+      );
+    } catch (error) {
+      console.error('Erro ao registrar log de prazo:', error);
+    }
+
+    return prazo;
   }
 
   @Delete(':id/prazos/:prazoId')
@@ -328,7 +450,26 @@ export class AtasController {
     if (!userId) {
       throw new Error('Usuário não autenticado');
     }
-    return this.prazoAcaoService.remove(prazoId, userId);
+
+    // Buscar prazo antes de deletar para log
+    const prazo = await this.prazoAcaoService.findOne(prazoId);
+    const resultado = await this.prazoAcaoService.remove(prazoId, userId);
+
+    // Registrar log
+    try {
+      await this.logAlteracoesService.registrarAlteracao(
+        id,
+        userId,
+        TipoAlteracaoAta.EXCLUSAO_PRAZO,
+        {
+          descricao: `Prazo removido: ${prazo.titulo}`,
+        },
+      );
+    } catch (error) {
+      console.error('Erro ao registrar log de prazo:', error);
+    }
+
+    return resultado;
   }
 
   // =====================================================
@@ -350,7 +491,23 @@ export class AtasController {
     if (!userId) {
       throw new Error('Usuário não autenticado');
     }
-    return this.atasService.createComentario(id, dto, userId);
+    const comentario = await this.atasService.createComentario(id, dto, userId);
+
+    // Registrar log
+    try {
+      await this.logAlteracoesService.registrarAlteracao(
+        id,
+        userId,
+        TipoAlteracaoAta.ADICAO_COMENTARIO,
+        {
+          descricao: `Comentário adicionado`,
+        },
+      );
+    } catch (error) {
+      console.error('Erro ao registrar log de comentário:', error);
+    }
+
+    return comentario;
   }
 
   @Put(':id/comentarios/:comentarioId')
@@ -364,7 +521,27 @@ export class AtasController {
     if (!userId) {
       throw new Error('Usuário não autenticado');
     }
-    return this.atasService.updateComentario(comentarioId, dto, userId);
+    const comentario = await this.atasService.updateComentario(
+      comentarioId,
+      dto,
+      userId,
+    );
+
+    // Registrar log
+    try {
+      await this.logAlteracoesService.registrarAlteracao(
+        id,
+        userId,
+        TipoAlteracaoAta.EDICAO_COMENTARIO,
+        {
+          descricao: `Comentário atualizado`,
+        },
+      );
+    } catch (error) {
+      console.error('Erro ao registrar log de comentário:', error);
+    }
+
+    return comentario;
   }
 
   @Delete(':id/comentarios/:comentarioId')
@@ -377,7 +554,26 @@ export class AtasController {
     if (!userId) {
       throw new Error('Usuário não autenticado');
     }
-    return this.atasService.removeComentario(comentarioId, userId);
+    const resultado = await this.atasService.removeComentario(
+      comentarioId,
+      userId,
+    );
+
+    // Registrar log
+    try {
+      await this.logAlteracoesService.registrarAlteracao(
+        id,
+        userId,
+        TipoAlteracaoAta.EXCLUSAO_COMENTARIO,
+        {
+          descricao: `Comentário removido`,
+        },
+      );
+    } catch (error) {
+      console.error('Erro ao registrar log de comentário:', error);
+    }
+
+    return resultado;
   }
 
   @Post(':id/analisar')
@@ -387,10 +583,7 @@ export class AtasController {
 
   // Rotas de download devem vir ANTES de @Get(':id') para evitar conflito
   @Get(':id/download/arquivo-original')
-  async downloadArquivoOriginal(
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async downloadArquivoOriginal(@Param('id') id: string, @Res() res: Response) {
     try {
       const { filePath, fileName, mimeType } =
         await this.atasService.downloadArquivoOriginal(id);
@@ -412,7 +605,7 @@ export class AtasController {
         `attachment; filename="${fileNameAscii}"; filename*=UTF-8''${fileNameEncoded}`,
       );
 
-      const fileStream = require('fs').createReadStream(filePath);
+      const fileStream = fs.createReadStream(filePath);
       fileStream.pipe(res);
     } catch (error) {
       console.error('Erro ao fazer download do arquivo:', error);
@@ -429,13 +622,109 @@ export class AtasController {
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateAtaDto) {
-    return this.atasService.update(id, dto);
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateAtaDto,
+    @Request() req: { user?: { id?: string } },
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    // Buscar ata antes da atualização para comparar
+    const ataAntes = await this.atasService.findOne(id);
+    const ata = await this.atasService.update(id, dto);
+
+    // Registrar log de edição
+    try {
+      const camposAlterados: string[] = [];
+      const valores: { anterior?: string; novo?: string } = {};
+      let mudouStatus = false;
+
+      Object.keys(dto).forEach((key) => {
+        if (dto[key as keyof UpdateAtaDto] !== undefined) {
+          camposAlterados.push(key);
+          const valorAntigo = ataAntes[key as keyof typeof ataAntes];
+          const valorNovo = dto[key as keyof UpdateAtaDto];
+
+          if (key === 'status' && valorAntigo !== valorNovo) {
+            mudouStatus = true;
+          }
+
+          if (JSON.stringify(valorAntigo) !== JSON.stringify(valorNovo)) {
+            valores.anterior = valores.anterior
+              ? `${valores.anterior}, ${key}: ${JSON.stringify(valorAntigo)}`
+              : `${key}: ${JSON.stringify(valorAntigo)}`;
+            valores.novo = valores.novo
+              ? `${valores.novo}, ${key}: ${JSON.stringify(valorNovo)}`
+              : `${key}: ${JSON.stringify(valorNovo)}`;
+          }
+        }
+      });
+
+      if (mudouStatus && dto.status) {
+        // Log específico para mudança de status
+        await this.logAlteracoesService.registrarAlteracao(
+          id,
+          userId,
+          TipoAlteracaoAta.MUDANCA_STATUS,
+          {
+            campo: 'status',
+            valorAnterior: ataAntes.status,
+            valorNovo: dto.status,
+            descricao: `Status alterado de "${ataAntes.status}" para "${dto.status}"`,
+          },
+        );
+      } else if (camposAlterados.length > 0) {
+        await this.logAlteracoesService.registrarAlteracao(
+          id,
+          userId,
+          TipoAlteracaoAta.EDICAO,
+          {
+            campo: camposAlterados.join(', '),
+            valorAnterior: valores.anterior,
+            valorNovo: valores.novo,
+            descricao: `Ata "${ata.titulo}" atualizada`,
+          },
+        );
+      }
+    } catch (error) {
+      console.error('Erro ao registrar log de edição:', error);
+    }
+
+    return ata;
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return this.atasService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @Request() req: { user?: { id?: string } },
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    // Buscar ata antes de deletar para log
+    const ata = await this.atasService.findOne(id);
+    const resultado = await this.atasService.remove(id);
+
+    // Registrar log de exclusão
+    try {
+      await this.logAlteracoesService.registrarAlteracao(
+        id,
+        userId,
+        TipoAlteracaoAta.EXCLUSAO,
+        {
+          descricao: `Ata "${ata.titulo}" excluída`,
+        },
+      );
+    } catch (error) {
+      console.error('Erro ao registrar log de exclusão:', error);
+    }
+
+    return resultado;
   }
 
   // =====================================================

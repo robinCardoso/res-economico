@@ -12,4 +12,3 @@ export class TestarEmailDto {
   @IsString()
   corpo?: string;
 }
-

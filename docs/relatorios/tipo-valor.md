@@ -40,13 +40,13 @@ Adicionar opção para escolher entre:
 ### Lógica Contábil para DRE
 
 Para **Demonstrativo de Resultado do Exercício (DRE)**:
-- **Receitas**: Aumentam com crédito (positivo)
-- **Despesas/Custos**: Aumentam com débito (negativo)
-- **Valor do Período**: `credito - debito`
+- **Fórmula do Excel:** `saldoAtual = saldoAnterior + debito + credito`
+- **Valor do Período**: `debito + credito` ✅ **CORRIGIDO E VALIDADO**
+  - **Motivo:** O valor do período é a diferença entre `saldoAtual` e `saldoAnterior`
   - Se positivo: Receita líquida do período
   - Se negativo: Despesa líquida do período
 
-**Nota:** No sistema atual, o `credito` já vem com sinal do Excel (positivo/negativo), então a fórmula pode ser simplesmente `credito - debito` ou apenas `credito` dependendo de como está armazenado.
+**Nota:** ✅ **ATUALIZADO** - Ambos `debito` e `credito` já vêm com sinal do Excel (positivo/negativo). A fórmula correta é `debito + credito`, não `credito - debito`.
 
 ---
 
@@ -95,11 +95,12 @@ private async buscarDadosPeriodo(
       
       if (tipoValor === TipoValor.PERIODO) {
         // Valor do período: movimentação do mês
-        // Para DRE: crédito - débito
-        // (crédito já vem com sinal do Excel)
+        // Fórmula do Excel: saldoAtual = saldoAnterior + debito + credito
+        // Valor do período = saldoAtual - saldoAnterior = debito + credito
+        // O debito e credito já vêm com sinal do Excel (positivo/negativo)
         const debito = Number(linha.debito) || 0;
         const credito = Number(linha.credito) || 0;
-        valorLinha = credito - debito;
+        valorLinha = debito + credito;
       } else {
         // Valor acumulado (padrão)
         valorLinha = Number(linha.saldoAtual) || 0;

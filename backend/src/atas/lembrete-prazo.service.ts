@@ -17,8 +17,7 @@ export class LembretePrazoService {
     private configService: ConfigService,
   ) {
     this.frontendUrl =
-      this.configService.get<string>('FRONTEND_URL') ||
-      'http://localhost:3001';
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3001';
   }
 
   /**
@@ -242,10 +241,6 @@ export class LembretePrazoService {
         break;
     }
 
-    // Determinar tipo de lembrete baseado em configuração
-    // Por padrão, usar AMBOS (e-mail + notificação) se e-mail estiver configurado
-    const tipoLembreteEnum = TipoLembrete.AMBOS;
-
     // Criar lembrete (por padrão, usar AMBOS para enviar e-mail + notificação)
     const lembrete = await this.criarLembrete(
       prazoId,
@@ -348,8 +343,11 @@ export class LembretePrazoService {
     lembrete: any,
     tipoLembrete: 'VENCIDO' | '3_DIAS' | '1_DIA' | 'HOJE',
   ): string {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const prazo = lembrete.prazo;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const ata = prazo.ata;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     const dataPrazo = new Date(prazo.dataPrazo).toLocaleDateString('pt-BR');
 
     let corBorda = '#dc2626'; // Vermelho para vencido
@@ -387,14 +385,14 @@ export class LembretePrazoService {
   </div>
   
   <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-    <h3 style="margin-top: 0; color: #1f2937;">${prazo.titulo}</h3>
-    <p style="margin: 10px 0;"><strong>Ata:</strong> ${ata.numero} - ${ata.titulo}</p>
+    <h3 style="margin-top: 0; color: #1f2937;">${(prazo as { titulo: string }).titulo}</h3>
+    <p style="margin: 10px 0;"><strong>Ata:</strong> ${(ata as { numero: string }).numero} - ${(ata as { titulo: string }).titulo}</p>
     <p style="margin: 10px 0;"><strong>Data do Prazo:</strong> ${dataPrazo}</p>
-    ${prazo.descricao ? `<p style="margin: 10px 0;"><strong>Descrição:</strong> ${prazo.descricao}</p>` : ''}
+    ${(prazo as { descricao?: string }).descricao ? `<p style="margin: 10px 0;"><strong>Descrição:</strong> ${(prazo as { descricao: string }).descricao}</p>` : ''}
   </div>
 
   <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-    <a href="${this.frontendUrl}/admin/atas/${ata.id}/processo" 
+    <a href="${this.frontendUrl}/admin/atas/${(ata as { id: string }).id}/processo" 
        style="display: inline-block; background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
       Acessar Ata no Sistema
     </a>

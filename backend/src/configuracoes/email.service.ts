@@ -3,7 +3,7 @@ import { PrismaService } from '../core/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import * as crypto from 'crypto';
-import { StatusEnvioEmail } from '@prisma/client';
+import { StatusEnvioEmail, ConfiguracaoEmail } from '@prisma/client';
 
 interface EmailOptions {
   to: string | string[];
@@ -77,7 +77,7 @@ export class EmailService {
    * Cria um transporter do nodemailer a partir de uma configuração
    */
   private async createTransporter(configuracaoId?: string) {
-    let configuracao;
+    let configuracao: ConfiguracaoEmail | null;
 
     if (configuracaoId) {
       configuracao = await this.prisma.configuracaoEmail.findUnique({
@@ -155,7 +155,7 @@ export class EmailService {
       }
 
       // Enviar e-mail
-      const info = await transporter.sendMail({
+      await transporter.sendMail({
         from: configuracao.usuario,
         to: to.join(', '),
         cc: cc.length > 0 ? cc.join(', ') : undefined,
@@ -239,4 +239,3 @@ export class EmailService {
     }
   }
 }
-
