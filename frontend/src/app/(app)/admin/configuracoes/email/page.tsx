@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { configuracoesService } from '@/services/configuracoes.service';
+import { configuracoesService, type CreateConfiguracaoEmailDto, type UpdateConfiguracaoEmailDto, type TestarEmailDto } from '@/services/configuracoes.service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,11 +19,10 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Plus, Trash2, Edit, Send, TestTube } from 'lucide-react';
+import { Loader2, Plus, Trash2, Edit, Send, TestTube } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -67,7 +66,7 @@ export default function ConfiguracaoEmailPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, dto }: { id: string; dto: any }) =>
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateConfiguracaoEmailDto }) =>
       configuracoesService.atualizar(id, dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['configuracoes-email'] });
@@ -135,7 +134,7 @@ export default function ConfiguracaoEmailPage() {
   });
 
   const testEmailMutation = useMutation({
-    mutationFn: ({ id, dto }: { id: string; dto: any }) =>
+    mutationFn: ({ id, dto }: { id: string; dto: TestarEmailDto }) =>
       configuracoesService.testarEmail(id, dto),
     onSuccess: () => {
       toast({
@@ -188,6 +187,7 @@ export default function ConfiguracaoEmailPage() {
       // Se não tem senha preenchida, remover do DTO para não atualizar
       const dtoParaEnviar = !data.senha || data.senha.trim() === ''
         ? (() => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { senha, ...dataSemSenha } = data;
             return dataSemSenha;
           })()
@@ -310,7 +310,7 @@ export default function ConfiguracaoEmailPage() {
             </Table>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              Nenhuma configuração cadastrada. Clique em "Nova Configuração" para
+              Nenhuma configuração cadastrada. Clique em &quot;Nova Configuração&quot; para
               começar.
             </div>
           )}
