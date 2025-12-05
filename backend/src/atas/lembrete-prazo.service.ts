@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
 import { PrazoAcaoService } from './prazo-acao.service';
 import { EmailService } from '../configuracoes/email.service';
+import { PreferenciasNotificacaoService } from '../preferencias-notificacao/preferencias-notificacao.service';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { Prisma, TipoLembrete, StatusPrazo } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 
@@ -14,6 +16,8 @@ export class LembretePrazoService {
     private prisma: PrismaService,
     private prazoAcaoService: PrazoAcaoService,
     private emailService: EmailService,
+    private preferenciasService: PreferenciasNotificacaoService,
+    private pushService: PushNotificationsService,
     private configService: ConfigService,
   ) {
     this.frontendUrl =
@@ -162,6 +166,70 @@ export class LembretePrazoService {
   }
 
   /**
+   * Verifica se deve enviar lembrete baseado nas preferências do usuário
+   */
+  private async deveEnviarLembrete(
+    usuarioId: string,
+    tipoLembrete: 'VENCIDO' | '3_DIAS' | '1_DIA' | 'HOJE',
+  ): Promise<boolean> {
+    try {
+      // Verificar se usuário quer receber notificações sobre prazos
+      const deveNotificar = await this.preferenciasService.deveNotificar(
+        usuarioId,
+        'prazos',
+      );
+      if (!deveNotificar) {
+        return false;
+      }
+
+      // Verificar frequência de lembretes
+      const preferencias = await this.preferenciasService.findOne(usuarioId);
+
+      switch (tipoLembrete) {
+        case 'VENCIDO':
+          if (!preferencias.lembreteVencido) {
+            return false;
+          }
+          break;
+        case '3_DIAS':
+          if (!preferencias.lembrete3Dias) {
+            return false;
+          }
+          break;
+        case '1_DIA':
+          if (!preferencias.lembrete1Dia) {
+            return false;
+          }
+          break;
+        case 'HOJE':
+          if (!preferencias.lembreteHoje) {
+            return false;
+          }
+          break;
+      }
+
+      // Verificar horário permitido
+      const estaNoHorario = await this.preferenciasService.estaNoHorarioPermitido(
+        usuarioId,
+      );
+      if (!estaNoHorario) {
+        this.logger.debug(
+          `Lembrete não enviado para usuário ${usuarioId}: fora do horário permitido`,
+        );
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao verificar preferências para usuário ${usuarioId}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+      );
+      // Em caso de erro, permitir envio (comportamento padrão)
+      return true;
+    }
+  }
+
+  /**
    * Envia lembrete para um prazo específico
    * @param prazoId ID do prazo
    * @param usuarioId ID do usuário que receberá o lembrete (criador do prazo ou da ata)
@@ -199,6 +267,15 @@ export class LembretePrazoService {
     });
 
     if (!prazo) {
+      return;
+    }
+
+    // Verificar preferências do usuário antes de enviar
+    const deveEnviar = await this.deveEnviarLembrete(usuarioId, tipoLembrete);
+    if (!deveEnviar) {
+      this.logger.debug(
+        `Lembrete não enviado para usuário ${usuarioId} (preferências ou horário)`,
+      );
       return;
     }
 
@@ -241,11 +318,29 @@ export class LembretePrazoService {
         break;
     }
 
-    // Criar lembrete (por padrão, usar AMBOS para enviar e-mail + notificação)
+    // Determinar tipo de lembrete baseado nas preferências
+    const preferencias = await this.preferenciasService.findOne(usuarioId);
+    let tipoLembreteFinal: TipoLembrete = TipoLembrete.NOTIFICACAO_SISTEMA;
+
+    if (preferencias.emailAtivo && preferencias.sistemaAtivo) {
+      tipoLembreteFinal = TipoLembrete.AMBOS;
+    } else if (preferencias.emailAtivo) {
+      tipoLembreteFinal = TipoLembrete.EMAIL;
+    } else if (preferencias.sistemaAtivo) {
+      tipoLembreteFinal = TipoLembrete.NOTIFICACAO_SISTEMA;
+    } else {
+      // Se nenhum canal está ativo, não criar lembrete
+      this.logger.debug(
+        `Lembrete não criado para usuário ${usuarioId}: nenhum canal ativo`,
+      );
+      return;
+    }
+
+    // Criar lembrete com tipo baseado nas preferências
     const lembrete = await this.criarLembrete(
       prazoId,
       usuarioId,
-      TipoLembrete.AMBOS,
+      tipoLembreteFinal,
       mensagem,
     );
 
@@ -330,6 +425,30 @@ export class LembretePrazoService {
           `Erro ao enviar e-mail de lembrete: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         );
         // Não falhar o processo se o e-mail falhar
+      }
+    }
+
+    // Enviar push notification se configurado
+    if (preferencias.pushAtivo) {
+      try {
+        await this.pushService.sendToUser(usuarioId, {
+          title: `Lembrete: ${prazo.titulo}`,
+          body: mensagem,
+          icon: '/icon-192x192.png',
+          badge: '/icon-192x192.png',
+          url: `${this.frontendUrl}/admin/atas/${prazo.ata.id}/processo`,
+          data: {
+            prazoId: prazo.id,
+            ataId: prazo.ata.id,
+            tipoLembrete,
+          },
+        });
+        this.logger.log(`Push notification enviada para usuário ${usuarioId}`);
+      } catch (error) {
+        this.logger.error(
+          `Erro ao enviar push notification: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        );
+        // Não falhar o processo se o push falhar
       }
     }
 

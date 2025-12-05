@@ -20,6 +20,7 @@ import { AtasModule } from './atas/atas.module';
 import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
 import { PreferenciasNotificacaoModule } from './preferencias-notificacao/preferencias-notificacao.module';
 import { LogAlteracoesModule } from './log-alteracoes/log-alteracoes.module';
+import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { LogAlteracoesModule } from './log-alteracoes/log-alteracoes.module';
     ConfiguracoesModule,
     PreferenciasNotificacaoModule,
     LogAlteracoesModule,
+    PushNotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -11,6 +11,8 @@ import { CoreModule } from '../core/core.module';
 import { ConfigModule } from '@nestjs/config';
 import { ConfiguracoesModule } from '../configuracoes/configuracoes.module';
 import { LogAlteracoesModule } from '../log-alteracoes/log-alteracoes.module';
+import { PreferenciasNotificacaoModule } from '../preferencias-notificacao/preferencias-notificacao.module';
+import { PushNotificationsModule } from '../push-notifications/push-notifications.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { LogAlteracoesModule } from '../log-alteracoes/log-alteracoes.module';
     ScheduleModule.forRoot(),
     ConfiguracoesModule,
     LogAlteracoesModule,
+    PreferenciasNotificacaoModule,
+    PushNotificationsModule,
   ],
   controllers: [AtasController],
   providers: [

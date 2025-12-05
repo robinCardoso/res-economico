@@ -2,7 +2,7 @@
 
 import { ReactNode } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Mail } from 'lucide-react';
+import { Settings, Mail, Bell } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -19,12 +19,11 @@ export default function ConfiguracoesLayout({
       label: 'Envio de E-mail',
       icon: Mail,
     },
-    // Futuras abas podem ser adicionadas aqui
-    // {
-    //   href: '/admin/configuracoes/geral',
-    //   label: 'Geral',
-    //   icon: Settings,
-    // },
+    {
+      href: '/admin/configuracoes/notificacoes',
+      label: 'Notificações',
+      icon: Bell,
+    },
   ];
 
   return (
@@ -35,7 +34,7 @@ export default function ConfiguracoesLayout({
       </div>
 
       <Tabs value={pathname || ''} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-1">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
