@@ -403,10 +403,13 @@ export class RelatoriosService {
         const valoresPorMes = dadosPorMesEChaveComposta.get(chaveComposta)!;
         const valorAtual = valoresPorMes.get(mes) || 0;
 
-        // IMPORTANTE: Não fazer cálculos, apenas replicar o saldoAtual do banco
-        // O sistema deve apenas replicar os dados que já estão no banco de dados
-        // Apenas a agregação hierárquica (soma de filhos para pais) será mantida
-        const valorLinha = Number(linha.saldoAtual) || 0;
+        // IMPORTANTE: Usar valor do período (movimentação do mês), não saldo acumulado
+        // Fórmula do Excel: saldoAtual = saldoAnterior + debito + credito
+        // Valor do período = saldoAtual - saldoAnterior = debito + credito
+        // O debito e credito já vêm com sinal do Excel (positivo/negativo)
+        const debito = Number(linha.debito) || 0;
+        const credito = Number(linha.credito) || 0;
+        const valorLinha = debito + credito;
 
         valoresPorMes.set(mes, valorAtual + valorLinha);
       }
@@ -678,7 +681,9 @@ export class RelatoriosService {
           contaCatalogo = contasCatalogo.find((c) => {
             const classificacaoCatalogoNormalizada =
               normalizarClassificacaoParaChave(c.classificacao);
-            return classificacaoCatalogoNormalizada === classificacaoNormalizada;
+            return (
+              classificacaoCatalogoNormalizada === classificacaoNormalizada
+            );
           });
         }
 
@@ -1202,6 +1207,7 @@ export class RelatoriosService {
     ano: number,
     empresaIds: string[],
     descricao?: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     tipoValor: 'ACUMULADO' | 'PERIODO' = 'ACUMULADO',
   ): Promise<Map<string, number>> {
     // Buscar uploads do período específico
@@ -1295,9 +1301,13 @@ export class RelatoriosService {
           linha.subConta,
         );
 
-        // IMPORTANTE: Não fazer cálculos, apenas replicar o saldoAtual do banco
-        // O sistema deve apenas replicar os dados que já estão no banco de dados
-        const valorLinha = Number(linha.saldoAtual) || 0;
+        // IMPORTANTE: Usar valor do período (movimentação do mês), não saldo acumulado
+        // Fórmula do Excel: saldoAtual = saldoAnterior + debito + credito
+        // Valor do período = saldoAtual - saldoAnterior = debito + credito
+        // O debito e credito já vêm com sinal do Excel (positivo/negativo)
+        const debito = Number(linha.debito) || 0;
+        const credito = Number(linha.credito) || 0;
+        const valorLinha = debito + credito;
 
         // Somar valores se já existe a chave
         const valorAtual = dadosPorChaveComposta.get(chaveComposta) || 0;
