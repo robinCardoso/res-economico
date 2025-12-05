@@ -170,9 +170,17 @@ export default function PreferenciasNotificacaoPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Canais de Notificação */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Canais de Notificação</h3>
-              <div className="space-y-3">
+            <Card className="border-2 border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  Canais de Notificação
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Escolha por onde você deseja receber as notificações
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label htmlFor="emailAtivo">Notificações por E-mail</Label>
@@ -244,13 +252,21 @@ export default function PreferenciasNotificacaoPage() {
                     }}
                   />
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Frequência de Lembretes */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Frequência de Lembretes</h3>
-              <div className="space-y-3">
+            <Card className="border-2 border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  Frequência de Lembretes
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Quando você deseja ser lembrado sobre prazos de ações
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="lembrete3Dias">3 dias antes do vencimento</Label>
                   <input
@@ -326,68 +342,90 @@ export default function PreferenciasNotificacaoPage() {
                     }}
                   />
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Horários de Notificação */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                <h3 className="text-lg font-semibold">Horários de Notificação</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="horarioInicio">Horário Início</Label>
-                  <Input
-                    id="horarioInicio"
-                    name="horarioInicio"
-                    type="time"
-                    defaultValue={preferencias.horarioInicio}
-                    required
-                  />
+            <Card className="border-2 border-purple-200 bg-purple-50/50 dark:border-purple-800 dark:bg-purple-950/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  Horários de Notificação
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Período do dia em que você deseja receber notificações
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="horarioInicio">Horário Início</Label>
+                    <Input
+                      id="horarioInicio"
+                      name="horarioInicio"
+                      type="time"
+                      defaultValue={preferencias.horarioInicio}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="horarioFim">Horário Fim</Label>
+                    <Input
+                      id="horarioFim"
+                      name="horarioFim"
+                      type="time"
+                      defaultValue={preferencias.horarioFim}
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="horarioFim">Horário Fim</Label>
-                  <Input
-                    id="horarioFim"
-                    name="horarioFim"
-                    type="time"
-                    defaultValue={preferencias.horarioFim}
-                    required
-                  />
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Dias da Semana */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                <h3 className="text-lg font-semibold">Dias da Semana</h3>
-              </div>
-              <div className="space-y-2">
-                {DIAS_SEMANA.map((dia) => (
-                  <div key={dia.value} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id={`dia-${dia.value}`}
-                      name="diasSemana"
-                      value={dia.value}
-                      defaultChecked={preferencias.diasSemana.includes(dia.value)}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
-                    <Label htmlFor={`dia-${dia.value}`} className="cursor-pointer">
-                      {dia.label}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Card className="border-2 border-orange-200 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                  Dias da Semana
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Selecione os dias em que você deseja receber notificações
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {DIAS_SEMANA.map((dia) => (
+                    <div key={dia.value} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`dia-${dia.value}`}
+                        name="diasSemana"
+                        value={dia.value}
+                        defaultChecked={preferencias.diasSemana.includes(dia.value)}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor={`dia-${dia.value}`} className="cursor-pointer">
+                        {dia.label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Tipos de Eventos */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Tipos de Eventos</h3>
-              <div className="space-y-3">
+            <Card className="border-2 border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  Tipos de Eventos
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Escolha quais tipos de eventos devem gerar notificações
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="notificarPrazos">Notificar sobre Prazos</Label>
                   <input
@@ -463,14 +501,23 @@ export default function PreferenciasNotificacaoPage() {
                     }}
                   />
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Resumos */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Resumos</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
+            <Card className="border-2 border-indigo-200 bg-indigo-50/50 dark:border-indigo-800 dark:bg-indigo-950/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  Resumos
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Configure resumos periódicos de atividades e notificações
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
                   <Label htmlFor="resumoDiario">Resumo Diário</Label>
                   <input
                     type="hidden"
@@ -550,10 +597,11 @@ export default function PreferenciasNotificacaoPage() {
                     </div>
                   </div>
                 )}
-              </div>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-4">
               <Button
                 type="submit"
                 disabled={updateMutation.isPending}
