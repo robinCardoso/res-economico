@@ -7,6 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "aplicar-indices": "ts-node scripts/aplicar-indices.ts",
+    "test:bravo-fields": "ts-node scripts/test-bravo-fields.ts",
     "migrate:create": "prisma migrate dev --create-only --name",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",

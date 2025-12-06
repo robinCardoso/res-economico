@@ -168,46 +168,16 @@ export class MappingService {
         },
         // Campos de metadata (JSONB)
         {
-          nome: 'metadata->bravo_id',
-          tipo: 'jsonb',
-          obrigatorio: false,
-          descricao: 'ID original do Bravo ERP',
-        },
-        {
           nome: 'metadata->tipo_produto',
           tipo: 'jsonb',
           obrigatorio: false,
           descricao: 'Tipo do produto (prod, serv, etc)',
         },
         {
-          nome: 'metadata->preco_venda',
-          tipo: 'jsonb',
-          obrigatorio: false,
-          descricao: 'Preço de venda do produto',
-        },
-        {
-          nome: 'metadata->peso_bruto',
-          tipo: 'jsonb',
-          obrigatorio: false,
-          descricao: 'Peso bruto em kg',
-        },
-        {
-          nome: 'metadata->peso_liquido',
-          tipo: 'jsonb',
-          obrigatorio: false,
-          descricao: 'Peso líquido em kg',
-        },
-        {
           nome: 'metadata->unidade_venda',
           tipo: 'jsonb',
           obrigatorio: false,
           descricao: 'Unidade de venda (UND, KG, etc)',
-        },
-        {
-          nome: 'metadata->data_modificacao_bravo',
-          tipo: 'jsonb',
-          obrigatorio: false,
-          descricao: 'Data de modificação no Bravo',
         },
       ];
 
@@ -226,6 +196,8 @@ export class MappingService {
 
   /**
    * MELHORIA 2: Flatten object recursivamente para extrair campos aninhados
+   * CORRIGIDO: Ignora chaves numéricas (IDs) em objetos _ref, criando caminhos genéricos
+   * Exemplo: _ref.unidade.abreviacao ao invés de _ref.unidade.1806.abreviacao
    */
   private flattenObject(
     obj: any,
@@ -256,7 +228,7 @@ export class MappingService {
           });
         } else if (Array.isArray(value)) {
           if (value.length > 0) {
-            // Se é array de objetos, processar primeiro item
+            // Para arrays, usar primeiro item
             if (typeof value[0] === 'object' && value[0] !== null) {
               this.flattenObject(value[0], caminho, result);
             } else {
@@ -276,8 +248,25 @@ export class MappingService {
             });
           }
         } else if (typeof value === 'object') {
-          // Objeto aninhado - recursão
-          this.flattenObject(value, caminho, result);
+          // CORREÇÃO: Verificar se é um objeto com chaves numéricas (ex: _ref.unidade = { 1806: {...}, 18: {...} })
+          // Se for, ignorar as chaves numéricas e pegar diretamente os campos do primeiro item
+          const keys = Object.keys(value);
+          const isObjectWithNumericKeys = keys.length > 0 && keys[0].match(/^_?\d+$/);
+          
+          if (isObjectWithNumericKeys) {
+            // Pegar o primeiro item como exemplo (qualquer um serve, pois têm a mesma estrutura)
+            const primeiroItem = value[keys[0]];
+            
+            if (typeof primeiroItem === 'object' && primeiroItem !== null) {
+              // Continuar o flatten do primeiro item, mas SEM incluir a chave numérica no caminho
+              // Exemplo: caminho = "_ref.unidade", primeiroItem = { abreviacao: "PC", ... }
+              // Resultado: "_ref.unidade.abreviacao" (sem o .1806)
+              this.flattenObject(primeiroItem, caminho, result);
+            }
+          } else {
+            // Objeto normal - recursão padrão
+            this.flattenObject(value, caminho, result);
+          }
         } else {
           // Valor primitivo
           const tipo =
@@ -357,6 +346,46 @@ export class MappingService {
   }
 
   /**
+   * MELHORIA 1: Obter produto de exemplo para visualização no mapeamento
+   */
+  async getSampleProduct(): Promise<{
+    success: boolean;
+    product?: any;
+    error?: string;
+  }> {
+    try {
+      // Buscar primeiro produto ordenado por id_produto ASC
+      const produtos = await this.bravoClient.consultarProdutos({
+        page: 1,
+        limit: 1,
+        sortCol: 'id_produto',
+        sortOrder: 'ASC',
+      });
+
+      if (!produtos || produtos.length === 0) {
+        return {
+          success: false,
+          error: 'Nenhum produto encontrado na API do Bravo ERP',
+        };
+      }
+
+      return {
+        success: true,
+        product: produtos[0],
+      };
+    } catch (error) {
+      this.logger.error('❌ Erro ao obter produto de exemplo:', error);
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Erro desconhecido ao buscar produto de exemplo',
+      };
+    }
+  }
+
+  /**
    * MELHORIA 3: Preview do mapeamento aplicado ao primeiro produto
    */
   async previewMapping(mapeamentos: CampoMapeamentoDto[]): Promise<{
@@ -426,13 +455,101 @@ export class MappingService {
       }> = [];
 
       // Função auxiliar para obter valor aninhado
+      // Suporta caminhos genéricos como _ref.unidade.abreviacao (resolvendo pelo ID correto)
       const obterValorCampo = (obj: any, caminho: string): any => {
-        return caminho.split('.').reduce((o, key) => {
-          if (o && typeof o === 'object') {
-            return o[key];
+        // Tratamento especial para campos _ref que precisam buscar pelo ID correto
+        if (caminho === '_ref.marca.titulo' && obj.id_marca) {
+          return obj._ref?.marca?.[obj.id_marca]?.titulo || null;
+        }
+        if (caminho.startsWith('_ref.marca.') && obj.id_marca) {
+          const campo = caminho.replace('_ref.marca.', '');
+          return obj._ref?.marca?.[obj.id_marca]?.[campo] || null;
+        }
+        
+        if (caminho === '_ref.categoria.titulo' && obj.id_produto_categoria) {
+          return obj._ref?.categoria?.[obj.id_produto_categoria]?.titulo || null;
+        }
+        if (caminho.startsWith('_ref.categoria.') && obj.id_produto_categoria) {
+          const campo = caminho.replace('_ref.categoria.', '');
+          return obj._ref?.categoria?.[obj.id_produto_categoria]?.[campo] || null;
+        }
+        
+        if (caminho === '_ref.unidade.abreviacao' && obj.id_unidade_padrao_venda) {
+          return obj._ref?.unidade?.[obj.id_unidade_padrao_venda]?.abreviacao || null;
+        }
+        if (caminho === '_ref.unidade.descricao' && obj.id_unidade_padrao_venda) {
+          return obj._ref?.unidade?.[obj.id_unidade_padrao_venda]?.descricao || null;
+        }
+        if (caminho === '_ref.unidade.qtde_unit_emba' && obj.id_unidade_padrao_venda) {
+          return obj._ref?.unidade?.[obj.id_unidade_padrao_venda]?.qtde_unit_emba || null;
+        }
+        if (caminho.startsWith('_ref.unidade.') && obj.id_unidade_padrao_venda) {
+          const campo = caminho.replace('_ref.unidade.', '');
+          return obj._ref?.unidade?.[obj.id_unidade_padrao_venda]?.[campo] || null;
+        }
+        
+        // Tratamento para gtin.gtin (gtin é um objeto indexado por ID)
+        if (caminho === 'gtin.gtin') {
+          if (Array.isArray(obj.gtin)) {
+            if (obj.gtin.length > 0) {
+              const primeiroGtin = obj.gtin[0];
+              return primeiroGtin?.gtin || primeiroGtin || null;
+            }
+            return null;
           }
-          return undefined;
-        }, obj);
+          if (typeof obj.gtin === 'object' && obj.gtin !== null) {
+            const gtinKeys = Object.keys(obj.gtin);
+            if (gtinKeys.length > 0) {
+              const primeiroGtin = obj.gtin[gtinKeys[0]];
+              return primeiroGtin?.gtin || primeiroGtin || null;
+            }
+          }
+          return obj.gtin || null;
+        }
+        if (caminho.startsWith('gtin.')) {
+          const campo = caminho.replace('gtin.', '');
+          if (Array.isArray(obj.gtin)) {
+            if (obj.gtin.length > 0) {
+              return obj.gtin[0]?.[campo] || null;
+            }
+            return null;
+          }
+          if (typeof obj.gtin === 'object' && obj.gtin !== null) {
+            const gtinKeys = Object.keys(obj.gtin);
+            if (gtinKeys.length > 0) {
+              return obj.gtin[gtinKeys[0]]?.[campo] || null;
+            }
+          }
+          return null;
+        }
+        
+        // Para outros campos, usar acesso direto padrão
+        const partes = caminho.split('.');
+        let resultado = obj;
+        
+        for (let i = 0; i < partes.length; i++) {
+          const parte = partes[i];
+          
+          if (resultado === null || resultado === undefined) {
+            return undefined;
+          }
+          
+          // Se a parte é um número, pode ser índice de array
+          if (!isNaN(Number(parte))) {
+            const index = Number(parte);
+            if (Array.isArray(resultado)) {
+              resultado = resultado[index];
+            } else {
+              return undefined;
+            }
+          } else if (typeof resultado === 'object') {
+            resultado = resultado[parte];
+          } else {
+            return undefined;
+          }
+        }
+        
+        return resultado;
       };
 
       // Aplicar cada mapeamento

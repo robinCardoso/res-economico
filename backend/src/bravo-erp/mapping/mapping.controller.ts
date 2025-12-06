@@ -106,4 +106,22 @@ export class MappingController {
       );
     }
   }
+
+  /**
+   * MELHORIA 1: Endpoint para obter produto de exemplo
+   */
+  @Get('mapping/sample-product')
+  async getSampleProduct() {
+    try {
+      return await this.mappingService.getSampleProduct();
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          error: error instanceof Error ? error.message : 'Erro desconhecido',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

@@ -390,4 +390,20 @@ export const bravoErpService = {
     });
     return data;
   },
+
+  /**
+   * MELHORIA 1: Busca produto de exemplo para visualização
+   */
+  async getSampleProduct(): Promise<{
+    success: boolean;
+    product?: any;
+    error?: string;
+  }> {
+    const { data } = await api.get<{
+      success: boolean;
+      product?: any;
+      error?: string;
+    }>('/bravo-erp/mapping/sample-product');
+    return data;
+  },
 };

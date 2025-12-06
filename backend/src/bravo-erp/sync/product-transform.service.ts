@@ -57,7 +57,51 @@ export class ProductTransformService {
   /**
    * Obtém valor de campo aninhado (ex: _ref.marca.titulo)
    */
+  /**
+   * Obtém valor de campo aninhado com suporte a caminhos genéricos
+   * Ex: _ref.unidade.abreviacao será resolvido usando id_unidade_padrao_venda
+   */
   private obterValorCampo(objeto: any, caminho: string): any {
+    // Tratamento especial para campos _ref que precisam buscar pelo ID correto
+    // Isso permite usar caminhos genéricos sem números fixos
+    
+    // _ref.marca.*
+    if (caminho.startsWith('_ref.marca.') && objeto.id_marca) {
+      const campo = caminho.replace('_ref.marca.', '');
+      return objeto._ref?.marca?.[objeto.id_marca]?.[campo] || null;
+    }
+    
+    // _ref.categoria.*
+    if (caminho.startsWith('_ref.categoria.') && objeto.id_produto_categoria) {
+      const campo = caminho.replace('_ref.categoria.', '');
+      return objeto._ref?.categoria?.[objeto.id_produto_categoria]?.[campo] || null;
+    }
+    
+    // _ref.unidade.* (usando id_unidade_padrao_venda)
+    if (caminho.startsWith('_ref.unidade.') && objeto.id_unidade_padrao_venda) {
+      const campo = caminho.replace('_ref.unidade.', '');
+      return objeto._ref?.unidade?.[objeto.id_unidade_padrao_venda]?.[campo] || null;
+    }
+    
+    // gtin.* (gtin é um objeto indexado por ID, pegar primeiro)
+    if (caminho.startsWith('gtin.')) {
+      const campo = caminho.replace('gtin.', '');
+      if (Array.isArray(objeto.gtin)) {
+        if (objeto.gtin.length > 0) {
+          return objeto.gtin[0]?.[campo] || null;
+        }
+        return null;
+      }
+      if (typeof objeto.gtin === 'object' && objeto.gtin !== null) {
+        const gtinKeys = Object.keys(objeto.gtin);
+        if (gtinKeys.length > 0) {
+          return objeto.gtin[gtinKeys[0]]?.[campo] || null;
+        }
+      }
+      return null;
+    }
+    
+    // Para outros campos, usar acesso direto padrão
     return caminho.split('.').reduce((obj, key) => {
       if (obj && typeof obj === 'object') {
         return obj[key];
