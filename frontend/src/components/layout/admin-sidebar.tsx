@@ -19,6 +19,7 @@ import {
   BarChart3,
   Bell,
   FileCheck,
+  Package,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -72,6 +73,15 @@ const processosGroup: NavGroup = {
   ],
 };
 
+// Menu Importações (colapsável)
+const importacoesGroup: NavGroup = {
+  label: 'Importações',
+  icon: UploadCloud,
+  items: [
+    { label: 'Bravo ERP - Produtos', href: '/admin/importacoes/bravo-erp/produtos', icon: Package },
+  ],
+};
+
 // Menu Atas e Reuniões (link simples)
 const atasItem: NavItem = {
   label: 'Atas e Reuniões',
@@ -105,6 +115,10 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
     // Abrir automaticamente o menu "Processos" se estivermos em uma de suas rotas
     if (pathname?.startsWith('/admin/processos')) {
       return ['processos'];
+    }
+    // Abrir automaticamente o menu "Importações" se estivermos em uma de suas rotas
+    if (pathname?.startsWith('/admin/importacoes')) {
+      return ['importacoes'];
     }
     return [];
   });
@@ -250,6 +264,54 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-1 space-y-0.5 pl-8 overflow-visible data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
                 {processosGroup.items.map((item) => {
+                  const Icon = item.icon;
+                  const itemIsActive = isActive(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => {
+                        closeAllMenus();
+                        onNavClick();
+                      }}
+                      className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                        itemIsActive
+                          ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                          : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5 flex-shrink-0" aria-hidden />
+                      <span className="whitespace-nowrap">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+
+          {/* Importações (colapsável) - apenas para admin */}
+          {isAdmin && (
+            <Collapsible
+              open={openMenus.includes('importacoes')}
+              onOpenChange={() => toggleMenu('importacoes')}
+            >
+              <CollapsibleTrigger
+                className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition ${
+                  isGroupActive(importacoesGroup)
+                    ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                    : 'text-foreground/90 hover:bg-secondary'
+                }`}
+              >
+                <importacoesGroup.icon className="h-4 w-4 flex-shrink-0" aria-hidden />
+                <span className="flex-1 text-left whitespace-nowrap">{importacoesGroup.label}</span>
+                {openMenus.includes('importacoes') ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-1 space-y-0.5 pl-8 overflow-visible data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+                {importacoesGroup.items.map((item) => {
                   const Icon = item.icon;
                   const itemIsActive = isActive(item.href);
                   return (

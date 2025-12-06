@@ -878,3 +878,200 @@ enum StatusEnvioEmail {
   FALHA
   CANCELADO
 }
+
+// =====================================================
+// BRAVO ERP - MÓDULO DE SINCRONIZAÇÃO
+// =====================================================
+
+// =====================================================
+// BRAVO ERP - CONFIGURAÇÕES
+// =====================================================
+
+model BravoSyncConfig {
+  id        String   @id @default(uuid())
+  chave     String   @unique // Ex: "bravo_base_url", "bravo_token"
+  valor     String
+  descricao String?
+  tipo      String   @default("string") // string, number, boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([chave])
+}
+
+// =====================================================
+// BRAVO ERP - MAPEAMENTO DE CAMPOS
+// =====================================================
+
+model BravoCampoMapeamento {
+  id                 Int      @id @default(autoincrement())
+  campo_bravo        String   // Nome do campo na API Bravo
+  campo_interno      String   // Nome do campo na tabela produtos
+  tipo_transformacao String   @default("direto") // direto, decimal, json, boolean, etc
+  ativo              Boolean  @default(true)
+  ordem              Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([ativo])
+  @@index([ordem])
+}
+
+// =====================================================
+// BRAVO ERP - PRODUTOS
+// =====================================================
+
+model Produto {
+  id             String   @id @default(uuid())
+  referencia     String   @unique // Referência única do produto (obrigatório)
+  id_prod        String?  // ID original do Bravo ERP
+  descricao      String?
+  marca          String?
+  grupo          String?
+  subgrupo       String?
+  ativo          Boolean  @default(true)
+  
+  // Campos adicionais
+  gtin           String?  // Código GTIN/EAN
+  ncm            String?  // Código NCM
+  cest           String?  // Código CEST
+  dataUltModif   DateTime? // Data da última modificação no Bravo
+  
+  // Metadata JSONB para campos dinâmicos
+  metadata       Json?    // { bravo_id, tipo_produto, preco_venda, peso_bruto, etc }
+  
+  // Timestamps
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([referencia])
+  @@index([id_prod])
+  @@index([ativo])
+  @@index([marca])
+  @@index([grupo])
+  @@index([dataUltModif])
+}
+
+// =====================================================
+// BRAVO ERP - LOGS DE SINCRONIZAÇÃO
+// =====================================================
+
+model BravoSyncLog {
+  id                    String   @id @default(uuid())
+  sync_type             String   // 'complete' | 'quick' | 'automatica'
+  status                String   @default("running") // running, completed, failed, cancelled
+  status_detalhado      String?  // completed_successfully, completed_with_errors, etc
+  
+  // Configuração da sincronização
+  apenas_ativos         Boolean  @default(true)
+  limit_requested       Int?
+  pages_requested       Int?
+  effective_limit       Int?
+  
+  // Progresso
+  current_page          Int?     @default(1)
+  pages_processed       Int?     @default(0)
+  total_pages_found     Int?
+  resume_from_page      Int?     // Para retomada de sincronização
+  
+  // Estatísticas
+  total_produtos_bravo  Int?     @default(0)
+  produtos_filtrados    Int?     @default(0)
+  produtos_analisados   Int?     @default(0)
+  produtos_inseridos    Int?     @default(0)
+  produtos_atualizados  Int?     @default(0)
+  produtos_ignorados    Int?     @default(0)
+  produtos_com_erro     Int?     @default(0)
+  
+  // Otimização
+  taxa_otimizacao       String?  // Porcentagem de produtos ignorados
+  economia_queries      Int?     @default(0)
+  
+  // Erros
+  error_message         String?
+  error_details         Json?    // Detalhes do erro
+  tipos_erro            Json?    // { duplicate_key: 5, foreign_key_violation: 2 }
+  sugestoes_correcao    String[] // Sugestões de correção
+  
+  // Métricas
+  tempo_total_segundos  Int?
+  percentual_sucesso    Int?     // 0-100
+  
+  // Usuário
+  triggered_by          String?  // 'admin_user', 'cron', 'api'
+  user_agent            String?
+  userId                String?  // ID do usuário que iniciou
+  
+  // Retomada
+  can_resume            Boolean  @default(false)
+  sync_details          Json?    // Detalhes adicionais da sincronização
+  
+  // Timestamps
+  started_at            DateTime @default(now())
+  completed_at          DateTime?
+  last_activity_at      DateTime?
+
+  // Relacionamentos
+  progress    BravoSyncProgress?
+
+  @@index([status])
+  @@index([sync_type])
+  @@index([started_at])
+  @@index([can_resume])
+  @@index([userId])
+}
+
+// =====================================================
+// BRAVO ERP - PROGRESSO DE SINCRONIZAÇÃO
+// =====================================================
+
+model BravoSyncProgress {
+  id                        String   @id @default(uuid())
+  sync_log_id               String   @unique
+  progress_percentage       Decimal  @db.Decimal(5, 2) // 0.00 a 100.00
+  current_step              String?  // "Buscando produtos...", "Processando página 1..."
+  current_page              Int?
+  total_pages               Int?
+  products_processed        Int?     @default(0)
+  products_inserted_current_page Int? @default(0)
+  total_produtos_bravo      Int?
+  estimated_time_remaining  String?  // "5 páginas restantes"
+  current_product           String?  // Referência do produto atual
+  status_atual              String?
+  etapa_atual               String?
+  
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  
+  syncLog                   BravoSyncLog @relation(fields: [sync_log_id], references: [id], onDelete: Cascade)
+
+  @@index([sync_log_id])
+}
+
+// =====================================================
+// BRAVO ERP - AGREGADOS (Marcas, Grupos, Subgrupos)
+// =====================================================
+
+model Marca {
+  id        String   @id @default(uuid())
+  nome      String   @unique
+  createdAt DateTime @default(now())
+  
+  @@index([nome])
+}
+
+model Grupo {
+  id        String   @id @default(uuid())
+  nome      String   @unique
+  createdAt DateTime @default(now())
+  
+  @@index([nome])
+}
+
+model Subgrupo {
+  id        String   @id @default(uuid())
+  nome      String   @unique
+  createdAt DateTime @default(now())
+  
+  @@index([nome])
+}
