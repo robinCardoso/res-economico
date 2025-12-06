@@ -319,10 +319,12 @@ export class MappingService {
     error?: string;
   }> {
     try {
-      // Buscar primeira página (1 produto)
+      // Buscar primeira página (1 produto) ordenado por id_produto ASC para pegar o menor ID
       const produtos = await this.bravoClient.consultarProdutos({
         page: 1,
         limit: 1,
+        sortCol: 'id_produto',
+        sortOrder: 'ASC',
       });
 
       if (!produtos || produtos.length === 0) {
@@ -379,10 +381,12 @@ export class MappingService {
     error?: string;
   }> {
     try {
-      // Buscar primeiro produto
+      // Buscar primeiro produto ordenado por id_produto ASC para pegar o menor ID
       const produtos = await this.bravoClient.consultarProdutos({
         page: 1,
         limit: 1,
+        sortCol: 'id_produto',
+        sortOrder: 'ASC',
       });
 
       if (!produtos || produtos.length === 0) {

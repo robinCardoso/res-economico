@@ -143,6 +143,7 @@ export function MappingPanel({ showBackButton = false, compact = false }: Mappin
     try {
       const result = await bravoErpService.getMapeamentos();
       if (result.success && result.mapeamentos) {
+        console.log('📦 Mapeamentos carregados do banco:', result.mapeamentos);
         setMapeamentos(result.mapeamentos || []);
       } else {
         toast({
@@ -280,6 +281,14 @@ export function MappingPanel({ showBackButton = false, compact = false }: Mappin
     loadCamposInternos();
     // Não carregar campos do Bravo automaticamente (requer API configurada)
   }, []);
+
+  // Carregar campos do Bravo automaticamente se houver mapeamentos salvos
+  useEffect(() => {
+    if (mapeamentos.length > 0 && camposBravo.length === 0 && !loadingCamposBravo) {
+      console.log('🔄 Detectados mapeamentos salvos, carregando campos do Bravo ERP...');
+      loadCamposBravo();
+    }
+  }, [mapeamentos.length]);
 
   // ============================================
   // RENDER
@@ -484,20 +493,55 @@ export function MappingPanel({ showBackButton = false, compact = false }: Mappin
                   <div className="col-span-3">
                     <Label className="text-xs font-medium">Campo Bravo ERP</Label>
                     <Select
-                      value={mapeamento.campo_bravo}
+                      value={mapeamento.campo_bravo || ''}
                       onValueChange={(value) => updateMapeamento(index, 'campo_bravo', value)}
                     >
                       <SelectTrigger className="h-9">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        {camposBravo.map((campo) => (
-                          <SelectItem key={campo.caminho || campo.nome} value={campo.caminho || campo.nome}>
-                            {campo.nome} ({campo.tipo})
-                          </SelectItem>
-                        ))}
+                        {camposBravo.length === 0 ? (
+                          <>
+                            {/* Se há um valor salvo, incluir na lista mesmo sem campos carregados */}
+                            {mapeamento.campo_bravo ? (
+                              <SelectItem value={mapeamento.campo_bravo}>
+                                {mapeamento.campo_bravo} (salvo)
+                              </SelectItem>
+                            ) : (
+                              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                Carregue os campos do Bravo ERP primeiro
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {/* Se há um valor salvo que não está na lista, mostrar como opção */}
+                            {mapeamento.campo_bravo && 
+                             !camposBravo.some(c => (c.caminho || c.nome) === mapeamento.campo_bravo) && (
+                              <SelectItem value={mapeamento.campo_bravo}>
+                                {mapeamento.campo_bravo} (salvo)
+                              </SelectItem>
+                            )}
+                            {camposBravo
+                              .filter((campo) => (campo.caminho || campo.nome)?.trim())
+                              .map((campo) => {
+                                const valor = (campo.caminho || campo.nome)?.trim();
+                                if (!valor) return null;
+                                return (
+                                  <SelectItem key={valor} value={valor}>
+                                    {campo.nome} ({campo.tipo})
+                                  </SelectItem>
+                                );
+                              })}
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
+                    {camposBravo.length === 0 && mapeamento.campo_bravo && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Campo salvo: {mapeamento.campo_bravo}
+                      </p>
+                    )}
                   </div>
 
                   {/* Seta */}
