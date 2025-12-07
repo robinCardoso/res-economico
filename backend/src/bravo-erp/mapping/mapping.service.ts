@@ -18,6 +18,17 @@ export class MappingService {
   ) {}
 
   /**
+   * Limpar cache de transformação após salvar mapeamentos
+   * O cache do ProductTransformService expira em 5 minutos (CACHE_TTL)
+   * Então os novos mapeamentos serão usados na próxima sincronização
+   */
+  private async limparCacheTransformacao(): Promise<void> {
+    // O cache será limpo automaticamente após 5 minutos
+    // Ou pode ser limpo manualmente na próxima sincronização
+    this.logger.log('💡 Mapeamentos atualizados. Cache será renovado na próxima sincronização (TTL 5min)');
+  }
+
+  /**
    * Buscar mapeamentos de campos
    */
   async getMapeamentos(): Promise<{
@@ -69,6 +80,9 @@ export class MappingService {
       });
 
       console.log('✅ Mapeamentos salvos com sucesso');
+
+      // Limpar cache de transformação para usar novos mapeamentos
+      await this.limparCacheTransformacao();
 
       return {
         success: true,

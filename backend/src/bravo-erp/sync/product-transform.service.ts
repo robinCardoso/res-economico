@@ -185,14 +185,37 @@ export class ProductTransformService {
         valorBravo = this.obterGtin(produtoBravo);
       }
 
-      if (mapeamento.tipo_transformacao === 'direto') {
-        // Mapeamento direto
+      // Verificar se é campo metadata (sintaxe metadata->campo)
+      const isMetadataField = mapeamento.campo_interno.startsWith('metadata->');
+      
+      if (isMetadataField) {
+        // Campo vai para metadata (independente do tipo de transformação)
+        if (valorBravo !== null && valorBravo !== undefined) {
+          const campoMeta = mapeamento.campo_interno.replace('metadata->', '');
+          
+          // Aplicar transformação se necessário antes de salvar em metadata
+          if (mapeamento.tipo_transformacao === 'boolean_invertido') {
+            metadata[campoMeta] = valorBravo === 'N';
+          } else if (mapeamento.tipo_transformacao === 'decimal') {
+            metadata[campoMeta] = valorBravo ? parseFloat(String(valorBravo)) : null;
+          } else if (mapeamento.tipo_transformacao === 'datetime') {
+            metadata[campoMeta] = valorBravo ? new Date(valorBravo) : null;
+          } else {
+            metadata[campoMeta] = valorBravo;
+          }
+        }
+      } else if (mapeamento.tipo_transformacao === 'direto') {
+        // Mapeamento direto (campos normais)
         resultado[mapeamento.campo_interno] = valorBravo || null;
       } else if (mapeamento.tipo_transformacao === 'boolean_invertido') {
         // Transformação booleana invertida (excluido = 'N' → ativo = true)
         resultado[mapeamento.campo_interno] = valorBravo === 'N';
+      } else if (mapeamento.tipo_transformacao === 'decimal') {
+        resultado[mapeamento.campo_interno] = valorBravo ? parseFloat(String(valorBravo)) : null;
+      } else if (mapeamento.tipo_transformacao === 'datetime') {
+        resultado[mapeamento.campo_interno] = valorBravo ? new Date(valorBravo) : null;
       } else if (mapeamento.tipo_transformacao === 'json') {
-        // Campo vai para metadata
+        // Campo vai para metadata (compatibilidade com sintaxe antiga)
         if (valorBravo !== null && valorBravo !== undefined) {
           const campoMeta = mapeamento.campo_interno.replace('metadata->', '');
           metadata[campoMeta] = valorBravo;

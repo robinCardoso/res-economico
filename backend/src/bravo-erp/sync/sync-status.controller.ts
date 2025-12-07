@@ -32,6 +32,12 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
+export interface CleanupResult {
+  log_id: string;
+  started_at: Date;
+  action: string;
+}
+
 @Controller('bravo-erp/sync')
 @UseGuards(JwtAuthGuard)
 export class SyncStatusController {
@@ -53,28 +59,128 @@ export class SyncStatusController {
       throw new BadRequestException('sync_log_id é obrigatório');
     }
 
-    // Buscar progresso mais recente
-    const progressData = await this.progressService.getProgress(sync_log_id);
+    // Verificar se é um lock_id (formato: sync_timestamp_random) ou UUID
+    const isLockId = sync_log_id.startsWith('sync_') && /^sync_\d+_[a-z0-9]+$/i.test(sync_log_id);
+    let actualSyncLogId = sync_log_id;
 
-    // Buscar informações do log de sincronização
-    const logData = await this.logService.getLogById(sync_log_id);
+    if (isLockId) {
+      // Se for lock_id, buscar o log mais recente em execução
+      const runningLog = await this.logService.getLatestRunningLog();
+
+      if (runningLog) {
+        actualSyncLogId = runningLog.id;
+        console.log(`🔍 Lock ID recebido (${sync_log_id}), usando sync_log_id mais recente em execução: ${actualSyncLogId}`);
+      } else {
+        // Se não encontrar log em execução, buscar o mais recente de qualquer status
+        const latestLog = await this.logService.getLatestLog();
+        if (latestLog) {
+          actualSyncLogId = latestLog.id;
+          console.log(`🔍 Lock ID recebido (${sync_log_id}), usando sync_log_id mais recente (qualquer status): ${actualSyncLogId}`);
+        }
+      }
+    }
+
+    // Buscar progresso mais recente DA TABELA BRAVOSYNCPROGRESS
+    const progressData = await this.progressService.getProgress(actualSyncLogId);
+
+    // Buscar informações do log de sincronização DA TABELA BRAVOSYNCLOG
+    const logData = await this.logService.getLogById(actualSyncLogId);
+
+    // Log de debug para identificar problemas
+    console.log('🔍 DEBUG Progress Endpoint:', {
+      sync_log_id_recebido: sync_log_id,
+      sync_log_id_usado: actualSyncLogId,
+      formato_recebido: isLockId ? 'LOCK_ID' : 'UUID',
+      foi_convertido: isLockId && actualSyncLogId !== sync_log_id,
+      tabela_progresso: progressData ? {
+        sync_log_id: progressData.sync_log_id,
+        current_page: progressData.current_page,
+        products_processed: progressData.products_processed,
+        total_produtos_bravo: progressData.total_produtos_bravo,
+        progress_percentage: progressData.progress_percentage,
+        current_step: progressData.current_step,
+        updatedAt: progressData.updatedAt,
+      } : 'NÃO ENCONTRADO NA TABELA BravoSyncProgress',
+      tabela_log: logData ? {
+        id: logData.id,
+        status: logData.status,
+        pages_processed: logData.pages_processed,
+        produtos_inseridos: logData.produtos_inseridos,
+        total_produtos_bravo: logData.total_produtos_bravo,
+      } : 'NÃO ENCONTRADO NA TABELA BravoSyncLog',
+    });
+    
+    // Verificar se há logs na tabela para debug
+    if (!progressData && !logData) {
+      try {
+        const PrismaService = this.progressService['prisma'].constructor;
+        const prisma = (this.progressService as any).prisma;
+        
+        const allLogs = await prisma.bravoSyncLog.findMany({
+          orderBy: { started_at: 'desc' },
+          take: 3,
+          select: { id: true, status: true, started_at: true },
+        });
+        const allProgress = await prisma.bravoSyncProgress.findMany({
+          orderBy: { updatedAt: 'desc' },
+          take: 3,
+          select: { sync_log_id: true, updatedAt: true },
+        });
+        console.log('🔍 DEBUG - Últimos registros encontrados:', {
+          ultimos_logs: allLogs,
+          ultimos_progress: allProgress,
+          id_buscado: sync_log_id,
+        });
+      } catch (debugError) {
+        console.error('Erro ao buscar registros para debug:', debugError);
+      }
+    }
+
+    // Se não há progresso nem log, retornar estrutura vazia mas válida
+    if (!progressData && !logData) {
+      return {
+        success: true,
+        progress: {
+          status: 'iniciando',
+          current_step: null,
+          current_page: 0,
+          products_processed: 0,
+          products_inserted_current_page: 0,
+          total_produtos_bravo: 0,
+          progressPercentage: 0,
+          estimated_time_remaining: null,
+          current_product: null,
+          status_atual: 'iniciando',
+          etapa_atual: null,
+          productsProcessed: 0,
+          totalProducts: 0,
+          currentStep: null,
+          currentProduct: null,
+          estimatedTimeRemaining: null,
+          details: {
+            pagesProcessed: 0,
+            totalPages: 0,
+          },
+        },
+      };
+    }
 
     // Combinar dados do progresso e do log
     const progress = {
-      status: logData?.status || progressData?.status_atual || 'idle',
+      status: logData?.status || progressData?.status_atual || 'processando',
       current_step: progressData?.current_step || null,
       current_page:
-        progressData?.current_page || logData?.pages_processed || 0,
+        progressData?.current_page ?? logData?.pages_processed ?? 0,
       products_processed:
-        progressData?.products_processed || logData?.produtos_inseridos || 0,
+        progressData?.products_processed ?? logData?.produtos_inseridos ?? 0,
       products_inserted_current_page:
-        progressData?.products_inserted_current_page || 0,
+        progressData?.products_inserted_current_page ?? 0,
       total_produtos_bravo:
-        progressData?.total_produtos_bravo || logData?.total_produtos_bravo || 0,
+        progressData?.total_produtos_bravo ?? logData?.total_produtos_bravo ?? 0,
       estimated_time_remaining:
         progressData?.estimated_time_remaining || null,
       current_product: progressData?.current_product || null,
-      status_atual: progressData?.status_atual || null,
+      status_atual: progressData?.status_atual || logData?.status || 'processando',
       etapa_atual: progressData?.etapa_atual || null,
     };
 
@@ -101,9 +207,9 @@ export class SyncStatusController {
         details: {
           pagesProcessed: progress.current_page,
           totalPages:
-            progress.current_page > 0
+            totalProducts > 0 && progress.current_page > 0
               ? Math.ceil(totalProducts / 300)
-              : 0, // 300 produtos por página estimado
+              : progress.current_page || 0, // 300 produtos por página estimado
         },
       },
     };
@@ -204,6 +310,12 @@ export class SyncStatusController {
         canResumeBool = can_resume;
       }
     }
+
+    // Limpar logs órfãos automaticamente antes de listar (silenciosamente)
+    this.cleanupOrphanedLogsInternal().catch((err) => {
+      // Não bloquear a listagem se a limpeza falhar
+      console.error('Erro ao limpar logs órfãos:', err);
+    });
 
     const logs = await this.logService.listLogs({
       limit: limit ? Number(limit) : 10,
@@ -343,6 +455,13 @@ export class SyncStatusController {
     const userId = req.user?.id;
     const userEmail = req.user?.email;
 
+    console.log('🛑 Cancelamento solicitado:', {
+      lockId,
+      syncLogId,
+      userId,
+      userEmail,
+    });
+
     let effectiveLockId = lockId;
     let logUpdated = false;
     let logAlreadyFinalized = false;
@@ -352,6 +471,9 @@ export class SyncStatusController {
       const currentSync = await this.lockManager.getCurrentSync();
       if (currentSync) {
         effectiveLockId = currentSync.id;
+        console.log('🔍 Lock ID obtido do sync atual:', effectiveLockId);
+      } else {
+        console.log('⚠️ Nenhum sync em execução encontrado');
       }
     }
 
@@ -360,8 +482,14 @@ export class SyncStatusController {
       const existingLog = await this.logService.getLogById(syncLogId);
 
       if (existingLog) {
+        console.log('📋 Log encontrado:', {
+          id: existingLog.id,
+          status: existingLog.status,
+        });
+
         if (['completed', 'failed', 'cancelled'].includes(existingLog.status)) {
           logAlreadyFinalized = true;
+          console.log('ℹ️ Log já estava finalizado');
         } else {
           const updateResult = await this.logService.updateLog(syncLogId, {
             status: 'cancelled',
@@ -370,7 +498,10 @@ export class SyncStatusController {
             can_resume: false,
           });
           logUpdated = updateResult.success;
+          console.log('✅ Log atualizado:', logUpdated);
         }
+      } else {
+        console.log('⚠️ Log não encontrado:', syncLogId);
       }
     }
 
@@ -379,8 +510,16 @@ export class SyncStatusController {
     // Cancelar lock se existir
     if (effectiveLockId) {
       const hasLock = await this.lockManager.hasLock(effectiveLockId);
+      console.log('🔒 Verificando lock:', {
+        lockId: effectiveLockId,
+        hasLock,
+      });
+
       if (hasLock) {
         cancelled = await this.lockManager.cancelSync(effectiveLockId);
+        console.log('✅ Lock cancelado:', cancelled);
+      } else {
+        console.log('⚠️ Lock não existe mais');
       }
     }
 
@@ -388,10 +527,18 @@ export class SyncStatusController {
     const message = cancelled
       ? 'Sincronização cancelada com sucesso'
       : logUpdated
-        ? 'Sincronização marcada como cancelada.'
+        ? 'Sincronização marcada como cancelada'
         : logAlreadyFinalized
-          ? 'Sincronização já estava finalizada.'
+          ? 'Sincronização já estava finalizada'
           : 'Não havia sincronização para cancelar';
+
+    console.log('🛑 Resultado do cancelamento:', {
+      success,
+      message,
+      cancelled,
+      logUpdated,
+      logAlreadyFinalized,
+    });
 
     return {
       success,
@@ -507,6 +654,123 @@ export class SyncStatusController {
         resume_from_page: resumeData.resume_from_page,
         resume_data: resumeData,
         // O frontend deve chamar POST /bravo-erp/sync/sincronizar com resume_data
+      },
+    };
+  }
+
+  /**
+   * Método interno para limpar logs órfãos (sem autenticação)
+   */
+  private async cleanupOrphanedLogsInternal(): Promise<void> {
+    try {
+      // Buscar todos os logs em "running" há mais de 1 hora
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      
+      const orphanedLogs = await this.logService['prisma'].bravoSyncLog.findMany({
+        where: {
+          status: 'running',
+          started_at: {
+            lt: oneHourAgo,
+          },
+        },
+      });
+
+      if (orphanedLogs.length === 0) {
+        return; // Nenhum log órfão encontrado
+      }
+
+      const currentSync = await this.lockManager.getCurrentSync();
+      const activeLockId = currentSync?.id;
+
+      for (const log of orphanedLogs) {
+        // Verificar se há lock ativo para este log
+        // Se não há lock ativo e o log está há mais de 1 hora em "running", é órfão
+        const isOrphaned = !activeLockId || activeLockId !== log.id;
+
+        if (isOrphaned) {
+          await this.logService.updateLog(log.id, {
+            status: 'failed',
+            status_detalhado: 'orphaned_log_cleaned',
+            error_message: 'Sincronização interrompida e não finalizada corretamente (log órfão limpo automaticamente)',
+            completed_at: new Date(),
+            can_resume: false,
+          });
+          
+          console.log(`🧹 Log órfão limpo: ${log.id} (iniciado em ${log.started_at})`);
+        }
+      }
+    } catch (error) {
+      // Erro não crítico - apenas logar
+      console.error('Erro ao limpar logs órfãos (não crítico):', error);
+    }
+  }
+
+  /**
+   * POST /bravo-erp/sync/cleanup-orphaned
+   * Limpa logs órfãos (presos em "running" sem lock ativo)
+   */
+  @Post('cleanup-orphaned')
+  async cleanupOrphanedLogs(): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      total_found: number;
+      cleaned: number;
+      results: Array<{
+        log_id: string;
+        started_at: Date;
+        action: string;
+      }>;
+    };
+  }> {
+    // Buscar todos os logs em "running" há mais de 1 hora
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    
+    const orphanedLogs = await this.logService['prisma'].bravoSyncLog.findMany({
+      where: {
+        status: 'running',
+        started_at: {
+          lt: oneHourAgo,
+        },
+      },
+    });
+
+    const currentSync = await this.lockManager.getCurrentSync();
+    const activeLockId = currentSync?.id;
+
+    let cleaned = 0;
+    const results: CleanupResult[] = [];
+
+    for (const log of orphanedLogs) {
+      // Verificar se há lock ativo para este log
+      // Se não há lock ativo e o log está há mais de 1 hora em "running", é órfão
+      const isOrphaned = !activeLockId || activeLockId !== log.id;
+
+      if (isOrphaned) {
+        await this.logService.updateLog(log.id, {
+          status: 'failed',
+          status_detalhado: 'orphaned_log_cleaned',
+          error_message: 'Sincronização interrompida e não finalizada corretamente (log órfão limpo)',
+          completed_at: new Date(),
+          can_resume: false,
+        });
+
+        cleaned++;
+        results.push({
+          log_id: log.id,
+          started_at: log.started_at,
+          action: 'marked_as_failed',
+        });
+      }
+    }
+
+    return {
+      success: true,
+      message: `${cleaned} log(s) órfão(s) limpo(s)`,
+      data: {
+        total_found: orphanedLogs.length,
+        cleaned,
+        results,
       },
     };
   }

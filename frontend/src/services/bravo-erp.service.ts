@@ -75,6 +75,16 @@ export interface SyncProgress {
     total_produtos_bravo: number;
     progressPercentage: number;
     estimatedTimeRemaining: string | null;
+    status_atual?: string;
+    // Campos alternativos para compatibilidade
+    productsProcessed?: number;
+    totalProducts?: number;
+    currentPage?: number;
+    currentStep?: string | null;
+    currentProduct?: string | null;
+    estimated_time_remaining?: string | null;
+    products_inserted_current_page?: number;
+    etapa_atual?: string | null;
     details: {
       pagesProcessed: number;
       totalPages: number;

@@ -129,21 +129,50 @@ export class SyncLockManager implements OnModuleInit {
     if (this.useRedis && this.redis) {
       try {
         const lockKey = `${this.LOCK_KEY_PREFIX}${lockId}`;
-        await this.redis.set(
+        // Usar SET com NX para lock atômico (só cria se não existir)
+        // ioredis: SET key value EX seconds NX
+        const result = await this.redis.set(
           lockKey,
           JSON.stringify(lock),
           'EX',
           Math.floor(this.LOCK_TIMEOUT / 1000),
+          'NX',
         );
-        this.logger.log(`🔒 Lock adquirido (Redis): ${lockId} por ${userEmail} (${type})`);
-        return { success: true, lockId };
+        
+        if (result === 'OK') {
+          this.logger.log(`🔒 Lock adquirido (Redis): ${lockId} por ${userEmail} (${type})`);
+          return { success: true, lockId };
+        } else {
+          // result é null quando NX falha (chave já existe)
+          this.logger.warn(`⚠️ Tentativa de adquirir lock quando já existe: ${lockId}`);
+          return {
+            success: false,
+            error: 'Sincronização já em andamento (lock adquirido por outro processo)',
+          };
+        }
       } catch (error) {
         this.logger.warn('Erro ao salvar lock no Redis, usando memória:', error);
+        // Fallback para memória - verificar novamente antes de adicionar
+        if (this.locks.size > 0) {
+          const existingLock = Array.from(this.locks.values())[0];
+          return {
+            success: false,
+            error: `Sincronização já em andamento por ${existingLock.userEmail} (${existingLock.type}) desde ${existingLock.startedAt.toLocaleString('pt-BR')}`,
+          };
+        }
         this.locks.set(lockId, lock);
         this.logger.log(`🔒 Lock adquirido (Memória): ${lockId} por ${userEmail} (${type})`);
         return { success: true, lockId };
       }
     } else {
+      // Verificar novamente em memória antes de adicionar (dupla verificação)
+      if (this.locks.size > 0) {
+        const existingLock = Array.from(this.locks.values())[0];
+        return {
+          success: false,
+          error: `Sincronização já em andamento por ${existingLock.userEmail} (${existingLock.type}) desde ${existingLock.startedAt.toLocaleString('pt-BR')}`,
+        };
+      }
       this.locks.set(lockId, lock);
       this.logger.log(`🔒 Lock adquirido (Memória): ${lockId} por ${userEmail} (${type})`);
       return { success: true, lockId };

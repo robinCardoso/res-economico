@@ -28,6 +28,7 @@ import { BravoErpClientModule } from '../client/client.module';
     SyncProcessorService,
     SyncProgressService,
     SyncLogService,
+    ProductTransformService, // Exportar para permitir limpar cache
   ],
 })
 export class SyncModule {}

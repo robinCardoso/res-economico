@@ -7,7 +7,7 @@
  * ============================================
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,46 +47,243 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
   const [progress, setProgress] = useState<SyncProgress | null>(null);
   const [config, setConfig] = useState<BravoConfig | null>(null);
   const [loadingConfig, setLoadingConfig] = useState(false);
+  
+  // Refs para acessar valores atualizados dentro do polling (evitar problemas de closure)
+  const currentSyncLogIdRef = useRef<string | null>(null);
+  const currentLockIdRef = useRef<string | null>(null);
+  
+  // Atualizar refs quando os valores mudam
+  useEffect(() => {
+    currentSyncLogIdRef.current = currentSyncLogId;
+  }, [currentSyncLogId]);
+  
+  useEffect(() => {
+    currentLockIdRef.current = currentLockId;
+  }, [currentLockId]);
 
   // Carregar configuração
   useEffect(() => {
     loadConfig();
   }, []);
 
+  // Verificar se há sincronização em execução ao montar o componente
+  // Isso permite recuperar o progresso mesmo após sair e voltar à página
+  useEffect(() => {
+    const checkRunningSync = async () => {
+      try {
+        const status = await bravoErpService.getStatus();
+        
+        // Se há sincronização rodando, recuperar estado
+        if (status.isRunning && status.currentSync) {
+          console.log('🔄 Sincronização em execução detectada ao carregar página:', status.currentSync);
+          
+          setSyncing(true);
+          setSyncType(status.currentSync.type === 'complete' ? 'completa' : 'rapida');
+          
+          // O currentSync.id é o lockId (formato: sync_timestamp_random)
+          // Vamos usar isso para buscar o progresso (o endpoint faz a conversão automática)
+          const lockIdOrSyncLogId = status.currentSync.id;
+          
+          if (lockIdOrSyncLogId) {
+            // Armazenar lockId
+            setCurrentLockId(lockIdOrSyncLogId);
+            
+            // Tentar buscar progresso usando o lockId (o endpoint converte automaticamente)
+            try {
+              const progressResponse = await bravoErpService.getProgress(lockIdOrSyncLogId);
+              if (progressResponse) {
+                console.log('✅ Progresso recuperado ao carregar página:', progressResponse);
+                
+                if ('progress' in progressResponse) {
+                  setProgress(progressResponse as any);
+                  
+                  // Tentar obter sync_log_id real se disponível no response
+                  // (alguns endpoints podem retornar isso)
+                } else {
+                  setProgress({
+                    success: true,
+                    progress: progressResponse,
+                  } as any);
+                }
+              }
+              
+              // Buscar logs para tentar obter o sync_log_id real (UUID)
+              try {
+                const logsResponse = await bravoErpService.getLogs({ limit: 5, status: 'running' });
+                if (logsResponse.success && logsResponse.data?.logs && logsResponse.data.logs.length > 0) {
+                  // Pegar o log mais recente em execução
+                  const latestRunningLog = logsResponse.data.logs[0];
+                  if (latestRunningLog.status === 'running' || latestRunningLog.status === 'processando') {
+                    setCurrentSyncLogId(latestRunningLog.id);
+                    console.log('✅ sync_log_id recuperado dos logs:', latestRunningLog.id);
+                  }
+                }
+              } catch (logsError) {
+                console.warn('⚠️ Não foi possível buscar logs para obter sync_log_id:', logsError);
+                // Não é crítico, podemos continuar usando o lockId
+              }
+              
+            } catch (progressError) {
+              console.warn('⚠️ Não foi possível buscar progresso ao recuperar:', progressError);
+              // Continuar mesmo sem progresso inicial, o polling vai buscar depois
+            }
+          }
+          
+          toast({
+            title: 'Sincronização em execução detectada',
+            description: 'Uma sincronização em andamento foi encontrada e será acompanhada automaticamente.',
+          });
+        } else {
+          console.log('ℹ️ Nenhuma sincronização em execução ao carregar página');
+        }
+      } catch (error) {
+        console.error('Erro ao verificar sincronização em execução:', error);
+        // Não exibir erro ao usuário, apenas logar
+      }
+    };
+
+    // Verificar após um pequeno delay para garantir que a página está montada
+    const timeoutId = setTimeout(checkRunningSync, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, []); // Executar apenas uma vez ao montar
+
   // Polling de status quando há sincronização em andamento
   useEffect(() => {
-    if (!syncing || !currentSyncLogId) return;
+    if (!syncing) return;
 
+    // Flag para evitar buscar logs múltiplas vezes
+    let hasTriedToGetSyncLogId = false;
+
+    // Iniciar polling imediatamente, mesmo sem sync_log_id
+    // Isso permite buscar o status geral e identificar o sync_log_id em execução
     const interval = setInterval(async () => {
       try {
-        // Buscar status geral
+        // Buscar status geral primeiro
         const status = await bravoErpService.getStatus();
         setSyncStatus(status);
 
-        // Buscar progresso específico
-        if (currentSyncLogId) {
-          const progressData = await bravoErpService.getProgress(currentSyncLogId);
-          setProgress(progressData);
-
-          // Verificar se completou
-          if (status.isRunning === false) {
-            setSyncing(false);
-            setSyncType(null);
-            setCurrentSyncLogId(null);
-            setCurrentLockId(null);
-            
-            if (onSyncComplete) {
-              onSyncComplete();
+        // Se temos um lockId mas não syncLogId, tentar obter dos logs (apenas uma vez)
+        let logIdToUse = currentSyncLogId;
+        
+        if (!logIdToUse && status.currentSync?.id && !hasTriedToGetSyncLogId) {
+          // Marcar que já tentamos buscar
+          hasTriedToGetSyncLogId = true;
+          
+          // Usar lockId do status como fallback temporário
+          logIdToUse = status.currentSync.id;
+          setCurrentLockId(status.currentSync.id);
+          
+          // Tentar buscar sync_log_id real dos logs (apenas uma vez)
+          try {
+            const logsResponse = await bravoErpService.getLogs({ limit: 3, status: 'running' });
+            if (logsResponse.success && logsResponse.data?.logs && logsResponse.data.logs.length > 0) {
+              const latestRunningLog = logsResponse.data.logs[0];
+              if (latestRunningLog.status === 'running' || latestRunningLog.status === 'processando') {
+                setCurrentSyncLogId(latestRunningLog.id);
+                logIdToUse = latestRunningLog.id; // Usar o UUID real ao invés do lockId
+                console.log('✅ sync_log_id atualizado durante polling:', latestRunningLog.id);
+              }
             }
-            
-            toast({
-              title: 'Sincronização concluída',
-              description: 'A sincronização foi finalizada com sucesso',
-            });
+          } catch (logsError) {
+            // Não é crítico, continuar com lockId
+            console.warn('⚠️ Não foi possível buscar sync_log_id dos logs:', logsError);
           }
+        } else if (!logIdToUse && status.currentSync?.id) {
+          // Se já tentamos buscar antes, usar lockId diretamente
+          logIdToUse = status.currentSync.id;
+        }
+        
+        if (logIdToUse) {
+
+          try {
+            const progressResponse = await bravoErpService.getProgress(logIdToUse);
+            
+            // Log para debug
+            console.log('📊 Progresso recebido:', {
+              logId: logIdToUse,
+              response: progressResponse,
+            });
+            
+            // A resposta pode estar em progressResponse.progress ou progressResponse diretamente
+            if (progressResponse && typeof progressResponse === 'object') {
+              if ('progress' in progressResponse) {
+                console.log('✅ Progresso encontrado:', progressResponse);
+                setProgress(progressResponse as any);
+              } else {
+                // Se não tem propriedade progress, criar estrutura
+                console.log('⚠️ Criando estrutura de progresso');
+                setProgress({
+                  success: true,
+                  progress: progressResponse,
+                } as any);
+              }
+            }
+          } catch (progressError) {
+            // Se não conseguiu buscar progresso específico, usar status geral
+            console.warn('⚠️ Não foi possível buscar progresso específico:', progressError);
+            
+            // Criar progresso básico a partir do status
+            if (status.currentSync) {
+              setProgress({
+                success: true,
+                progress: {
+                  status: status.currentSync.status || 'processando',
+                  current_page: 0,
+                  products_processed: 0,
+                  total_produtos_bravo: 0,
+                  progressPercentage: 0,
+                },
+              } as any);
+            }
+          }
+        } else if (status.isRunning) {
+          // Ainda não temos sync_log_id, mas há sincronização rodando
+          // Criar progresso básico
+          setProgress({
+            success: true,
+            progress: {
+              status: 'iniciando',
+              current_page: 0,
+              products_processed: 0,
+              total_produtos_bravo: 0,
+              progressPercentage: 0,
+            },
+          } as any);
+        }
+
+        // Verificar se completou
+        if (status.isRunning === false && currentSyncLogIdRef.current) {
+          // Última atualização de progresso antes de finalizar
+          try {
+            const finalProgress = await bravoErpService.getProgress(currentSyncLogIdRef.current);
+            if (finalProgress) {
+              setProgress({
+                success: true,
+                progress: 'progress' in finalProgress ? finalProgress.progress : finalProgress,
+              } as any);
+            }
+          } catch (error) {
+            // Ignorar erro na busca final
+          }
+
+          setSyncing(false);
+          setSyncType(null);
+          setCurrentSyncLogId(null);
+          setCurrentLockId(null);
+          
+          if (onSyncComplete) {
+            onSyncComplete();
+          }
+          
+          toast({
+            title: 'Sincronização concluída',
+            description: 'A sincronização foi finalizada com sucesso',
+          });
         }
       } catch (error) {
         console.error('Erro ao buscar status da sincronização:', error);
+        // Não parar o polling por causa de erros temporários
       }
     }, 3000); // Polling a cada 3 segundos
 
@@ -138,17 +335,38 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
 
       const response: SyncResponse = await bravoErpService.sync(request);
 
-      if (response.success && response.sync_log_id) {
-        setCurrentSyncLogId(response.sync_log_id);
-        setCurrentLockId(response.lock_id || null);
+      if (response.success) {
+        // Se temos sync_log_id imediato, usar
+        if (response.sync_log_id) {
+          setCurrentSyncLogId(response.sync_log_id);
+          setCurrentLockId(response.lock_id || null);
 
-        if (onSyncStart && response.sync_log_id) {
-          onSyncStart(response.sync_log_id);
+          if (onSyncStart && response.sync_log_id) {
+            onSyncStart(response.sync_log_id);
+          }
+        } else if (response.lock_id) {
+          // Se não temos sync_log_id mas temos lock_id, tentar buscar via logs
+          setCurrentLockId(response.lock_id);
+          
+          // Tentar buscar sync_log_id dos logs após um breve delay
+          setTimeout(async () => {
+            try {
+              const logsResponse = await bravoErpService.getLogs({ limit: 1, status: 'running' });
+              if (logsResponse.data?.logs?.[0]?.id) {
+                setCurrentSyncLogId(logsResponse.data.logs[0].id);
+                if (onSyncStart) {
+                  onSyncStart(logsResponse.data.logs[0].id);
+                }
+              }
+            } catch (error) {
+              console.warn('Não foi possível buscar sync_log_id dos logs:', error);
+            }
+          }, 2000);
         }
 
         toast({
           title: 'Sincronização Rápida iniciada',
-          description: 'Os produtos estão sendo importados em segundo plano.',
+          description: response.message || 'Os produtos estão sendo importados em segundo plano.',
         });
 
         // Aguardar um pouco e verificar se já finalizou (sync rápida é rápida)
@@ -233,13 +451,67 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
 
       const response: SyncResponse = await bravoErpService.sync(request);
 
-      if (response.success && response.sync_log_id) {
-        setCurrentSyncLogId(response.sync_log_id);
-        setCurrentLockId(response.lock_id || null);
+      if (response.success) {
+        // Se temos sync_log_id imediato, usar
+        if (response.sync_log_id) {
+          setCurrentSyncLogId(response.sync_log_id);
+          setCurrentLockId(response.lock_id || null);
 
-        if (onSyncStart && response.sync_log_id) {
-          onSyncStart(response.sync_log_id);
+          if (onSyncStart && response.sync_log_id) {
+            onSyncStart(response.sync_log_id);
+          }
+
+          // Buscar progresso imediatamente
+          try {
+            const initialProgress = await bravoErpService.getProgress(response.sync_log_id);
+            if (initialProgress) {
+              setProgress({
+                success: true,
+                progress: 'progress' in initialProgress ? initialProgress.progress : initialProgress,
+              } as any);
+            }
+          } catch (error) {
+            // Ignorar erro - o polling vai tentar novamente
+            console.warn('Não foi possível buscar progresso inicial:', error);
+          }
+        } else if (response.lock_id) {
+          // Se não temos sync_log_id mas temos lock_id, tentar buscar via logs
+          setCurrentLockId(response.lock_id);
+          
+          // Tentar buscar sync_log_id dos logs após um breve delay
+          setTimeout(async () => {
+            try {
+              const logsResponse = await bravoErpService.getLogs({ limit: 1, status: 'running' });
+              if (logsResponse.data?.logs?.[0]?.id) {
+                const logId = logsResponse.data.logs[0].id;
+                setCurrentSyncLogId(logId);
+                if (onSyncStart) {
+                  onSyncStart(logId);
+                }
+                
+                // Buscar progresso após obter o log_id
+                try {
+                  const initialProgress = await bravoErpService.getProgress(logId);
+                  if (initialProgress) {
+                    setProgress({
+                      success: true,
+                      progress: 'progress' in initialProgress ? initialProgress.progress : initialProgress,
+                    } as any);
+                  }
+                } catch (error) {
+                  console.warn('Não foi possível buscar progresso inicial:', error);
+                }
+              }
+            } catch (error) {
+              console.warn('Não foi possível buscar sync_log_id dos logs:', error);
+            }
+          }, 2000);
         }
+
+        toast({
+          title: 'Sincronização Completa iniciada',
+          description: response.message || 'Este processo pode levar alguns minutos. Acompanhe o progresso na aba "Logs".',
+        });
       } else {
         setSyncing(false);
         setSyncType(null);
@@ -266,7 +538,8 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
   };
 
   const handleCancelSync = async () => {
-    if (!currentLockId && !currentSyncLogId) {
+    // Verificar se há sincronização em andamento
+    if (!syncing && !currentLockId && !currentSyncLogId) {
       toast({
         title: 'Nada para cancelar',
         description: 'Não há sincronização em andamento',
@@ -280,8 +553,17 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
     }
 
     try {
+      // Log para debug
+      console.log('🛑 Tentando cancelar sincronização:', {
+        currentLockId,
+        currentSyncLogId,
+        syncing,
+      });
+
       const response = await bravoErpService.cancelSync(currentLockId || undefined, currentSyncLogId || undefined);
       
+      console.log('🛑 Resposta do cancelamento:', response);
+
       if (response.success) {
         setSyncing(false);
         setSyncType(null);
@@ -306,10 +588,10 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
         });
       }
     } catch (error) {
-      console.error('Erro ao cancelar sincronização:', error);
+      console.error('❌ Erro ao cancelar sincronização:', error);
       toast({
         title: 'Erro ao cancelar',
-        description: 'Erro ao tentar cancelar a sincronização',
+        description: error instanceof Error ? error.message : 'Erro ao tentar cancelar a sincronização',
         variant: 'destructive',
       });
     }
@@ -432,36 +714,50 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Progresso */}
-            {progress?.progress && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Progresso</span>
+            {/* Progresso Simplificado - Mostra apenas o que está acontecendo */}
+            {syncing && (
+              <div className="space-y-4">
+                {/* O que está acontecendo agora */}
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                   <span>
-                    {progress.progress.progressPercentage?.toFixed(1) || 0}%
+                    {progress?.progress?.current_step || 
+                     'Iniciando sincronização...'}
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${progress.progress.progressPercentage || 0}%`,
-                    }}
-                  />
+
+                {/* Informações principais em destaque */}
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Produtos Processados
+                    </div>
+                    <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                      {progress?.progress?.products_processed ?? 
+                       progress?.progress?.productsProcessed ?? 
+                       0}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Página Atual
+                    </div>
+                    <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                      {progress?.progress?.current_page ?? 
+                       progress?.progress?.currentPage ?? 
+                       0}
+                    </div>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                  <div>
-                    Produtos processados: {progress.progress.products_processed || 0}
-                  </div>
-                  <div>
-                    Total: {progress.progress.total_produtos_bravo || 0}
-                  </div>
-                  <div>
-                    Página atual: {progress.progress.current_page || 0}
-                  </div>
-                  <div>
-                    Status: {progress.progress.status || 'processando'}
-                  </div>
+
+                {/* Total encontrado (sempre mostra, mesmo se 0) */}
+                <div className="text-sm text-muted-foreground pt-2 border-t">
+                  Total de produtos encontrados:{' '}
+                  <span className="font-semibold text-foreground">
+                    {progress?.progress?.total_produtos_bravo ?? 
+                     progress?.progress?.totalProducts ?? 
+                     0}
+                  </span>
                 </div>
               </div>
             )}

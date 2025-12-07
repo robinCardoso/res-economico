@@ -3,33 +3,51 @@ import axios from "axios";
 
 // Flag para mostrar aviso apenas uma vez
 let hasShownLocalStorageWarning = false;
+let hasCleanedLocalStorage = false;
 
 // Função para obter a baseURL dinamicamente
+// SEMPRE usa NEXT_PUBLIC_API_URL do .env.local quando disponível
 const getBaseURL = (): string | undefined => {
   if (typeof window === 'undefined') {
     // Server-side: usar variável de ambiente ou undefined
     return process.env.NEXT_PUBLIC_API_URL?.trim() || undefined;
   }
 
-  // Client-side: priorizar variável de ambiente (mais confiável)
+  // Client-side: SEMPRE priorizar variável de ambiente do .env.local
   const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  
   if (envApiUrl) {
-    // Se há variável de ambiente, usar ela (mas avisar se localStorage está diferente - apenas uma vez)
+    // Se há variável de ambiente, usar SEMPRE ela e limpar localStorage conflitante
     const storedApiUrl = localStorage.getItem('api-url');
-    if (storedApiUrl && storedApiUrl.trim() !== envApiUrl && !hasShownLocalStorageWarning) {
-      console.warn(
-        `[HTTP] ⚠️ Variável de ambiente NEXT_PUBLIC_API_URL (${envApiUrl}) está sendo usada. ` +
-        `localStorage tem valor diferente (${storedApiUrl}). ` +
-        `Para limpar: localStorage.removeItem('api-url')`
-      );
-      hasShownLocalStorageWarning = true;
+    
+    if (storedApiUrl && storedApiUrl.trim() !== envApiUrl) {
+      // Limpar automaticamente localStorage conflitante (apenas uma vez)
+      if (!hasCleanedLocalStorage) {
+        localStorage.removeItem('api-url');
+        hasCleanedLocalStorage = true;
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(
+            `[HTTP] ✅ Usando URL do .env.local: ${envApiUrl}`
+          );
+          console.log(
+            `[HTTP] 🧹 Removido valor conflitante do localStorage (${storedApiUrl})`
+          );
+        }
+      }
     }
+    
     return envApiUrl;
   }
 
-  // Se não há variável de ambiente, verificar localStorage (permite configuração dinâmica)
+  // Se não há variável de ambiente, verificar localStorage (permite configuração dinâmica temporária)
   const storedApiUrl = localStorage.getItem('api-url');
   if (storedApiUrl) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        '[HTTP] ⚠️ Usando URL do localStorage (temporário). Configure NEXT_PUBLIC_API_URL no .env.local para uso permanente.'
+      );
+    }
     return storedApiUrl.trim();
   }
 
@@ -48,12 +66,29 @@ export const api = axios.create({
 // Log para debug (apenas em desenvolvimento)
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   const initialBaseURL = getBaseURL();
-  console.log('[HTTP] baseURL inicial:', initialBaseURL || 'NÃO CONFIGURADO');
-  console.log('[HTTP] NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
-  console.log('[HTTP] localStorage api-url:', localStorage.getItem('api-url'));
-  if (!initialBaseURL) {
-    console.warn('[HTTP] AVISO: baseURL não configurado, usando fallback http://localhost:3000');
+  const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+  const storedApiUrl = localStorage.getItem('api-url');
+  
+  console.log('[HTTP] ========================================');
+  console.log('[HTTP] 📡 Configuração de URL da API:');
+  console.log('[HTTP] ========================================');
+  console.log('[HTTP] NEXT_PUBLIC_API_URL (.env.local):', envApiUrl || '❌ NÃO CONFIGURADO');
+  console.log('[HTTP] localStorage api-url:', storedApiUrl || 'nenhum');
+  console.log('[HTTP] URL sendo usada:', initialBaseURL || '❌ NÃO CONFIGURADO');
+  
+  if (envApiUrl) {
+    console.log('[HTTP] ✅ Usando URL do arquivo .env.local');
+    if (storedApiUrl && storedApiUrl !== envApiUrl) {
+      console.log('[HTTP] ⚠️ localStorage será ignorado (conflito removido)');
+    }
+  } else if (storedApiUrl) {
+    console.log('[HTTP] ⚠️ Usando localStorage (temporário)');
+    console.log('[HTTP] 💡 Configure NEXT_PUBLIC_API_URL no .env.local para uso permanente');
+  } else {
+    console.warn('[HTTP] ⚠️ Nenhuma URL configurada, usando fallback: http://localhost:3000');
+    console.warn('[HTTP] 💡 Configure NEXT_PUBLIC_API_URL no arquivo frontend/.env.local');
   }
+  console.log('[HTTP] ========================================');
 }
 
 // Interceptor para adicionar token e baseURL dinâmica nas requisições
@@ -190,14 +225,37 @@ api.interceptors.response.use(
       console.error('[HTTP] ⚠️ Não foi possível conectar ao backend.');
       console.error(`[HTTP] URL tentada: ${fullURL}`);
       console.error('');
+      
+      // Verificar configuração atual
+      if (typeof window !== 'undefined') {
+        const envApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+        const storedApiUrl = localStorage.getItem('api-url');
+        
+        console.error('[HTTP] 📋 DIAGNÓSTICO:');
+        console.error(`[HTTP]    NEXT_PUBLIC_API_URL (.env.local): ${envApiUrl || '❌ NÃO CONFIGURADO'}`);
+        console.error(`[HTTP]    localStorage api-url: ${storedApiUrl || 'nenhum'}`);
+        console.error(`[HTTP]    URL sendo usada: ${baseURL}`);
+        
+        if (envApiUrl) {
+          console.error('[HTTP]    ✅ Sistema usando URL do arquivo .env.local');
+          if (storedApiUrl && storedApiUrl !== envApiUrl) {
+            console.error('[HTTP]    ⚠️ localStorage será ignorado automaticamente');
+          }
+        } else {
+          console.error('[HTTP]    ⚠️ Configure NEXT_PUBLIC_API_URL no arquivo frontend/.env.local');
+        }
+        console.error('');
+      }
+      
       console.error('[HTTP] 📋 SOLUÇÕES:');
-      console.error('[HTTP] 1. Crie o arquivo frontend/.env.local com:');
-      console.error('[HTTP]    NEXT_PUBLIC_API_URL=http://10.1.1.37:3000');
-      console.error('[HTTP]    (Substitua 10.1.1.37 pelo IP do seu backend)');
+      console.error('[HTTP] 1. Verifique se o backend está rodando e acessível:');
+      console.error('[HTTP]    - Backend deve estar escutando em 0.0.0.0:3000 (não apenas localhost)');
+      console.error('[HTTP]    - Teste acessar:', baseURL?.replace('/bravo-erp/sync/sincronizar', ''));
       console.error('');
-      console.error('[HTTP] 2. OU configure via console do navegador (temporário):');
-      console.error('[HTTP]    localStorage.setItem("api-url", "http://10.1.1.37:3000")');
-      console.error('[HTTP]    (Depois recarregue a página)');
+      console.error('[HTTP] 2. Configure a URL no arquivo frontend/.env.local:');
+      console.error('[HTTP]    NEXT_PUBLIC_API_URL=http://SEU_IP:3000');
+      console.error('[HTTP]    (Substitua SEU_IP pelo IP correto do seu backend)');
+      console.error('[HTTP]    Depois reinicie o servidor frontend');
       console.error('');
       console.error(`[HTTP] URL atual configurada: ${baseURL}`);
       

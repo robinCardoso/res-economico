@@ -63,9 +63,22 @@ export class SyncService {
         `🚀 Iniciando sincronização - Limit: ${limit}, Páginas: ${pages}, Apenas ativos: ${apenas_ativos}`,
       );
 
+      // Limpar logs órfãos antes de verificar lock (prevenir falsos positivos)
+      await this.cleanupOrphanedLogsIfNeeded();
+
       // Verificar e adquirir lock
       if (!modo_teste) {
         const syncType = pages === 999 ? 'complete' : 'quick';
+        
+        // Verificar se já existe sync rodando ANTES de tentar adquirir lock
+        const isRunning = await this.lockManager.isSyncRunning();
+        if (isRunning) {
+          const currentSync = await this.lockManager.getCurrentSync();
+          throw new ConflictException(
+            `Sincronização já em andamento por ${currentSync?.userEmail || 'outro usuário'} (${currentSync?.type || 'desconhecido'}) desde ${currentSync?.startedAt ? currentSync.startedAt.toLocaleString('pt-BR') : 'desconhecido'}`,
+          );
+        }
+
         const lockResult = await this.lockManager.acquireLock(
           userId,
           userEmail,
@@ -74,7 +87,7 @@ export class SyncService {
 
         if (!lockResult.success) {
           throw new ConflictException(
-            lockResult.error || 'Sincronização já em andamento',
+            lockResult.error || 'Sincronização já em andamento (não foi possível adquirir lock)',
           );
         }
 
@@ -120,10 +133,14 @@ export class SyncService {
           });
         }
 
+        // Criar progresso inicial imediatamente
         await this.progressService.updateProgress(syncLogId, {
           progress_percentage: 5,
           current_step: 'Conectando com API do Bravo ERP...',
+          current_page: 0,
           products_processed: 0,
+          total_produtos_bravo: 0,
+          status_atual: 'iniciando',
         });
       }
 
@@ -178,18 +195,24 @@ export class SyncService {
       lockStatus = 'failed';
       this.logger.error('❌ Erro na sincronização:', error);
 
+      // Sempre tentar atualizar o log, mesmo se houver erro
       if (syncLogId) {
-        await this.logService.updateLog(syncLogId, {
-          status: 'failed',
-          error_message:
-            error instanceof Error ? error.message : 'Erro desconhecido',
-          error_details: {
-            error: String(error),
-            stack: error instanceof Error ? error.stack : null,
-          } as Prisma.InputJsonValue,
-          completed_at: new Date(),
-          can_resume: true,
-        });
+        try {
+          await this.logService.updateLog(syncLogId, {
+            status: 'failed',
+            error_message:
+              error instanceof Error ? error.message : 'Erro desconhecido',
+            error_details: {
+              error: String(error),
+              stack: error instanceof Error ? error.stack : null,
+            } as Prisma.InputJsonValue,
+            completed_at: new Date(),
+            can_resume: true,
+          });
+        } catch (logError) {
+          // Se falhar ao atualizar log, apenas logar (não bloquear)
+          this.logger.error('❌ Erro ao atualizar log após falha:', logError);
+        }
       }
 
       if (error instanceof ConflictException || error instanceof BadRequestException) {
@@ -200,10 +223,15 @@ export class SyncService {
         error instanceof Error ? error.message : 'Erro interno do servidor',
       );
     } finally {
-      // Liberar lock
+      // SEMPRE liberar lock, mesmo se houver erro
       if (lockId) {
-        await this.lockManager.releaseLock(lockId, lockStatus);
-        this.logger.log(`🔓 Lock liberado: ${lockId}`);
+        try {
+          await this.lockManager.releaseLock(lockId, lockStatus);
+          this.logger.log(`🔓 Lock liberado: ${lockId} (status: ${lockStatus})`);
+        } catch (releaseError) {
+          // Se falhar ao liberar lock, logar mas não bloquear
+          this.logger.error(`❌ Erro ao liberar lock ${lockId}:`, releaseError);
+        }
       }
     }
   }
@@ -261,6 +289,10 @@ export class SyncService {
   ): Promise<{
     totalProdutos: number;
     totalPagesProcessed: number;
+    totalInseridos: number;
+    totalAtualizados: number;
+    totalIgnorados: number;
+    totalComErro: number;
   }> {
     const {
       isCompleteSync,
@@ -280,6 +312,12 @@ export class SyncService {
     let totalPagesProcessed = 0;
     let maxPages = isCompleteSync ? 999 : pages;
     let currentPage = 1;
+    
+    // Contadores acumulados de inseridos/atualizados
+    let totalInseridos = 0;
+    let totalAtualizados = 0;
+    let totalIgnorados = 0;
+    let totalComErro = 0;
 
     // Se for retomada, começar da página salva
     if (isResumeSync && syncLogId && realmenteRetomando) {
@@ -298,24 +336,51 @@ export class SyncService {
     }
 
     // Processar página por página
+    const MAX_SYNC_DURATION_MS = 2 * 60 * 60 * 1000; // 2 horas máximo
+    const syncStartTime = Date.now();
+    
     while (currentPage <= maxPages) {
+      // Verificar timeout (máximo 2 horas)
+      if (!modo_teste && Date.now() - syncStartTime > MAX_SYNC_DURATION_MS) {
+        const errorMsg = 'Sincronização excedeu o tempo máximo permitido (2 horas)';
+        this.logger.error(`⏱️ ${errorMsg}`);
+        
+        if (syncLogId) {
+          await this.logService.updateLog(syncLogId, {
+            status: 'failed',
+            error_message: errorMsg,
+            completed_at: new Date(),
+            can_resume: true,
+          });
+        }
+        
+        throw new BadRequestException(errorMsg);
+      }
+
       // Verificar cancelamento
       if (!modo_teste && syncLogId) {
         const isCancelled = await this.logService.isCancelled(syncLogId);
         if (isCancelled) {
-          await this.cancelarSincronizacao(syncLogId, currentPage, allProdutos.length);
+          await this.cancelarSincronizacao(
+            syncLogId,
+            currentPage,
+            allProdutos.length,
+            totalInseridos,
+            totalAtualizados,
+          );
           throw new BadRequestException('Sincronização cancelada pelo usuário');
         }
       }
 
-      // Atualizar progresso
+      // Atualizar progresso ANTES de buscar a página
       if (!modo_teste && syncLogId) {
         const progressPercentage = Math.min(10 + currentPage * 15, 85);
         await this.progressService.updateProgress(syncLogId, {
           progress_percentage: progressPercentage,
-          current_step: `Processando página ${currentPage} de ${maxPages}...`,
+          current_step: `Buscando página ${currentPage} de ${maxPages}...`,
           current_page: currentPage,
-          products_processed: allProdutos.length,
+          products_processed: allProdutos.length, // Produtos já encontrados até agora
+          total_produtos_bravo: allProdutos.length > 0 ? allProdutos.length : undefined, // Total acumulado (undefined se ainda não encontrou nada)
           estimated_time_remaining: `${Math.max(1, maxPages - currentPage)} páginas restantes`,
         });
       }
@@ -348,10 +413,10 @@ export class SyncService {
       totalPagesProcessed = currentPage;
 
       this.logger.log(
-        `✅ Página ${currentPage}: ${produtosPagina.length} produtos encontrados`,
+        `✅ Página ${currentPage}: ${produtosPagina.length} produtos encontrados (Total acumulado: ${allProdutos.length})`,
       );
 
-      // Atualizar log
+      // Atualizar log e progresso ANTES de processar
       if (!modo_teste && syncLogId) {
         await this.logService.updateLog(syncLogId, {
           pages_processed: totalPagesProcessed,
@@ -360,24 +425,46 @@ export class SyncService {
           resume_from_page: currentPage + 1,
           can_resume: true,
         });
-      }
 
-      // Processar lote de produtos
-      if (!modo_teste && syncLogId) {
+        // Atualizar progresso COM o total de produtos acumulados
         await this.progressService.updateProgress(syncLogId, {
           progress_percentage: Math.min(10 + currentPage * 15 + 5, 85),
           current_step: `Processando ${produtosPagina.length} produtos da página ${currentPage}...`,
+          current_page: currentPage,
           products_processed: allProdutos.length,
+          total_produtos_bravo: allProdutos.length, // Total acumulado de produtos encontrados
+          estimated_time_remaining: `${Math.max(1, maxPages - currentPage)} páginas restantes`,
         });
       }
 
-      await this.processorService.processarLoteProdutos(
+      // Processar lote e acumular estatísticas
+      const stats = await this.processorService.processarLoteProdutos(
         produtosPagina,
         apenas_ativos,
         syncLogId,
         verificar_duplicatas,
         modo_teste,
       );
+      
+      // Acumular contadores
+      totalInseridos += stats.inseridos;
+      totalAtualizados += stats.atualizados;
+      totalIgnorados += stats.ignorados;
+      totalComErro += stats.comErro;
+      
+      // Atualizar log com valores acumulados após cada página
+      if (!modo_teste && syncLogId) {
+        this.logger.debug(
+          `📝 Atualizando log: inseridos=${totalInseridos}, atualizados=${totalAtualizados}, ignorados=${totalIgnorados}, comErro=${totalComErro}`,
+        );
+        await this.logService.updateLog(syncLogId, {
+          produtos_inseridos: totalInseridos,
+          produtos_atualizados: totalAtualizados,
+          produtos_ignorados: totalIgnorados,
+          produtos_com_erro: totalComErro,
+          produtos_analisados: allProdutos.length,
+        });
+      }
 
       // Se a página retornou menos produtos que o limite, é a última
       if (effectiveLimit && produtosPagina.length < effectiveLimit) {
@@ -390,9 +477,11 @@ export class SyncService {
       // Rate limiting entre páginas
       if (currentPage < maxPages) {
         if (!modo_teste && syncLogId) {
+          // Preservar valores existentes ao atualizar apenas o step
           await this.progressService.updateProgress(syncLogId, {
             current_step: 'Aguardando 10 segundos...',
             etapa_atual: `Rate limiting - próxima página: ${currentPage + 1}`,
+            // Não passar outros campos para preservar valores existentes
           });
         }
         await new Promise((resolve) =>
@@ -406,6 +495,10 @@ export class SyncService {
     return {
       totalProdutos: allProdutos.length,
       totalPagesProcessed,
+      totalInseridos,
+      totalAtualizados,
+      totalIgnorados,
+      totalComErro,
     };
   }
 
@@ -416,11 +509,15 @@ export class SyncService {
     syncLogId: string,
     currentPage: number,
     produtosProcessados: number,
+    totalInseridos: number = 0,
+    totalAtualizados: number = 0,
   ): Promise<void> {
     const cancelPercentage = Math.min(10 + currentPage * 15, 95);
     await this.logService.updateLog(syncLogId, {
       status: 'cancelled',
       status_detalhado: 'cancelled_by_user',
+      produtos_inseridos: totalInseridos,
+      produtos_atualizados: totalAtualizados,
       completed_at: new Date(),
       can_resume: false,
     });
@@ -438,7 +535,14 @@ export class SyncService {
    */
   private async finalizarSincronizacao(
     syncLogId: string,
-    resultado: { totalProdutos: number; totalPagesProcessed: number },
+    resultado: {
+      totalProdutos: number;
+      totalPagesProcessed: number;
+      totalInseridos: number;
+      totalAtualizados: number;
+      totalIgnorados: number;
+      totalComErro: number;
+    },
     metodoFiltro: string,
     dataFiltro: string | null,
     operadorFiltro: string,
@@ -448,6 +552,7 @@ export class SyncService {
       progress_percentage: 90,
       current_step: 'Atualizando tabelas de marcas, grupos e subgrupos...',
       products_processed: resultado.totalProdutos,
+      total_produtos_bravo: resultado.totalProdutos,
     });
 
     // Atualizar tabelas agregadas
@@ -459,9 +564,13 @@ export class SyncService {
       progress_percentage: 100,
       current_step: 'Sincronização concluída com sucesso!',
       products_processed: resultado.totalProdutos,
+      total_produtos_bravo: resultado.totalProdutos,
     });
 
-    // Atualizar log final
+    // Atualizar log final com todos os valores corretos
+    this.logger.log(
+      `📊 Finalizando sincronização: inseridos=${resultado.totalInseridos}, atualizados=${resultado.totalAtualizados}, ignorados=${resultado.totalIgnorados}, comErro=${resultado.totalComErro}, páginas=${resultado.totalPagesProcessed}`,
+    );
     await this.logService.updateLog(syncLogId, {
       status: 'completed',
       total_pages_found: resultado.totalPagesProcessed,
@@ -469,6 +578,10 @@ export class SyncService {
       total_produtos_bravo: resultado.totalProdutos,
       produtos_filtrados: resultado.totalProdutos,
       produtos_analisados: resultado.totalProdutos,
+      produtos_inseridos: resultado.totalInseridos,
+      produtos_atualizados: resultado.totalAtualizados,
+      produtos_ignorados: resultado.totalIgnorados,
+      produtos_com_erro: resultado.totalComErro,
       tempo_total_segundos: tempoTotal,
       completed_at: new Date(),
       sync_details: {
@@ -478,6 +591,10 @@ export class SyncService {
       } as Prisma.InputJsonValue,
       can_resume: false,
     });
+    
+    this.logger.log(
+      `✅ Sincronização finalizada: ${resultado.totalInseridos} inseridos, ${resultado.totalAtualizados} atualizados, ${resultado.totalPagesProcessed} páginas processadas`,
+    );
   }
 
   /**
@@ -488,5 +605,57 @@ export class SyncService {
     throw new BadRequestException(
       'Teste de duplicatas ainda não implementado',
     );
+  }
+
+  /**
+   * Limpa logs órfãos se necessário (logs presos em "running" há mais de 1 hora)
+   */
+  private async cleanupOrphanedLogsIfNeeded(): Promise<void> {
+    try {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      
+      // Usar o PrismaService através do logService
+      const prisma = (this.logService as any).prisma;
+      const orphanedLogs = await prisma.bravoSyncLog.findMany({
+        where: {
+          status: 'running',
+          started_at: {
+            lt: oneHourAgo,
+          },
+        },
+        take: 10, // Limitar a 10 por vez para não sobrecarregar
+      });
+
+      if (orphanedLogs.length === 0) {
+        return;
+      }
+
+      const currentSync = await this.lockManager.getCurrentSync();
+      const activeLockId = currentSync?.id;
+
+      for (const log of orphanedLogs) {
+        // Se não há lock ativo ou o lock não corresponde a este log, é órfão
+        const isOrphaned = !activeLockId || activeLockId !== log.id;
+
+        if (isOrphaned) {
+          try {
+            await this.logService.updateLog(log.id, {
+              status: 'failed',
+              status_detalhado: 'orphaned_log_cleaned',
+              error_message: 'Sincronização interrompida e não finalizada corretamente (log órfão limpo automaticamente)',
+              completed_at: new Date(),
+              can_resume: false,
+            });
+            this.logger.log(`🧹 Log órfão limpo automaticamente: ${log.id}`);
+          } catch (error) {
+            // Não bloquear se falhar ao limpar um log específico
+            this.logger.warn(`⚠️ Erro ao limpar log órfão ${log.id}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      // Não bloquear a sincronização se a limpeza falhar
+      this.logger.warn('⚠️ Erro ao limpar logs órfãos (não crítico):', error);
+    }
   }
 }

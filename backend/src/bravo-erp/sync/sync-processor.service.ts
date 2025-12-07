@@ -21,6 +21,7 @@ export class SyncProcessorService {
 
   /**
    * Processa lote de produtos (inserção/atualização)
+   * Retorna estatísticas do processamento
    */
   async processarLoteProdutos(
     produtos: BravoProduto[],
@@ -28,7 +29,12 @@ export class SyncProcessorService {
     syncLogId: string | null,
     verificar_duplicatas: boolean = true,
     modo_teste: boolean = false,
-  ): Promise<void> {
+  ): Promise<{
+    inseridos: number;
+    atualizados: number;
+    ignorados: number;
+    comErro: number;
+  }> {
     let produtosComErro = 0;
     const tiposErro: Record<string, number> = {};
     const sugestoesCorrecao: string[] = [];
@@ -58,7 +64,12 @@ export class SyncProcessorService {
         if (this.isDev) {
           this.logger.log(`⏭️ Nenhum produto ativo no lote`);
         }
-        return;
+        return {
+          inseridos: 0,
+          atualizados: 0,
+          ignorados: 0,
+          comErro: 0,
+        };
       }
 
       // Buscar produtos existentes (se verificar_duplicatas estiver habilitado)
@@ -154,8 +165,9 @@ export class SyncProcessorService {
       );
 
       // Processar inserções
+      let realmenteInseridos = 0;
       if (produtosParaInserir.length > 0 && !modo_teste) {
-        await this.inserirProdutos(
+        realmenteInseridos = await this.inserirProdutos(
           produtosParaInserir,
           tiposErro,
           sugestoesCorrecao,
@@ -164,15 +176,18 @@ export class SyncProcessorService {
         this.logger.log(
           `🧪 Modo teste: ${produtosParaInserir.length} produtos seriam inseridos`,
         );
+        realmenteInseridos = 0;
       }
 
       // Processar atualizações
+      let realmenteAtualizados = 0;
       if (produtosParaAtualizar.length > 0 && !modo_teste) {
-        await this.atualizarProdutos(produtosParaAtualizar);
+        realmenteAtualizados = await this.atualizarProdutos(produtosParaAtualizar);
       } else if (modo_teste) {
         this.logger.log(
           `🧪 Modo teste: ${produtosParaAtualizar.length} produtos seriam atualizados`,
         );
+        realmenteAtualizados = 0;
       }
 
       // Atualizar log com detalhes de erro
@@ -199,6 +214,14 @@ export class SyncProcessorService {
               : 100,
         });
       }
+
+      // Retornar estatísticas do processamento (valores realmente inseridos/atualizados)
+      return {
+        inseridos: realmenteInseridos,
+        atualizados: realmenteAtualizados,
+        ignorados: produtosIgnorados,
+        comErro: produtosComErro,
+      };
     } catch (error) {
       this.logger.error('Erro ao processar lote de produtos:', error);
       throw error;
@@ -338,12 +361,13 @@ export class SyncProcessorService {
 
   /**
    * Insere produtos no banco
+   * Retorna quantidade realmente inserida
    */
   private async inserirProdutos(
     produtosParaInserir: any[],
     tiposErro: Record<string, number>,
     sugestoesCorrecao: string[],
-  ): Promise<void> {
+  ): Promise<number> {
     this.logger.log(`💾 Inserindo ${produtosParaInserir.length} produtos novos...`);
 
     // Remover ID dos produtos novos
@@ -352,14 +376,18 @@ export class SyncProcessorService {
       return produtoSemId;
     });
 
+    let inseridos = 0;
+
     try {
-      await this.prisma.produto.createMany({
+      const result = await this.prisma.produto.createMany({
         data: produtosNovos,
         skipDuplicates: true,
       });
 
+      inseridos = result.count;
+
       this.logger.log(
-        `✅ ${produtosParaInserir.length} produtos novos inseridos`,
+        `✅ ${inseridos} produtos novos inseridos (de ${produtosParaInserir.length} tentados)`,
       );
     } catch (error: any) {
       this.logger.error(`❌ Erro ao inserir produtos novos:`, error);
@@ -371,6 +399,7 @@ export class SyncProcessorService {
         for (const produto of produtosNovos) {
           try {
             await this.prisma.produto.create({ data: produto });
+            inseridos++;
           } catch (singleError: any) {
             this.logger.error(
               `❌ Conflito no produto: ref=${produto.referencia}, id_prod=${produto.id_prod}`,
@@ -382,17 +411,22 @@ export class SyncProcessorService {
         }
       }
     }
+    
+    return inseridos;
   }
 
   /**
    * Atualiza produtos existentes
+   * Retorna quantidade realmente atualizada
    */
   private async atualizarProdutos(
     produtosParaAtualizar: any[],
-  ): Promise<void> {
+  ): Promise<number> {
     this.logger.log(
       `💾 Atualizando ${produtosParaAtualizar.length} produtos existentes...`,
     );
+
+    let atualizados = 0;
 
     for (const produto of produtosParaAtualizar) {
       const { id, ...dadosAtualizacao } = produto;
@@ -402,6 +436,7 @@ export class SyncProcessorService {
           where: { id },
           data: dadosAtualizacao,
         });
+        atualizados++;
       } catch (error) {
         this.logger.error(
           `❌ Erro ao atualizar produto ${produto.referencia}:`,
@@ -411,8 +446,10 @@ export class SyncProcessorService {
     }
 
     this.logger.log(
-      `✅ ${produtosParaAtualizar.length} produtos existentes atualizados`,
+      `✅ ${atualizados} produtos existentes atualizados (de ${produtosParaAtualizar.length} tentados)`,
     );
+    
+    return atualizados;
   }
 
   /**

@@ -124,9 +124,15 @@ export class SyncLogService {
       }
       if (updates.produtos_inseridos !== undefined) {
         updateData.produtos_inseridos = updates.produtos_inseridos;
+        this.logger.debug(
+          `📝 updateLog: produtos_inseridos=${updates.produtos_inseridos}`,
+        );
       }
       if (updates.produtos_atualizados !== undefined) {
         updateData.produtos_atualizados = updates.produtos_atualizados;
+        this.logger.debug(
+          `📝 updateLog: produtos_atualizados=${updates.produtos_atualizados}`,
+        );
       }
       if (updates.produtos_ignorados !== undefined) {
         updateData.produtos_ignorados = updates.produtos_ignorados;
@@ -204,6 +210,31 @@ export class SyncLogService {
   async getLogById(syncLogId: string) {
     return this.prisma.bravoSyncLog.findUnique({
       where: { id: syncLogId },
+    });
+  }
+
+  /**
+   * Busca o log mais recente em execução
+   */
+  async getLatestRunningLog() {
+    return this.prisma.bravoSyncLog.findFirst({
+      where: {
+        status: 'running',
+      },
+      orderBy: {
+        started_at: 'desc',
+      },
+    });
+  }
+
+  /**
+   * Busca o log mais recente (qualquer status)
+   */
+  async getLatestLog() {
+    return this.prisma.bravoSyncLog.findFirst({
+      orderBy: {
+        started_at: 'desc',
+      },
     });
   }
 
