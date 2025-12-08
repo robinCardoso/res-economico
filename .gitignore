@@ -45,3 +45,6 @@ __pycache__/
 Thumbs.db
 .DS_Store
 
+# Assets temporários do Cursor
+assets/
+

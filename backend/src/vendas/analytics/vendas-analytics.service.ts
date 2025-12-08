@@ -5,7 +5,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 interface VendaParaAnalytics {
   dataVenda: Date;
   nomeFantasia?: string;
-  marca: string;
+  marca?: string;
   grupo?: string;
   subgrupo?: string;
   ufDestino?: string;
@@ -291,8 +291,20 @@ export class VendasAnalyticsService {
       await this.prisma.vendaAnalytics.deleteMany({});
     }
 
-    // Recalcular
-    await this.atualizarAnalytics(vendas);
+    // Recalcular - converter null para undefined para compatibilidade com a interface
+    // Nota: marca é tratado como opcional na interface mas sempre terá valor padrão no processamento
+    const vendasParaAnalytics: VendaParaAnalytics[] = vendas.map((v) => ({
+      dataVenda: v.dataVenda,
+      nomeFantasia: v.nomeFantasia ?? undefined,
+      marca: v.marca ?? undefined, // Será tratado como 'DESCONHECIDA' no processamento
+      grupo: v.grupo ?? undefined,
+      subgrupo: v.subgrupo ?? undefined,
+      ufDestino: v.ufDestino ?? undefined,
+      valorTotal: v.valorTotal,
+      quantidade: v.quantidade,
+    }));
+    
+    await this.atualizarAnalytics(vendasParaAnalytics);
 
     this.logger.log('Recálculo de analytics concluído');
   }
