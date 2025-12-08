@@ -15,14 +15,14 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { SyncLog } from '@/services/bravo-erp.service';
+import type { SyncLog, ResumableSync } from '@/services/bravo-erp.service';
 
 interface LogsPanelProps {
   logs: SyncLog[];
   loading?: boolean;
   onRefresh?: () => void;
   onResume?: (logId: string) => void;
-  resumableSyncs?: any[];
+  resumableSyncs?: ResumableSync[];
 }
 
 export function LogsPanel({
@@ -103,7 +103,7 @@ export function LogsPanel({
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {resumableSyncs.map((sync: any) => (
+              {resumableSyncs.map((sync: ResumableSync) => (
                 <div
                   key={String(sync.id)}
                   className="flex items-center justify-between p-4 rounded-lg border border-orange-200 bg-white"

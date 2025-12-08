@@ -2,7 +2,6 @@ import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axio
 import axios from "axios";
 
 // Flag para mostrar aviso apenas uma vez
-let hasShownLocalStorageWarning = false;
 let hasCleanedLocalStorage = false;
 
 // Função para obter a baseURL dinamicamente

@@ -34,6 +34,7 @@ model Empresa {
   processos             Processo[]
   atas                  AtaReuniao[]
   modelosAtas           ModeloAta[]
+  vendas                Venda[]
 }
 
 model ConfiguracaoModeloNegocio {
@@ -73,6 +74,7 @@ model Usuario {
   preferenciaNotificacao PreferenciaNotificacao?
   pushSubscriptions      PushSubscription[]
   logsAlteracoesAtas     LogAlteracaoAta[]
+  vendasImportacaoLogs   VendaImportacaoLog[]
   empresa                Empresa?                @relation(fields: [empresaId], references: [id])
 }
 
@@ -950,6 +952,9 @@ model Produto {
   @@index([marca])
   @@index([grupo])
   @@index([dataUltModif])
+  
+  // Relacionamentos
+  vendas                Venda[]
 }
 
 // =====================================================
@@ -1074,4 +1079,147 @@ model Subgrupo {
   createdAt DateTime @default(now())
   
   @@index([nome])
+}
+
+// =====================================================
+// VENDAS - IMPORTAÇÃO DE VENDAS
+// =====================================================
+
+model Venda {
+  id              String   @id @default(uuid())
+  
+  // Identificação da Venda
+  nfe             String   // Nota Fiscal Eletrônica (obrigatório)
+  idDoc           String?  // ID do Documento no sistema origem
+  dataVenda       DateTime  // Data da Venda (obrigatório)
+  
+  // Cliente
+  razaoSocial     String   // Razão Social do Cliente (obrigatório)
+  nomeFantasia    String?  // Nome Fantasia do Cliente
+  cnpjCliente     String?  // CNPJ do Cliente
+  ufDestino       String?  // UF de Destino
+  ufOrigem        String?  // UF de Origem
+  
+  // Produto
+  idProd          String?  // ID do Produto no sistema origem
+  referencia      String?  // Referência do Produto
+  prodCodMestre   String?  // Prod Cod Mestre (Código Mestre do Produto)
+  descricaoProduto String? // Descrição do Produto
+  marca           String?  // Marca do Produto (denormalizada para performance em relatórios)
+  grupo           String?  // Grupo do Produto (denormalizado para performance em relatórios)
+  subgrupo        String?  // Subgrupo do Produto (denormalizado para performance em relatórios)
+  // Nota: Marca, Grupo e Subgrupo são denormalizados para evitar JOINs em relatórios frequentes
+  // Esses campos são capturados no momento da importação e representam os valores no momento da venda
+  // Se esses valores mudarem no futuro, os valores históricos da venda são preservados
+  // Tratamento de erros: Se produto não existir ou campos estiverem null, usar valores padrão:
+  // - marca: 'DESCONHECIDA'
+  // - grupo: 'DESCONHECIDO'
+  // - subgrupo: 'DESCONHECIDO'
+  
+  // Operação
+  tipoOperacao    String?  // Tipo Operação
+  
+  // Valores
+  quantidade      Decimal  @db.Decimal(18, 3) // Quantidade vendida
+  valorUnitario   Decimal  @db.Decimal(18, 2) // Valor unitário
+  valorTotal      Decimal  @db.Decimal(18, 2) // Valor total
+  
+  // Relacionamentos
+  empresaId       String?  // Empresa relacionada
+  produtoId       String?  // Produto relacionado (se existir na tabela Produto)
+  
+  // Metadata JSONB para campos dinâmicos
+  metadata        Json?    // { origem, tipo_venda, desconto, etc }
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relacionamentos
+  empresa         Empresa? @relation(fields: [empresaId], references: [id])
+  produto         Produto? @relation(fields: [produtoId], references: [id])
+  
+  @@index([nfe])
+  @@index([dataVenda])
+  @@index([empresaId, dataVenda])
+  @@index([referencia])
+  @@index([razaoSocial])
+  @@index([idDoc])
+  @@index([marca])
+  @@index([grupo])
+  @@index([subgrupo])
+  @@index([prodCodMestre])
+  @@index([tipoOperacao])
+  
+  // Chave única composta para evitar duplicatas
+  // IMPORTANTE: Esta chave garante que não haverá duplicatas mesmo se:
+  // - O usuário carregar o mesmo arquivo duas vezes
+  // - O usuário carregar um arquivo antigo sem querer
+  // - Houver múltiplos produtos na mesma NFE
+  @@unique([nfe, idDoc, referencia])
+  
+  // Índice adicional para busca rápida de duplicatas potenciais
+  @@index([nfe, dataVenda, referencia])
+}
+
+model VendaAnalytics {
+  id              String   @id @default(uuid())
+  
+  // Agregação temporal
+  ano              Int
+  mes              Int      // 1-12
+  
+  // Agregação por cliente
+  nomeFantasia     String   // Nome fantasia do cliente
+  
+  // Agregação por produto
+  marca            String   // Marca do produto (denormalizada da tabela Venda)
+  grupo            String?  // Grupo do produto (denormalizado da tabela Venda, opcional)
+  subgrupo         String?  // Subgrupo do produto (denormalizado da tabela Venda, opcional)
+  
+  // Agregação geográfica
+  uf               String   // UF
+  
+  // Valores agregados
+  totalValor       Decimal  @db.Decimal(18, 2)
+  totalQuantidade  Decimal  @db.Decimal(18, 3)
+  
+  // Timestamps
+  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now())
+  
+  @@unique([ano, mes, nomeFantasia, marca, uf])
+  @@index([ano, mes])
+  @@index([marca])
+  @@index([grupo])
+  @@index([subgrupo])
+  @@index([uf])
+  @@index([nomeFantasia])
+}
+
+model VendaImportacaoLog {
+  id                String   @id @default(uuid())
+  
+  // Informações do arquivo
+  nomeArquivo       String
+  mappingName       String?  // Nome do mapeamento usado
+  totalLinhas       Int
+  
+  // Resultados
+  sucessoCount      Int      @default(0)
+  erroCount         Int      @default(0)
+  produtosNaoEncontrados Int @default(0) // Quantidade de produtos não encontrados na tabela Produto
+  
+  // Usuário
+  usuarioEmail      String
+  usuarioId         String?
+  
+  // Timestamps
+  createdAt         DateTime @default(now())
+  
+  // Relacionamentos
+  usuario           Usuario? @relation(fields: [usuarioId], references: [id])
+  
+  @@index([createdAt])
+  @@index([usuarioId])
 }

@@ -19,8 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Loader2, Check, X, Copy, Download, AlertCircle, ArrowRight } from 'lucide-react';
+import { Loader2, Check, X, Copy, AlertCircle, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   bravoErpService,
@@ -48,6 +47,7 @@ export function MappingPreviewDialog({
     if (open && mapeamentos.length > 0) {
       loadPreview();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mapeamentos]);
 
   const loadPreview = async () => {
@@ -75,7 +75,7 @@ export function MappingPreviewDialog({
     }
   };
 
-  const formatValue = (value: any): string => {
+  const formatValue = (value: unknown): string => {
     if (value === null || value === undefined) return 'null';
     if (typeof value === 'object') return JSON.stringify(value, null, 2);
     if (typeof value === 'boolean') return value ? 'true' : 'false';
@@ -83,7 +83,7 @@ export function MappingPreviewDialog({
     return String(value);
   };
 
-  const copyJSON = (data: any) => {
+  const copyJSON = (data: Record<string, unknown>) => {
     navigator.clipboard.writeText(JSON.stringify(data, null, 2));
     toast({
       title: 'Copiado!',
@@ -91,14 +91,14 @@ export function MappingPreviewDialog({
     });
   };
 
-  const getProductIdentifier = (original: any): string => {
+  const getProductIdentifier = (original: Record<string, unknown>): string => {
     const ref = original?.ref || original?.referencia || '';
     const titulo = original?.titulo || '';
     return ref && titulo ? `${ref} - ${titulo}` : ref || titulo || 'Produto';
   };
 
   // Função para obter valor de campo aninhado
-  const getNestedValue = (obj: any, path: string): any => {
+  const getNestedValue = (obj: Record<string, unknown>, path: string): unknown => {
     return path.split('.').reduce((o, key) => {
       if (o && typeof o === 'object') {
         return o[key];

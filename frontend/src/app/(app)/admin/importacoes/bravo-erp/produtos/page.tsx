@@ -8,14 +8,13 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatsCard } from '@/components/bravo-erp/stats-card';
 import { LogsPanel } from '@/components/bravo-erp/logs-panel';
 import { ConfigPanel } from '@/components/bravo-erp/config-panel';
 import { MappingPanel } from '@/components/bravo-erp/mapping-panel';
 import { SyncPanel } from '@/components/bravo-erp/sync-panel';
-import { bravoErpService, type SyncStats, type SyncLog } from '@/services/bravo-erp.service';
+import { bravoErpService, type SyncStats, type SyncLog, type ResumableSync } from '@/services/bravo-erp.service';
 import { Package, Settings, RefreshCw, Map } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -25,12 +24,13 @@ export default function BravoERPProdutosPage() {
   const [loadingStats, setLoadingStats] = useState(false);
   const [logs, setLogs] = useState<SyncLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
-  const [resumableSyncs, setResumableSyncs] = useState<any[]>([]);
+  const [resumableSyncs, setResumableSyncs] = useState<ResumableSync[]>([]);
 
   useEffect(() => {
     loadStats();
     loadLogs();
     loadResumableSyncs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadStats = async () => {

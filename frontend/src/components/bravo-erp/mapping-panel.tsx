@@ -19,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Save,
@@ -29,7 +28,6 @@ import {
   Info,
   AlertCircle,
   RefreshCw,
-  ArrowLeft,
   Eye,
   Loader2,
 } from 'lucide-react';
@@ -59,9 +57,8 @@ interface MappingPanelProps {
   compact?: boolean;
 }
 
-export function MappingPanel({ showBackButton = false, compact = false }: MappingPanelProps) {
+export function MappingPanel({ compact = false }: MappingPanelProps) {
   const { toast } = useToast();
-  const router = useRouter();
   
   const [mapeamentos, setMapeamentos] = useState<CampoMapeamento[]>([]);
   const [loading, setLoading] = useState(false);
@@ -75,7 +72,7 @@ export function MappingPanel({ showBackButton = false, compact = false }: Mappin
   const [ultimaAtualizacaoBravo, setUltimaAtualizacaoBravo] = useState<Date | null>(null);
   
   // MELHORIA 1: Produto de exemplo para visualização
-  const [sampleProduct, setSampleProduct] = useState<any | null>(null);
+  const [sampleProduct, setSampleProduct] = useState<Record<string, unknown> | null>(null);
   const [loadingSampleProduct, setLoadingSampleProduct] = useState(false);
   
   // Preview
@@ -271,7 +268,7 @@ export function MappingPanel({ showBackButton = false, compact = false }: Mappin
     setMapeamentos(mapeamentos.filter((_, i) => i !== index));
   };
 
-  const updateMapeamento = (index: number, field: keyof CampoMapeamento, value: any) => {
+  const updateMapeamento = (index: number, field: keyof CampoMapeamento, value: string | number | boolean) => {
     const updated = [...mapeamentos];
     updated[index] = { ...updated[index], [field]: value };
     setMapeamentos(updated);
@@ -326,7 +323,7 @@ export function MappingPanel({ showBackButton = false, compact = false }: Mappin
 
   // MELHORIA 1: Função para obter valor de campo aninhado
   // Suporta caminhos genéricos como _ref.unidade.abreviacao (resolvendo pelo ID correto)
-  const getNestedValue = (obj: any, path: string): any => {
+  const getNestedValue = (obj: Record<string, unknown>, path: string): unknown => {
     if (!obj || !path) return undefined;
     
     // Tratamento especial para campos _ref que precisam buscar pelo ID correto
@@ -396,13 +393,13 @@ export function MappingPanel({ showBackButton = false, compact = false }: Mappin
   };
 
   // MELHORIA 1: Obter valor do campo Bravo ERP
-  const getFieldValue = (campoBravo: string): any => {
+  const getFieldValue = (campoBravo: string): unknown => {
     if (!sampleProduct || !campoBravo) return null;
     return getNestedValue(sampleProduct, campoBravo);
   };
 
   // MELHORIA 1: Formatar valor para exibição
-  const formatFieldValue = (value: any): string => {
+  const formatFieldValue = (value: unknown): string => {
     if (value === null || value === undefined) return '(vazio)';
     if (typeof value === 'boolean') return value ? 'true' : 'false';
     if (typeof value === 'object') {
@@ -482,6 +479,7 @@ export function MappingPanel({ showBackButton = false, compact = false }: Mappin
     // MELHORIA 1: Carregar produto de exemplo
     loadSampleProduct();
     // Não carregar campos do Bravo automaticamente (requer API configurada)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Carregar campos do Bravo automaticamente se houver mapeamentos salvos
@@ -497,6 +495,7 @@ export function MappingPanel({ showBackButton = false, compact = false }: Mappin
     if (camposBravo.length > 0 && !sampleProduct) {
       loadSampleProduct();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camposBravo.length]);
 
   // ============================================

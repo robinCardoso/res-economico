@@ -45,13 +45,22 @@ export interface SyncResponse {
   details?: string;
 }
 
+export interface UltimoSync {
+  id: string;
+  sync_type: string;
+  status: string;
+  started_at: string;
+  completed_at?: string;
+  [key: string]: unknown;
+}
+
 export interface SyncStats {
   success: boolean;
   totalProdutos: number;
   produtosAtivos: number;
   produtosDoBravo: number;
   totalSincronizados: number;
-  ultimoSync: any;
+  ultimoSync: UltimoSync | null;
   ultimaSincronizacao: string;
   ultimaSincronizacaoData: string;
   ultimosSyncs: Array<Record<string, unknown>>;
@@ -104,7 +113,7 @@ export interface SyncStatus {
     status: string;
     duration: number;
   };
-  stats?: any;
+  stats?: Record<string, unknown>;
 }
 
 export interface SyncLog {
@@ -136,30 +145,42 @@ export interface CampoInterno {
   descricao: string;
 }
 
+export interface ResumableSync {
+  id: string;
+  sync_type: string;
+  status: string;
+  started_at: string;
+  [key: string]: unknown;
+}
+
+export interface ProductSample {
+  [key: string]: unknown;
+}
+
 export interface CampoBravo {
   nome: string;
   tipo: string;
-  valor_exemplo: any;
+  valor_exemplo: string | number | boolean | null;
   caminho: string;
 }
 
 export interface MappingPreviewResponse {
   success: boolean;
-  original?: any;
-  mapped?: any;
-  metadata?: any;
+  original?: Record<string, unknown>;
+  mapped?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   mapping_details?: Array<{
     campo_bravo: string;
     campo_interno: string;
-    valor_original: any;
-    valor_mapeado: any;
+    valor_original: unknown;
+    valor_mapeado: unknown;
     transformacao: string;
     sucesso: boolean;
     erro?: string;
   }>;
   unmapped_fields?: Array<{
     campo: string;
-    valor: any;
+    valor: unknown;
     tipo: string;
   }>;
   error?: string;
@@ -260,7 +281,7 @@ export const bravoErpService = {
     data: {
       logs: SyncLog[];
       total: number;
-      filters: any;
+      filters: Record<string, unknown>;
     };
   }> {
     const params = new URLSearchParams();
@@ -315,12 +336,12 @@ export const bravoErpService = {
   async resumeSync(logId: string): Promise<{
     success: boolean;
     message?: string;
-    data?: any;
+    data?: SyncResponse['data'];
   }> {
     const { data } = await api.post<{
       success: boolean;
       message?: string;
-      data?: any;
+      data?: SyncResponse['data'];
     }>('/bravo-erp/sync/resume', { log_id: logId });
     return data;
   },
@@ -379,13 +400,13 @@ export const bravoErpService = {
   async getBravoFields(): Promise<{
     success: boolean;
     fields?: CampoBravo[];
-    product_sample?: any;
+    product_sample?: ProductSample;
     error?: string;
   }> {
     const { data } = await api.get<{
       success: boolean;
       fields?: CampoBravo[];
-      product_sample?: any;
+      product_sample?: ProductSample;
       error?: string;
     }>('/bravo-erp/mapping/fields/bravo');
     return data;
@@ -406,12 +427,12 @@ export const bravoErpService = {
    */
   async getSampleProduct(): Promise<{
     success: boolean;
-    product?: any;
+    product?: ProductSample;
     error?: string;
   }> {
     const { data } = await api.get<{
       success: boolean;
-      product?: any;
+      product?: ProductSample;
       error?: string;
     }>('/bravo-erp/mapping/sample-product');
     return data;

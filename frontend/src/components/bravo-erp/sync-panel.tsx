@@ -10,7 +10,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   RefreshCw,
@@ -94,17 +93,8 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
               if (progressResponse) {
                 console.log('✅ Progresso recuperado ao carregar página:', progressResponse);
                 
-                if ('progress' in progressResponse) {
-                  setProgress(progressResponse as any);
-                  
-                  // Tentar obter sync_log_id real se disponível no response
-                  // (alguns endpoints podem retornar isso)
-                } else {
-                  setProgress({
-                    success: true,
-                    progress: progressResponse,
-                  } as any);
-                }
+                // getProgress sempre retorna SyncProgress
+                setProgress(progressResponse);
               }
               
               // Buscar logs para tentar obter o sync_log_id real (UUID)
@@ -146,11 +136,13 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
     const timeoutId = setTimeout(checkRunningSync, 500);
     
     return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Executar apenas uma vez ao montar
 
   // Polling de status quando há sincronização em andamento
   useEffect(() => {
     if (!syncing) return;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
 
     // Flag para evitar buscar logs múltiplas vezes
     let hasTriedToGetSyncLogId = false;
@@ -207,17 +199,9 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
             
             // A resposta pode estar em progressResponse.progress ou progressResponse diretamente
             if (progressResponse && typeof progressResponse === 'object') {
-              if ('progress' in progressResponse) {
-                console.log('✅ Progresso encontrado:', progressResponse);
-                setProgress(progressResponse as any);
-              } else {
-                // Se não tem propriedade progress, criar estrutura
-                console.log('⚠️ Criando estrutura de progresso');
-                setProgress({
-                  success: true,
-                  progress: progressResponse,
-                } as any);
-              }
+              // getProgress sempre retorna SyncProgress
+              console.log('✅ Progresso encontrado:', progressResponse);
+              setProgress(progressResponse);
             }
           } catch (progressError) {
             // Se não conseguiu buscar progresso específico, usar status geral
@@ -229,12 +213,18 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
                 success: true,
                 progress: {
                   status: status.currentSync.status || 'processando',
+                  current_step: null,
                   current_page: 0,
                   products_processed: 0,
                   total_produtos_bravo: 0,
                   progressPercentage: 0,
+                  estimatedTimeRemaining: null,
+                  details: {
+                    pagesProcessed: 0,
+                    totalPages: 0,
+                  },
                 },
-              } as any);
+              });
             }
           }
         } else if (status.isRunning) {
@@ -244,12 +234,18 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
             success: true,
             progress: {
               status: 'iniciando',
+              current_step: null,
               current_page: 0,
               products_processed: 0,
               total_produtos_bravo: 0,
               progressPercentage: 0,
+              estimatedTimeRemaining: null,
+              details: {
+                pagesProcessed: 0,
+                totalPages: 0,
+              },
             },
-          } as any);
+          });
         }
 
         // Verificar se completou
@@ -258,10 +254,15 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
           try {
             const finalProgress = await bravoErpService.getProgress(currentSyncLogIdRef.current);
             if (finalProgress) {
-              setProgress({
-                success: true,
-                progress: 'progress' in finalProgress ? finalProgress.progress : finalProgress,
-              } as any);
+              if (finalProgress.progress) {
+                setProgress(finalProgress);
+              } else {
+                // Se não tem progress, manter apenas success
+                setProgress({
+                  success: finalProgress.success,
+                  progress: undefined,
+                });
+              }
             }
           } catch (error) {
             // Ignorar erro na busca final
@@ -465,10 +466,14 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
           try {
             const initialProgress = await bravoErpService.getProgress(response.sync_log_id);
             if (initialProgress) {
-              setProgress({
-                success: true,
-                progress: 'progress' in initialProgress ? initialProgress.progress : initialProgress,
-              } as any);
+              if (initialProgress.progress) {
+                setProgress(initialProgress);
+              } else {
+                setProgress({
+                  success: initialProgress.success,
+                  progress: undefined,
+                });
+              }
             }
           } catch (error) {
             // Ignorar erro - o polling vai tentar novamente
@@ -493,10 +498,15 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
                 try {
                   const initialProgress = await bravoErpService.getProgress(logId);
                   if (initialProgress) {
-                    setProgress({
-                      success: true,
-                      progress: 'progress' in initialProgress ? initialProgress.progress : initialProgress,
-                    } as any);
+                    if (initialProgress.progress) {
+                      setProgress(initialProgress);
+                    } else {
+                      // Se não tem progress, manter apenas success
+                      setProgress({
+                        success: initialProgress.success,
+                        progress: undefined,
+                      });
+                    }
                   }
                 } catch (error) {
                   console.warn('Não foi possível buscar progresso inicial:', error);

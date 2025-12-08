@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import {
-  Settings,
   Save,
   Eye,
   EyeOff,
@@ -49,6 +48,7 @@ export function ConfigPanel() {
 
   useEffect(() => {
     loadConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadConfig = async () => {
