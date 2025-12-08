@@ -91,7 +91,7 @@ export class VendasService {
             select: {
               id: true,
               razaoSocial: true,
-              nomeFantasia: true,
+              filial: true,
             },
           },
           produto: {
@@ -125,7 +125,7 @@ export class VendasService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
         produto: {

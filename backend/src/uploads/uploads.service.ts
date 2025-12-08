@@ -614,7 +614,7 @@ export class UploadsService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
         linhas: {
@@ -683,7 +683,7 @@ export class UploadsService {
 
       // Por empresa - depende se mês está selecionado
       const empresaNome =
-        upload.empresa.razaoSocial || upload.empresa.nomeFantasia || 'N/A';
+        upload.empresa.razaoSocial || upload.empresa.filial || 'N/A';
       const periodoParaEmpresa = mostrarMensalPorEmpresa
         ? periodoMensal
         : periodoAnual;

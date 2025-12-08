@@ -43,7 +43,7 @@ const UFS_BRASIL = [
 const empresaSchema = z.object({
   cnpj: z.string().min(14, 'CNPJ deve ter 14 dígitos'),
   razaoSocial: z.string().min(2, 'Razão Social deve ter pelo menos 2 caracteres'),
-  nomeFantasia: z.string().optional(),
+  filial: z.string().optional(),
   tipo: z.enum(['MATRIZ', 'FILIAL'], {
     message: 'Selecione o tipo',
   }),
@@ -102,7 +102,7 @@ const EmpresasPage = () => {
     reset({
       cnpj: '',
       razaoSocial: '',
-      nomeFantasia: '',
+      filial: '',
       tipo: 'MATRIZ' as const,
       uf: undefined as EmpresaFormData['uf'],
       setor: '',
@@ -134,7 +134,7 @@ const EmpresasPage = () => {
     reset({
       cnpj: empresa.cnpj,
       razaoSocial: empresa.razaoSocial,
-      nomeFantasia: empresa.nomeFantasia || '',
+      filial: empresa.filial || '',
       tipo: empresa.tipo || 'MATRIZ',
       uf: ufValido,
       setor: empresa.setor || '',
@@ -177,7 +177,7 @@ const EmpresasPage = () => {
           id: editingEmpresa,
           dto: {
             razaoSocial: data.razaoSocial,
-            nomeFantasia: data.nomeFantasia || undefined,
+            filial: data.filial || undefined,
             tipo: data.tipo,
             uf: data.uf || undefined,
             setor: data.setor || undefined,
@@ -196,7 +196,7 @@ const EmpresasPage = () => {
         await createEmpresa.mutateAsync({
           cnpj: cnpjLimpo,
           razaoSocial: data.razaoSocial,
-          nomeFantasia: data.nomeFantasia || undefined,
+          filial: data.filial || undefined,
           tipo: data.tipo,
           uf: data.uf || undefined,
           setor: data.setor || undefined,
@@ -292,7 +292,7 @@ const EmpresasPage = () => {
                     Razão Social
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-300">
-                    Nome Fantasia
+                    Filial
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-300">
                     Tipo
@@ -315,7 +315,7 @@ const EmpresasPage = () => {
                       {empresa.razaoSocial}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-sm text-slate-500 dark:text-slate-300">
-                      {empresa.nomeFantasia || '-'}
+                      {empresa.filial || '-'}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-sm">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -413,17 +413,17 @@ const EmpresasPage = () => {
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="nomeFantasia" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Nome Fantasia
+                <label htmlFor="filial" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Filial
                 </label>
                 <input
-                  id="nomeFantasia"
+                  id="filial"
                   type="text"
-                  {...register('nomeFantasia')}
+                  {...register('filial')}
                   className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
-                {errors.nomeFantasia && (
-                  <p className="text-xs text-rose-600">{errors.nomeFantasia.message}</p>
+                {errors.filial && (
+                  <p className="text-xs text-rose-600">{errors.filial.message}</p>
                 )}
               </div>
 

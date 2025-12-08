@@ -235,7 +235,7 @@ const ResumosPage = () => {
                       {resumo.mes ? `${resumo.mes}/${resumo.ano}` : resumo.ano}
                     </td>
                     <td className="px-4 py-2 text-sm text-muted-foreground">
-                      {resumo.empresa?.nomeFantasia || resumo.empresa?.razaoSocial || 'Consolidado'}
+                      {resumo.empresa?.filial || resumo.empresa?.razaoSocial || 'Consolidado'}
                     </td>
                     <td className="px-4 py-2 text-sm text-muted-foreground">
                       {resumo.tipoAnalise}

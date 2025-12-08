@@ -51,7 +51,7 @@ export class EmpresasService {
       data: {
         cnpj: cnpjLimpo,
         razaoSocial: dto.razaoSocial,
-        nomeFantasia: dto.nomeFantasia || null,
+        filial: dto.filial || null,
         tipo: dto.tipo || 'MATRIZ',
         uf: dto.uf || null,
         setor: dto.setor || null,
@@ -87,8 +87,8 @@ export class EmpresasService {
     // Preparar dados com cast correto para campos JSON
     const updateData: Prisma.EmpresaUpdateInput = {
       ...(dto.razaoSocial !== undefined && { razaoSocial: dto.razaoSocial }),
-      ...(dto.nomeFantasia !== undefined && {
-        nomeFantasia: dto.nomeFantasia || null,
+      ...(dto.filial !== undefined && {
+        filial: dto.filial || null,
       }),
       ...(dto.tipo !== undefined && { tipo: dto.tipo }),
       ...(dto.uf !== undefined && { uf: dto.uf || null }),

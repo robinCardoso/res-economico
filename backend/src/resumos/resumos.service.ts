@@ -68,7 +68,7 @@ export class ResumosService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
         upload: {
@@ -136,7 +136,7 @@ export class ResumosService {
             select: {
               id: true,
               razaoSocial: true,
-              nomeFantasia: true,
+              filial: true,
             },
           },
           criador: {
@@ -174,7 +174,7 @@ export class ResumosService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
             cnpj: true,
           },
         },
@@ -226,7 +226,7 @@ export class ResumosService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
         criador: {
@@ -542,7 +542,7 @@ export class ResumosService {
         ? {
             id: resumo.empresa.id,
             razaoSocial: resumo.empresa.razaoSocial,
-            nomeFantasia: resumo.empresa.nomeFantasia,
+            filial: resumo.empresa.filial,
           }
         : null,
       upload: resumo.upload

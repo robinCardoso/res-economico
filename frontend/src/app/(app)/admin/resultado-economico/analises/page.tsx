@@ -113,7 +113,7 @@ const AnalisesPage = () => {
               <option value="">Todas (Consolidado)</option>
               {empresas?.map((empresa) => (
                 <option key={empresa.id} value={empresa.id}>
-                  {empresa.nomeFantasia || empresa.razaoSocial}
+                  {empresa.filial || empresa.razaoSocial}
                 </option>
               ))}
             </select>

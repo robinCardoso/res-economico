@@ -39,7 +39,7 @@ export interface Empresa {
   id: string;
   cnpj: string;
   razaoSocial: string;
-  nomeFantasia: string | null;
+  filial: string | null;
   tipo: TipoEmpresa;
   uf?: string | null;
   // NOVOS CAMPOS PARA CONTEXTO IA
@@ -487,7 +487,7 @@ export interface AtaReuniao {
   empresa?: {
     id: string;
     razaoSocial: string;
-    nomeFantasia?: string | null;
+    filial?: string | null;
   } | null;
   participantes: AtaParticipante[];
   anexos?: AtaAnexo[];

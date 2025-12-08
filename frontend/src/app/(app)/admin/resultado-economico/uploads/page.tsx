@@ -104,7 +104,7 @@ const UploadsPage = () => {
             <option value="">Todas as empresas</option>
             {empresasList.map((empresa) => (
               <option key={empresa.id} value={empresa.id}>
-                {empresa.razaoSocial} {empresa.nomeFantasia ? `(${empresa.nomeFantasia})` : ''} - {maskCNPJ(empresa.cnpj)}
+                {empresa.razaoSocial} {empresa.filial ? `(${empresa.filial})` : ''} - {maskCNPJ(empresa.cnpj)}
               </option>
             ))}
           </select>
@@ -214,9 +214,9 @@ const UploadsPage = () => {
                           <div className="text-xs font-semibold text-foreground truncate">
                             {upload.empresa?.razaoSocial || 'N/A'}
                           </div>
-                          {upload.empresa?.nomeFantasia && (
+                          {upload.empresa?.filial && (
                             <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                              {upload.empresa.nomeFantasia}
+                              {upload.empresa.filial}
                             </div>
                           )}
                           {upload.empresa?.cnpj && (

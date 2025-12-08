@@ -505,7 +505,7 @@ const NovoUploadPage = () => {
               <option value="">Selecione uma empresa</option>
               {empresasList.map((empresa) => (
                 <option key={empresa.id} value={empresa.id}>
-                  {empresa.razaoSocial} {empresa.nomeFantasia ? `(${empresa.nomeFantasia})` : ''} - {maskCNPJ(empresa.cnpj)}
+                  {empresa.razaoSocial} {empresa.filial ? `(${empresa.filial})` : ''} - {maskCNPJ(empresa.cnpj)}
                 </option>
               ))}
             </select>

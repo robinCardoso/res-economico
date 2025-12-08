@@ -19,8 +19,8 @@ export class UpdateEmpresaDto {
 
   @IsString()
   @IsOptional()
-  @MinLength(2, { message: 'Nome Fantasia deve ter pelo menos 2 caracteres' })
-  nomeFantasia?: string;
+  @MinLength(2, { message: 'Filial deve ter pelo menos 2 caracteres' })
+  filial?: string;
 
   @IsEnum(TipoEmpresa, { message: 'Tipo deve ser MATRIZ ou FILIAL' })
   @IsOptional()

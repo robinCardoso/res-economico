@@ -4,7 +4,7 @@ import type { Empresa, PorteEmpresa, ModeloNegocio } from '@/types/api';
 export interface CreateEmpresaDto {
   cnpj: string;
   razaoSocial: string;
-  nomeFantasia?: string;
+  filial?: string;
   tipo?: 'MATRIZ' | 'FILIAL';
   uf?: string;
   // NOVOS CAMPOS PARA CONTEXTO IA
@@ -22,7 +22,7 @@ export interface CreateEmpresaDto {
 
 export interface UpdateEmpresaDto {
   razaoSocial?: string;
-  nomeFantasia?: string;
+  filial?: string;
   tipo?: 'MATRIZ' | 'FILIAL';
   uf?: string;
   // NOVOS CAMPOS PARA CONTEXTO IA

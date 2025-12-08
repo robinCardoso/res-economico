@@ -231,7 +231,7 @@ const AlertasPage = () => {
                 <option value="">Todas</option>
                 {empresasList.map((empresa) => (
                   <option key={empresa.id} value={empresa.id}>
-                    {empresa.razaoSocial} {empresa.nomeFantasia ? `(${empresa.nomeFantasia})` : ''}
+                    {empresa.razaoSocial} {empresa.filial ? `(${empresa.filial})` : ''}
                   </option>
                 ))}
               </select>
@@ -345,7 +345,7 @@ const AlertasPage = () => {
                     : alerta.mensagem;
                   const empresaTexto = alerta.upload?.empresa?.razaoSocial || 'N/A';
                   const empresaCompleto = alerta.upload?.empresa
-                    ? `${alerta.upload.empresa.razaoSocial}${alerta.upload.empresa.nomeFantasia ? ` (${alerta.upload.empresa.nomeFantasia})` : ''}${alerta.upload.empresa.cnpj ? ` - ${maskCNPJ(alerta.upload.empresa.cnpj)}` : ''}`
+                    ? `${alerta.upload.empresa.razaoSocial}${alerta.upload.empresa.filial ? ` (${alerta.upload.empresa.filial})` : ''}${alerta.upload.empresa.cnpj ? ` - ${maskCNPJ(alerta.upload.empresa.cnpj)}` : ''}`
                     : 'N/A';
 
                   return (

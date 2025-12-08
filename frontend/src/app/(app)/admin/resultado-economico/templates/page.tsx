@@ -214,7 +214,7 @@ const TemplatesPage = () => {
                       {template.empresa ? (
                         <>
                           {template.empresa.razaoSocial}
-                          {template.empresa.nomeFantasia && ` (${template.empresa.nomeFantasia})`}
+                          {template.empresa.filial && ` (${template.empresa.filial})`}
                         </>
                       ) : (
                         <span className="text-sky-600 dark:text-sky-400">🌐 Template Global (Todas as empresas)</span>
@@ -290,7 +290,7 @@ const TemplatesPage = () => {
                   <option value="">🌐 Template Global (Todas as empresas)</option>
                   {empresasList.map((empresa) => (
                     <option key={empresa.id} value={empresa.id}>
-                      {empresa.razaoSocial} {empresa.nomeFantasia ? `(${empresa.nomeFantasia})` : ''} - {maskCNPJ(empresa.cnpj)}
+                      {empresa.razaoSocial} {empresa.filial ? `(${empresa.filial})` : ''} - {maskCNPJ(empresa.cnpj)}
                     </option>
                   ))}
                 </select>

@@ -130,7 +130,7 @@ const ResumoDetailPage = () => {
             {resumo.empresa && (
               <div className="flex items-center gap-1.5">
                 <Building2 className="h-4 w-4" />
-                <span>{resumo.empresa.nomeFantasia || resumo.empresa.razaoSocial}</span>
+                <span>{resumo.empresa.filial || resumo.empresa.razaoSocial}</span>
               </div>
             )}
             <div className="flex items-center gap-1.5">

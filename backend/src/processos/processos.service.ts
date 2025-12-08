@@ -198,7 +198,7 @@ export class ProcessosService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
             uf: true,
           },
         },
@@ -301,7 +301,7 @@ export class ProcessosService {
             select: {
               id: true,
               razaoSocial: true,
-              nomeFantasia: true,
+              filial: true,
               uf: true,
             },
           },
@@ -358,7 +358,7 @@ export class ProcessosService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
             uf: true,
           },
         },
@@ -511,7 +511,7 @@ export class ProcessosService {
         historico: true;
         usuario: { select: { id: true; nome: true; email: true } };
         empresa: {
-          select: { id: true; razaoSocial: true; nomeFantasia: true; uf: true };
+          select: { id: true; razaoSocial: true; filial: true; uf: true };
         };
       };
     }>,
@@ -539,7 +539,7 @@ export class ProcessosService {
         ? {
             id: processo.empresa.id,
             nomeRazaoSocial: processo.empresa.razaoSocial,
-            nomeFantasia: processo.empresa.nomeFantasia,
+            filial: processo.empresa.filial,
             uf: processo.empresa.uf,
           }
         : undefined,
