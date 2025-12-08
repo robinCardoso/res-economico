@@ -11,4 +11,3 @@ import { ConfigModule } from '@nestjs/config';
   exports: [PushNotificationsService],
 })
 export class PushNotificationsModule {}
-

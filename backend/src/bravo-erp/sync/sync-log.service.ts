@@ -257,7 +257,11 @@ export class SyncLogService {
   }) {
     const { limit = 10, status, sync_type, can_resume } = filters;
 
-    const where: any = {};
+    const where: {
+      status?: string;
+      sync_type?: string;
+      can_resume?: boolean;
+    } = {};
 
     if (status) {
       where.status = status;

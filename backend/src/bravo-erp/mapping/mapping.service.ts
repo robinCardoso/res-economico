@@ -1,12 +1,7 @@
-import {
-  Injectable,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { CampoMapeamentoDto, CreateMappingDto } from '../dto/mapping.dto';
 import { BravoErpClientV2Service } from '../client/bravo-erp-client-v2.service';
-import { BravoProduto } from '../client/bravo-erp-client.interface';
 
 @Injectable()
 export class MappingService {
@@ -22,10 +17,12 @@ export class MappingService {
    * O cache do ProductTransformService expira em 5 minutos (CACHE_TTL)
    * Então os novos mapeamentos serão usados na próxima sincronização
    */
-  private async limparCacheTransformacao(): Promise<void> {
+  private limparCacheTransformacao(): void {
     // O cache será limpo automaticamente após 5 minutos
     // Ou pode ser limpo manualmente na próxima sincronização
-    this.logger.log('💡 Mapeamentos atualizados. Cache será renovado na próxima sincronização (TTL 5min)');
+    this.logger.log(
+      '💡 Mapeamentos atualizados. Cache será renovado na próxima sincronização (TTL 5min)',
+    );
   }
 
   /**
@@ -82,7 +79,7 @@ export class MappingService {
       console.log('✅ Mapeamentos salvos com sucesso');
 
       // Limpar cache de transformação para usar novos mapeamentos
-      await this.limparCacheTransformacao();
+      this.limparCacheTransformacao();
 
       return {
         success: true,
@@ -99,7 +96,7 @@ export class MappingService {
   /**
    * MELHORIA 1: Obter campos da tabela produtos do schema Prisma
    */
-  async getInternalFields(): Promise<{
+  getInternalFields(): {
     success: boolean;
     fields?: Array<{
       nome: string;
@@ -108,7 +105,7 @@ export class MappingService {
       descricao: string;
     }>;
     error?: string;
-  }> {
+  } {
     try {
       // Definir campos da tabela produtos baseado no schema
       const fields = [
@@ -214,22 +211,22 @@ export class MappingService {
    * Exemplo: _ref.unidade.abreviacao ao invés de _ref.unidade.1806.abreviacao
    */
   private flattenObject(
-    obj: any,
+    obj: Record<string, unknown>,
     prefix = '',
     result: Array<{
       nome: string;
       tipo: string;
-      valor_exemplo: any;
+      valor_exemplo: unknown;
       caminho: string;
     }> = [],
   ): Array<{
     nome: string;
     tipo: string;
-    valor_exemplo: any;
+    valor_exemplo: unknown;
     caminho: string;
   }> {
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         const value = obj[key];
         const caminho = prefix ? `${prefix}.${key}` : key;
 
@@ -243,8 +240,17 @@ export class MappingService {
         } else if (Array.isArray(value)) {
           if (value.length > 0) {
             // Para arrays, usar primeiro item
-            if (typeof value[0] === 'object' && value[0] !== null) {
-              this.flattenObject(value[0], caminho, result);
+            const firstItem = value[0] as unknown;
+            if (
+              firstItem !== undefined &&
+              typeof firstItem === 'object' &&
+              firstItem !== null
+            ) {
+              this.flattenObject(
+                firstItem as Record<string, unknown>,
+                caminho,
+                result,
+              );
             } else {
               result.push({
                 nome: caminho,
@@ -265,21 +271,26 @@ export class MappingService {
           // CORREÇÃO: Verificar se é um objeto com chaves numéricas (ex: _ref.unidade = { 1806: {...}, 18: {...} })
           // Se for, ignorar as chaves numéricas e pegar diretamente os campos do primeiro item
           const keys = Object.keys(value);
-          const isObjectWithNumericKeys = keys.length > 0 && keys[0].match(/^_?\d+$/);
-          
-          if (isObjectWithNumericKeys) {
+          const isObjectWithNumericKeys =
+            keys.length > 0 && keys[0].match(/^_?\d+$/);
+
+          if (isObjectWithNumericKeys && keys.length > 0) {
             // Pegar o primeiro item como exemplo (qualquer um serve, pois têm a mesma estrutura)
-            const primeiroItem = value[keys[0]];
-            
+            const primeiroItem = (value as Record<string, unknown>)[keys[0]];
+
             if (typeof primeiroItem === 'object' && primeiroItem !== null) {
               // Continuar o flatten do primeiro item, mas SEM incluir a chave numérica no caminho
               // Exemplo: caminho = "_ref.unidade", primeiroItem = { abreviacao: "PC", ... }
               // Resultado: "_ref.unidade.abreviacao" (sem o .1806)
-              this.flattenObject(primeiroItem, caminho, result);
+              this.flattenObject(
+                primeiroItem as Record<string, unknown>,
+                caminho,
+                result,
+              );
             }
           } else {
             // Objeto normal - recursão padrão
-            this.flattenObject(value, caminho, result);
+            this.flattenObject(value as Record<string, unknown>, caminho, result);
           }
         } else {
           // Valor primitivo
@@ -340,7 +351,9 @@ export class MappingService {
       const primeiroProduto = produtos[0];
 
       // Extrair campos usando flatten
-      const campos = this.flattenObject(primeiroProduto);
+      const campos = this.flattenObject(
+        primeiroProduto as Record<string, unknown>,
+      );
 
       return {
         success: true,
@@ -443,7 +456,7 @@ export class MappingService {
 
       // Temporariamente salvar mapeamentos para aplicar transformação
       const mapeamentosAtivos = mapeamentos.filter((m) => m.ativo);
-      
+
       // Criar map temporário de mapeamentos para usar na transformação
       const mapeamentoMapTemporario = new Map();
       mapeamentosAtivos.forEach((m) => {
@@ -454,15 +467,15 @@ export class MappingService {
       });
 
       // Aplicar transformação manualmente (simular ProductTransformService)
-      const produtoMapeado: any = {
+      const produtoMapeado: Record<string, unknown> = {
         updatedAt: new Date(),
       };
-      const metadata: any = {};
+      const metadata: Record<string, unknown> = {};
       const mappingDetails: Array<{
         campo_bravo: string;
         campo_interno: string;
-        valor_original: any;
-        valor_mapeado: any;
+        valor_original: unknown;
+        valor_mapeado: unknown;
         transformacao: string;
         sucesso: boolean;
         erro?: string;
@@ -470,84 +483,167 @@ export class MappingService {
 
       // Função auxiliar para obter valor aninhado
       // Suporta caminhos genéricos como _ref.unidade.abreviacao (resolvendo pelo ID correto)
-      const obterValorCampo = (obj: any, caminho: string): any => {
+      const obterValorCampo = (
+        obj: Record<string, unknown>,
+        caminho: string,
+      ): unknown => {
         // Tratamento especial para campos _ref que precisam buscar pelo ID correto
-        if (caminho === '_ref.marca.titulo' && obj.id_marca) {
-          return obj._ref?.marca?.[obj.id_marca]?.titulo || null;
+        const objRef = obj._ref as
+          | {
+              marca?: Record<string, unknown>;
+              categoria?: Record<string, unknown>;
+              unidade?: Record<string, unknown>;
+            }
+          | undefined;
+        const idMarca = obj.id_marca as string | undefined;
+        const idCategoria = obj.id_produto_categoria as string | undefined;
+        const idUnidade = obj.id_unidade_padrao_venda as string | undefined;
+
+        if (caminho === '_ref.marca.titulo' && idMarca && objRef?.marca) {
+          const marcaObj = objRef.marca[idMarca] as
+            | { titulo?: unknown }
+            | undefined;
+          return marcaObj?.titulo ?? null;
         }
-        if (caminho.startsWith('_ref.marca.') && obj.id_marca) {
+        if (caminho.startsWith('_ref.marca.') && idMarca && objRef?.marca) {
           const campo = caminho.replace('_ref.marca.', '');
-          return obj._ref?.marca?.[obj.id_marca]?.[campo] || null;
+          const marcaObj = objRef.marca[idMarca] as
+            | Record<string, unknown>
+            | undefined;
+          return marcaObj?.[campo] ?? null;
         }
-        
-        if (caminho === '_ref.categoria.titulo' && obj.id_produto_categoria) {
-          return obj._ref?.categoria?.[obj.id_produto_categoria]?.titulo || null;
+
+        if (
+          caminho === '_ref.categoria.titulo' &&
+          idCategoria &&
+          objRef?.categoria
+        ) {
+          const categoriaObj = objRef.categoria[idCategoria] as
+            | { titulo?: unknown }
+            | undefined;
+          return categoriaObj?.titulo ?? null;
         }
-        if (caminho.startsWith('_ref.categoria.') && obj.id_produto_categoria) {
+        if (
+          caminho.startsWith('_ref.categoria.') &&
+          idCategoria &&
+          objRef?.categoria
+        ) {
           const campo = caminho.replace('_ref.categoria.', '');
-          return obj._ref?.categoria?.[obj.id_produto_categoria]?.[campo] || null;
+          const categoriaObj = objRef.categoria[idCategoria] as
+            | Record<string, unknown>
+            | undefined;
+          return categoriaObj?.[campo] ?? null;
         }
-        
-        if (caminho === '_ref.unidade.abreviacao' && obj.id_unidade_padrao_venda) {
-          return obj._ref?.unidade?.[obj.id_unidade_padrao_venda]?.abreviacao || null;
+
+        if (
+          caminho === '_ref.unidade.abreviacao' &&
+          idUnidade &&
+          objRef?.unidade
+        ) {
+          const unidadeObj = objRef.unidade[idUnidade] as
+            | { abreviacao?: unknown }
+            | undefined;
+          return unidadeObj?.abreviacao ?? null;
         }
-        if (caminho === '_ref.unidade.descricao' && obj.id_unidade_padrao_venda) {
-          return obj._ref?.unidade?.[obj.id_unidade_padrao_venda]?.descricao || null;
+        if (
+          caminho === '_ref.unidade.descricao' &&
+          idUnidade &&
+          objRef?.unidade
+        ) {
+          const unidadeObj = objRef.unidade[idUnidade] as
+            | { descricao?: unknown }
+            | undefined;
+          return unidadeObj?.descricao ?? null;
         }
-        if (caminho === '_ref.unidade.qtde_unit_emba' && obj.id_unidade_padrao_venda) {
-          return obj._ref?.unidade?.[obj.id_unidade_padrao_venda]?.qtde_unit_emba || null;
+        if (
+          caminho === '_ref.unidade.qtde_unit_emba' &&
+          idUnidade &&
+          objRef?.unidade
+        ) {
+          const unidadeObj = objRef.unidade[idUnidade] as
+            | { qtde_unit_emba?: unknown }
+            | undefined;
+          return unidadeObj?.qtde_unit_emba ?? null;
         }
-        if (caminho.startsWith('_ref.unidade.') && obj.id_unidade_padrao_venda) {
+        if (
+          caminho.startsWith('_ref.unidade.') &&
+          idUnidade &&
+          objRef?.unidade
+        ) {
           const campo = caminho.replace('_ref.unidade.', '');
-          return obj._ref?.unidade?.[obj.id_unidade_padrao_venda]?.[campo] || null;
+          const unidadeObj = objRef.unidade[idUnidade] as
+            | Record<string, unknown>
+            | undefined;
+          return unidadeObj?.[campo] ?? null;
         }
-        
+
         // Tratamento para gtin.gtin (gtin é um objeto indexado por ID)
+        const gtinValue = obj.gtin;
         if (caminho === 'gtin.gtin') {
-          if (Array.isArray(obj.gtin)) {
-            if (obj.gtin.length > 0) {
-              const primeiroGtin = obj.gtin[0];
-              return primeiroGtin?.gtin || primeiroGtin || null;
+          if (Array.isArray(gtinValue)) {
+            if (gtinValue.length > 0) {
+              const primeiroGtin = gtinValue[0] as { gtin?: unknown };
+              if (
+                typeof primeiroGtin === 'object' &&
+                primeiroGtin !== null &&
+                'gtin' in primeiroGtin
+              ) {
+                return (primeiroGtin as { gtin: unknown }).gtin ?? null;
+              }
+              return primeiroGtin ?? null;
             }
             return null;
           }
-          if (typeof obj.gtin === 'object' && obj.gtin !== null) {
-            const gtinKeys = Object.keys(obj.gtin);
+          if (typeof gtinValue === 'object' && gtinValue !== null) {
+            const gtinKeys = Object.keys(gtinValue);
             if (gtinKeys.length > 0) {
-              const primeiroGtin = obj.gtin[gtinKeys[0]];
-              return primeiroGtin?.gtin || primeiroGtin || null;
+              const primeiroGtin = (gtinValue as Record<string, unknown>)[
+                gtinKeys[0]
+              ];
+              if (
+                typeof primeiroGtin === 'object' &&
+                primeiroGtin !== null &&
+                'gtin' in primeiroGtin
+              ) {
+                return (primeiroGtin as { gtin: unknown }).gtin ?? null;
+              }
+              return primeiroGtin ?? null;
             }
           }
-          return obj.gtin || null;
+          return gtinValue ?? null;
         }
         if (caminho.startsWith('gtin.')) {
           const campo = caminho.replace('gtin.', '');
-          if (Array.isArray(obj.gtin)) {
-            if (obj.gtin.length > 0) {
-              return obj.gtin[0]?.[campo] || null;
+          if (Array.isArray(gtinValue)) {
+            if (gtinValue.length > 0) {
+              const primeiroItem = gtinValue[0] as Record<string, unknown>;
+              return primeiroItem?.[campo] ?? null;
             }
             return null;
           }
-          if (typeof obj.gtin === 'object' && obj.gtin !== null) {
-            const gtinKeys = Object.keys(obj.gtin);
+          if (typeof gtinValue === 'object' && gtinValue !== null) {
+            const gtinKeys = Object.keys(gtinValue);
             if (gtinKeys.length > 0) {
-              return obj.gtin[gtinKeys[0]]?.[campo] || null;
+              const primeiroItem = (gtinValue as Record<string, unknown>)[
+                gtinKeys[0]
+              ] as Record<string, unknown>;
+              return primeiroItem?.[campo] ?? null;
             }
           }
           return null;
         }
-        
+
         // Para outros campos, usar acesso direto padrão
         const partes = caminho.split('.');
-        let resultado = obj;
-        
+        let resultado: unknown = obj;
+
         for (let i = 0; i < partes.length; i++) {
           const parte = partes[i];
-          
+
           if (resultado === null || resultado === undefined) {
             return undefined;
           }
-          
+
           // Se a parte é um número, pode ser índice de array
           if (!isNaN(Number(parte))) {
             const index = Number(parte);
@@ -556,21 +652,28 @@ export class MappingService {
             } else {
               return undefined;
             }
-          } else if (typeof resultado === 'object') {
-            resultado = resultado[parte];
+          } else if (
+            typeof resultado === 'object' &&
+            resultado !== null &&
+            !Array.isArray(resultado)
+          ) {
+            resultado = (resultado as Record<string, unknown>)[parte];
           } else {
             return undefined;
           }
         }
-        
+
         return resultado;
       };
 
       // Aplicar cada mapeamento
       mapeamentosAtivos.forEach((mapeamento) => {
         try {
-          let valorOriginal = obterValorCampo(produtoOriginal, mapeamento.campo_bravo);
-          let valorMapeado: any = null;
+          const valorOriginal = obterValorCampo(
+            produtoOriginal as Record<string, unknown>,
+            mapeamento.campo_bravo,
+          );
+          let valorMapeado: unknown = null;
 
           if (mapeamento.tipo_transformacao === 'direto') {
             valorMapeado = valorOriginal || null;
@@ -579,16 +682,31 @@ export class MappingService {
             valorMapeado = valorOriginal === 'N';
             produtoMapeado[mapeamento.campo_interno] = valorMapeado;
           } else if (mapeamento.tipo_transformacao === 'json') {
-            const campoMeta = mapeamento.campo_interno.replace('metadata->', '');
+            const campoMeta = mapeamento.campo_interno.replace(
+              'metadata->',
+              '',
+            );
             if (valorOriginal !== null && valorOriginal !== undefined) {
               metadata[campoMeta] = valorOriginal;
               valorMapeado = valorOriginal;
             }
           } else if (mapeamento.tipo_transformacao === 'decimal') {
-            valorMapeado = valorOriginal ? parseFloat(String(valorOriginal)) : null;
+            let valorStr = '';
+            if (typeof valorOriginal === 'string') {
+              valorStr = valorOriginal;
+            } else if (typeof valorOriginal === 'number') {
+              valorStr = String(valorOriginal);
+            } else if (typeof valorOriginal === 'boolean') {
+              valorStr = String(valorOriginal);
+            }
+            valorMapeado = valorStr ? parseFloat(valorStr) : null;
             produtoMapeado[mapeamento.campo_interno] = valorMapeado;
           } else if (mapeamento.tipo_transformacao === 'datetime') {
-            valorMapeado = valorOriginal ? new Date(valorOriginal) : null;
+            const dateValue =
+              typeof valorOriginal === 'string' || valorOriginal instanceof Date
+                ? new Date(valorOriginal)
+                : null;
+            valorMapeado = dateValue;
             produtoMapeado[mapeamento.campo_interno] = valorMapeado;
           }
 
@@ -619,7 +737,9 @@ export class MappingService {
       }
 
       // Identificar campos não mapeados
-      const camposOriginais = this.flattenObject(produtoOriginal);
+      const camposOriginais = this.flattenObject(
+        produtoOriginal as Record<string, unknown>,
+      );
       const camposMapeados = new Set(
         mapeamentosAtivos.map((m) => m.campo_bravo),
       );

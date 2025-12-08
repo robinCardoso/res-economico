@@ -1,8 +1,12 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { ImportVendasDto } from '../dto/import-vendas.dto';
 import { ColumnMapperService } from './column-mapper.service';
-import { VendasValidatorService } from './vendas-validator.service';
+import {
+  VendasValidatorService,
+  VendaRawData,
+} from './vendas-validator.service';
 import { VendasAnalyticsService } from '../analytics/vendas-analytics.service';
 import * as XLSX from 'xlsx';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -52,7 +56,9 @@ export class VendasImportService {
     userId: string,
     userEmail: string,
   ) {
-    this.logger.log(`Iniciando importação de vendas do arquivo: ${file.originalname}`);
+    this.logger.log(
+      `Iniciando importação de vendas do arquivo: ${file.originalname}`,
+    );
 
     const startTime = Date.now();
     let totalLinhas = 0;
@@ -70,44 +76,68 @@ export class VendasImportService {
       const rawData = XLSX.utils.sheet_to_json(worksheet, {
         header: 1,
         defval: null,
-      }) as any[][];
+      });
 
       this.logger.log(`Arquivo lido: ${rawData.length} linhas encontradas`);
 
       // 2. Detectar cabeçalho
-      const headerRowIndex = this.columnMapper.detectHeaderRow(rawData);
-      const headers = rawData[headerRowIndex] || [];
+      const headerRowIndex = this.columnMapper.detectHeaderRow(
+        rawData as unknown[][],
+      );
+      const headersRow = rawData[headerRowIndex];
+      const headers = (
+        Array.isArray(headersRow) ? headersRow : []
+      ).map((h) => (typeof h === 'string' ? h : String(h ?? '')));
 
       // 3. Mapear colunas
       const columnMapping = this.columnMapper.mapColumns(headers);
-      this.logger.log(`Mapeamento de colunas: ${JSON.stringify(columnMapping)}`);
+      this.logger.log(
+        `Mapeamento de colunas: ${JSON.stringify(columnMapping)}`,
+      );
 
       // 4. Validar e transformar dados
-      const vendasRaw: any[] = [];
+      const vendasRaw: VendaRawData[] = [];
       const dataRows = rawData.slice(headerRowIndex + 1);
 
       for (let i = 0; i < dataRows.length; i++) {
-        const row = dataRows[i];
+        const row = dataRows[i] as unknown[] | undefined;
         if (!row || row.length === 0) continue;
 
         try {
           // Converter array para objeto usando headers
-          const rowObj: any = {};
-          headers.forEach((header, index) => {
+          const rowObj: Record<string, unknown> = {};
+          for (let idx = 0; idx < headers.length; idx++) {
+            const header = headers[idx];
             if (header) {
-              rowObj[header] = row[index];
+              let headerStr = '';
+              if (typeof header === 'string') {
+                headerStr = header;
+              } else if (
+                typeof header === 'number' ||
+                typeof header === 'boolean'
+              ) {
+                headerStr = String(header);
+              }
+              if (headerStr && idx < row.length) {
+                const rowValue = row[idx] ?? null;
+                rowObj[headerStr] = rowValue;
+              }
             }
-          });
+          }
 
           const vendaRaw = this.validator.validateAndTransform(
             rowObj,
-            columnMapping,
+            columnMapping as Record<string, string | undefined>,
             headerRowIndex + 2 + i,
           );
           vendasRaw.push(vendaRaw);
         } catch (error) {
           erroCount++;
-          this.logger.warn(`Erro na linha ${headerRowIndex + 2 + i}: ${error.message}`);
+          const errorMessage =
+            error instanceof Error ? error.message : 'Erro desconhecido';
+          this.logger.warn(
+            `Erro na linha ${headerRowIndex + 2 + i}: ${errorMessage}`,
+          );
         }
       }
 
@@ -193,10 +223,10 @@ export class VendasImportService {
         },
       };
     } catch (error) {
-      this.logger.error(
-        `Erro ao importar vendas: ${error.message}`,
-        error.stack,
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro desconhecido';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(`Erro ao importar vendas: ${errorMessage}`, errorStack);
 
       // Salvar log de erro
       await this.prisma.vendaImportacaoLog.create({
@@ -212,31 +242,28 @@ export class VendasImportService {
         },
       });
 
-      throw new BadRequestException(`Erro ao importar vendas: ${error.message}`);
+      throw new BadRequestException(`Erro ao importar vendas: ${errorMessage}`);
     }
   }
 
   /**
    * Denormaliza marca, grupo e subgrupo de produtos
    */
-  private async denormalizarDadosProduto(vendas: any[]): Promise<{
+  private async denormalizarDadosProduto(vendas: VendaRawData[]): Promise<{
     vendasComDadosProduto: VendaProcessada[];
     produtosNaoEncontradosCount: number;
   }> {
     const referencias = vendas
       .map((v) => v.referencia)
-      .filter((r) => r && r !== '');
+      .filter((r): r is string => Boolean(r && r !== ''));
     const idProds = vendas
       .map((v) => v.idProd)
-      .filter((id) => id && id !== '');
+      .filter((id): id is string => Boolean(id && id !== ''));
 
     // Buscar produtos
     const produtos = await this.prisma.produto.findMany({
       where: {
-        OR: [
-          { referencia: { in: referencias } },
-          { id_prod: { in: idProds } },
-        ],
+        OR: [{ referencia: { in: referencias } }, { id_prod: { in: idProds } }],
       },
       select: {
         id: true,
@@ -306,6 +333,10 @@ export class VendasImportService {
 
       return {
         ...venda,
+        dataVenda: new Date(venda.dataVenda),
+        quantidade: new Decimal(venda.quantidade),
+        valorUnitario: new Decimal(venda.valorUnitario),
+        valorTotal: new Decimal(venda.valorTotal),
         marca,
         grupo,
         subgrupo,
@@ -353,9 +384,7 @@ export class VendasImportService {
     });
 
     const chavesExistentes = new Set(
-      existentes.map(
-        (e) => `${e.nfe}|${e.idDoc || ''}|${e.referencia || ''}`,
-      ),
+      existentes.map((e) => `${e.nfe}|${e.idDoc || ''}|${e.referencia || ''}`),
     );
 
     let duplicatas = 0;
@@ -382,8 +411,31 @@ export class VendasImportService {
    */
   private prepararVendaParaUpsert(
     venda: VendaProcessada,
-    empresaId?: string,
-  ): any {
+    empresaId: string,
+  ): {
+    nfe: string;
+    idDoc: string;
+    referencia: string;
+    dataVenda: Date;
+    razaoSocial: string;
+    nomeFantasia?: string;
+    cnpjCliente?: string;
+    ufDestino?: string;
+    ufOrigem?: string;
+    idProd?: string;
+    prodCodMestre?: string;
+    descricaoProduto?: string;
+    marca: string;
+    grupo: string;
+    subgrupo: string;
+    tipoOperacao?: string;
+    quantidade: Decimal;
+    valorUnitario: Decimal;
+    valorTotal: Decimal;
+    empresaId: string;
+    produtoId?: string;
+    metadata?: unknown;
+  } {
     return {
       nfe: venda.nfe,
       idDoc: venda.idDoc || '',
@@ -404,7 +456,7 @@ export class VendasImportService {
       quantidade: new Decimal(venda.quantidade.toString()),
       valorUnitario: new Decimal(venda.valorUnitario.toString()),
       valorTotal: new Decimal(venda.valorTotal.toString()),
-      empresaId: empresaId || venda.empresaId,
+      empresaId: empresaId, // Sempre usa o empresaId informado pelo usuário
       produtoId: venda.produtoId,
       metadata: venda.metadata,
     };
@@ -415,7 +467,30 @@ export class VendasImportService {
    * Usa abordagem de findFirst + update/create porque Prisma não suporta upsert direto com chave única composta
    */
   private async processarLote(
-    vendas: any[],
+    vendas: Array<{
+      nfe: string;
+      idDoc: string;
+      referencia: string;
+      dataVenda: Date;
+      razaoSocial: string;
+      nomeFantasia?: string;
+      cnpjCliente?: string;
+      ufDestino?: string;
+      ufOrigem?: string;
+      idProd?: string;
+      prodCodMestre?: string;
+      descricaoProduto?: string;
+      marca: string;
+      grupo: string;
+      subgrupo: string;
+      tipoOperacao?: string;
+      quantidade: Decimal;
+      valorUnitario: Decimal;
+      valorTotal: Decimal;
+      empresaId: string;
+      produtoId?: string;
+      metadata?: unknown;
+    }>,
   ): Promise<{ sucesso: number; erros: number }> {
     let sucesso = 0;
     let erros = 0;
@@ -454,20 +529,25 @@ export class VendasImportService {
               valorTotal: venda.valorTotal,
               empresaId: venda.empresaId,
               produtoId: venda.produtoId,
-              metadata: venda.metadata,
+              metadata: (venda.metadata as Prisma.InputJsonValue) ?? null,
             },
           });
         } else {
           // Criar novo registro
           await this.prisma.venda.create({
-            data: venda,
+            data: {
+              ...venda,
+              metadata: (venda.metadata as Prisma.InputJsonValue) ?? null,
+            } as Prisma.VendaCreateInput,
           });
         }
         sucesso++;
       } catch (error) {
         erros++;
+        const errorMessage =
+          error instanceof Error ? error.message : 'Erro desconhecido';
         this.logger.error(
-          `Erro ao processar venda ${venda.nfe}: ${error.message}`,
+          `Erro ao processar venda ${venda.nfe}: ${errorMessage}`,
         );
       }
     }

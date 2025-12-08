@@ -149,7 +149,9 @@ export class PushNotificationsService {
     });
 
     if (subscriptions.length === 0) {
-      this.logger.debug(`Nenhuma subscription encontrada para usuário ${usuarioId}`);
+      this.logger.debug(
+        `Nenhuma subscription encontrada para usuário ${usuarioId}`,
+      );
       return { sent: 0, failed: 0 };
     }
 
@@ -165,12 +167,12 @@ export class PushNotificationsService {
     // Remover subscriptions inválidas
     for (let i = 0; i < results.length; i++) {
       if (results[i].status === 'rejected') {
-        const reason = (results[i] as PromiseRejectedResult).reason;
+        const reason = (results[i] as PromiseRejectedResult).reason as
+          | { statusCode?: number }
+          | Error;
         // Erro 410 (Gone) ou 404 indica subscription inválida
-        if (
-          (reason as { statusCode?: number })?.statusCode === 410 ||
-          (reason as { statusCode?: number })?.statusCode === 404
-        ) {
+        const reasonObj = reason as { statusCode?: number } | undefined;
+        if (reasonObj?.statusCode === 410 || reasonObj?.statusCode === 404) {
           try {
             await this.prisma.pushSubscription.delete({
               where: { id: subscriptions[i].id },
@@ -261,4 +263,3 @@ export class PushNotificationsService {
     });
   }
 }
-

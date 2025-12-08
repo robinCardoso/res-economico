@@ -1,9 +1,4 @@
-import {
-  IsOptional,
-  IsString,
-  IsBoolean,
-  IsDateString,
-} from 'class-validator';
+import { IsOptional, IsString, IsBoolean, IsDateString } from 'class-validator';
 
 export class RecalcularDadosProdutoDto {
   @IsOptional()

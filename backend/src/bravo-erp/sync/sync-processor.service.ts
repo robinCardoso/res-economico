@@ -35,7 +35,7 @@ export class SyncProcessorService {
     ignorados: number;
     comErro: number;
   }> {
-    let produtosComErro = 0;
+    const produtosComErro = 0;
     const tiposErro: Record<string, number> = {};
     const sugestoesCorrecao: string[] = [];
 
@@ -51,7 +51,7 @@ export class SyncProcessorService {
       if (apenas_ativos) {
         const antes = produtos.length;
         produtosFiltrados = produtos.filter(
-          (p: any) => p.excluido === 'N',
+          (p: Record<string, unknown>) => p.excluido === 'N',
         );
         if (this.isDev) {
           this.logger.log(
@@ -79,8 +79,8 @@ export class SyncProcessorService {
         modo_teste,
       );
 
-      const produtosParaInserir: any[] = [];
-      const produtosParaAtualizar: any[] = [];
+      const produtosParaInserir: Array<Record<string, unknown>> = [];
+      const produtosParaAtualizar: Array<Record<string, unknown>> = [];
       let produtosIgnorados = 0;
 
       // Analisar cada produto
@@ -90,14 +90,33 @@ export class SyncProcessorService {
             await this.transformService.transformarProduto(produtoBravo);
 
           // Garantir referência e id_prod
-          dadosTransformados.referencia =
-            dadosTransformados.referencia != null
-              ? String(dadosTransformados.referencia).trim()
-              : '';
-          dadosTransformados.id_prod =
-            dadosTransformados.id_prod != null
-              ? String(dadosTransformados.id_prod).trim()
-              : null;
+          const referenciaValue = dadosTransformados.referencia;
+          let referenciaStr = '';
+          if (referenciaValue != null) {
+            if (typeof referenciaValue === 'string') {
+              referenciaStr = referenciaValue.trim();
+            } else if (
+              typeof referenciaValue === 'number' ||
+              typeof referenciaValue === 'boolean'
+            ) {
+              referenciaStr = String(referenciaValue).trim();
+            }
+          }
+          dadosTransformados.referencia = referenciaStr;
+
+          const idProdValue = dadosTransformados.id_prod;
+          let idProdStr: string | null = null;
+          if (idProdValue != null) {
+            if (typeof idProdValue === 'string') {
+              idProdStr = idProdValue.trim();
+            } else if (
+              typeof idProdValue === 'number' ||
+              typeof idProdValue === 'boolean'
+            ) {
+              idProdStr = String(idProdValue).trim();
+            }
+          }
+          dadosTransformados.id_prod = idProdStr;
 
           // Garantir que dataUltModif seja sempre salvo
           if (produtoBravo._data_ult_modif) {
@@ -133,8 +152,21 @@ export class SyncProcessorService {
               const dataAtual = produtoExistente.data_modificacao;
 
               if (dataBravo && dataAtual) {
-                const dataBravoDate = new Date(dataBravo);
-                const dataAtualDate = new Date(dataAtual);
+                const dataBravoStr =
+                  typeof dataBravo === 'string' ? dataBravo : String(dataBravo);
+                const dataAtualStr =
+                  typeof dataAtual === 'string' ||
+                  dataAtual instanceof Date
+                    ? dataAtual
+                    : typeof dataAtual === 'object' && dataAtual !== null
+                      ? null
+                      : String(dataAtual);
+                if (!dataAtualStr) continue;
+                const dataBravoDate = new Date(dataBravoStr);
+                const dataAtualDate =
+                  dataAtualStr instanceof Date
+                    ? dataAtualStr
+                    : new Date(dataAtualStr);
 
                 if (dataBravoDate <= dataAtualDate) {
                   produtosIgnorados++;
@@ -170,7 +202,6 @@ export class SyncProcessorService {
         realmenteInseridos = await this.inserirProdutos(
           produtosParaInserir,
           tiposErro,
-          sugestoesCorrecao,
         );
       } else if (modo_teste) {
         this.logger.log(
@@ -182,7 +213,9 @@ export class SyncProcessorService {
       // Processar atualizações
       let realmenteAtualizados = 0;
       if (produtosParaAtualizar.length > 0 && !modo_teste) {
-        realmenteAtualizados = await this.atualizarProdutos(produtosParaAtualizar);
+        realmenteAtualizados = await this.atualizarProdutos(
+          produtosParaAtualizar,
+        );
       } else if (modo_teste) {
         this.logger.log(
           `🧪 Modo teste: ${produtosParaAtualizar.length} produtos seriam atualizados`,
@@ -235,8 +268,8 @@ export class SyncProcessorService {
     produtos: BravoProduto[],
     verificar_duplicatas: boolean,
     modo_teste: boolean,
-  ): Promise<Map<string, any>> {
-    const mapaProdutosExistentes = new Map();
+  ): Promise<Map<string, Record<string, unknown>>> {
+    const mapaProdutosExistentes = new Map<string, Record<string, unknown>>();
 
     if (!verificar_duplicatas || modo_teste) {
       return mapaProdutosExistentes;
@@ -245,9 +278,15 @@ export class SyncProcessorService {
     const referencias = Array.from(
       new Set(
         produtos
-          .map((p: any) =>
-            p.referencia != null ? String(p.referencia).trim() : null,
-          )
+          .map((p: Record<string, unknown>) => {
+            const ref = p.referencia;
+            if (ref == null) return null;
+            if (typeof ref === 'string') return ref.trim();
+            if (typeof ref === 'number' || typeof ref === 'boolean') {
+              return String(ref).trim();
+            }
+            return null;
+          })
           .filter((ref: string | null): ref is string => !!ref),
       ),
     );
@@ -255,9 +294,15 @@ export class SyncProcessorService {
     const idProdutos = Array.from(
       new Set(
         produtos
-          .map((p: any) =>
-            p.id_produto != null ? String(p.id_produto).trim() : null,
-          )
+          .map((p: Record<string, unknown>) => {
+            const idProd = p.id_produto;
+            if (idProd == null) return null;
+            if (typeof idProd === 'string') return idProd.trim();
+            if (typeof idProd === 'number' || typeof idProd === 'boolean') {
+              return String(idProd).trim();
+            }
+            return null;
+          })
           .filter((id: string | null): id is string => !!id),
       ),
     );
@@ -345,16 +390,18 @@ export class SyncProcessorService {
    * Encontra produto existente no mapa
    */
   private encontrarProdutoExistente(
-    dadosTransformados: any,
-    mapaProdutosExistentes: Map<string, any>,
-  ): any {
-    const produtoExistentePorRef = mapaProdutosExistentes.get(
-      dadosTransformados.referencia,
-    );
+    dadosTransformados: Record<string, unknown>,
+    mapaProdutosExistentes: Map<string, Record<string, unknown>>,
+  ): Record<string, unknown> | undefined {
+    const referencia = dadosTransformados.referencia as string | undefined;
+    const produtoExistentePorRef = referencia
+      ? mapaProdutosExistentes.get(referencia)
+      : undefined;
 
-    const produtoExistentePorId = dadosTransformados.id_prod
-      ? mapaProdutosExistentes.get(`id_prod:${dadosTransformados.id_prod}`)
-      : null;
+    const idProd = dadosTransformados.id_prod as string | undefined;
+    const produtoExistentePorId = idProd
+      ? mapaProdutosExistentes.get(`id_prod:${idProd}`)
+      : undefined;
 
     return produtoExistentePorRef || produtoExistentePorId;
   }
@@ -364,14 +411,16 @@ export class SyncProcessorService {
    * Retorna quantidade realmente inserida
    */
   private async inserirProdutos(
-    produtosParaInserir: any[],
+    produtosParaInserir: Array<Record<string, unknown>>,
     tiposErro: Record<string, number>,
-    sugestoesCorrecao: string[],
   ): Promise<number> {
-    this.logger.log(`💾 Inserindo ${produtosParaInserir.length} produtos novos...`);
+    this.logger.log(
+      `💾 Inserindo ${produtosParaInserir.length} produtos novos...`,
+    );
 
     // Remover ID dos produtos novos
     const produtosNovos = produtosParaInserir.map((p) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, ...produtoSemId } = p;
       return produtoSemId;
     });
@@ -380,7 +429,7 @@ export class SyncProcessorService {
 
     try {
       const result = await this.prisma.produto.createMany({
-        data: produtosNovos,
+        data: produtosNovos as Prisma.ProdutoCreateManyInput[],
         skipDuplicates: true,
       });
 
@@ -389,29 +438,55 @@ export class SyncProcessorService {
       this.logger.log(
         `✅ ${inseridos} produtos novos inseridos (de ${produtosParaInserir.length} tentados)`,
       );
-    } catch (error: any) {
-      this.logger.error(`❌ Erro ao inserir produtos novos:`, error);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro desconhecido';
+      this.logger.error(`❌ Erro ao inserir produtos novos:`, errorMessage);
       // Se erro de chave duplicada, tentar inserir um por vez
-      if (error.code === 'P2002') {
+      const errorObj = error as { code?: string };
+      if (errorObj.code === 'P2002') {
         this.logger.log(
           `🔍 Tentando inserir produtos um por vez para identificar conflitos...`,
         );
         for (const produto of produtosNovos) {
           try {
-            await this.prisma.produto.create({ data: produto });
+            await this.prisma.produto.create({
+              data: produto as Prisma.ProdutoCreateInput,
+            });
             inseridos++;
-          } catch (singleError: any) {
+          } catch (singleError: unknown) {
+            let refStr = 'desconhecido';
+            const ref = produto.referencia;
+            if (typeof ref === 'string') {
+              refStr = ref;
+            } else if (typeof ref === 'number' || typeof ref === 'boolean') {
+              refStr = String(ref);
+            }
+
+            let idProdStr = 'desconhecido';
+            const idProd = produto.id_prod;
+            if (typeof idProd === 'string') {
+              idProdStr = idProd;
+            } else if (
+              typeof idProd === 'number' ||
+              typeof idProd === 'boolean'
+            ) {
+              idProdStr = String(idProd);
+            }
+            const errorMsg =
+              singleError instanceof Error
+                ? singleError.message
+                : 'Erro desconhecido';
             this.logger.error(
-              `❌ Conflito no produto: ref=${produto.referencia}, id_prod=${produto.id_prod}`,
-              singleError,
+              `❌ Conflito no produto: ref=${refStr}, id_prod=${idProdStr}`,
+              errorMsg,
             );
-            tiposErro['duplicate_key'] =
-              (tiposErro['duplicate_key'] || 0) + 1;
+            tiposErro['duplicate_key'] = (tiposErro['duplicate_key'] || 0) + 1;
           }
         }
       }
     }
-    
+
     return inseridos;
   }
 
@@ -429,26 +504,36 @@ export class SyncProcessorService {
     let atualizados = 0;
 
     for (const produto of produtosParaAtualizar) {
-      const { id, ...dadosAtualizacao } = produto;
+      const { id, ...dadosAtualizacao } = produto as {
+        id?: unknown;
+        [key: string]: unknown;
+      };
 
       try {
         await this.prisma.produto.update({
-          where: { id },
-          data: dadosAtualizacao,
+          where: { id: id as string },
+          data: dadosAtualizacao as Prisma.ProdutoUpdateInput,
         });
         atualizados++;
-      } catch (error) {
-        this.logger.error(
-          `❌ Erro ao atualizar produto ${produto.referencia}:`,
-          error,
-        );
+      } catch (error: unknown) {
+        const produtoRef = produto as { referencia?: unknown };
+        let refStr = 'desconhecido';
+        const ref = produtoRef.referencia;
+        if (typeof ref === 'string') {
+          refStr = ref;
+        } else if (typeof ref === 'number' || typeof ref === 'boolean') {
+          refStr = String(ref);
+        }
+        const errorMsg =
+          error instanceof Error ? error.message : 'Erro desconhecido';
+        this.logger.error(`❌ Erro ao atualizar produto ${refStr}:`, errorMsg);
       }
     }
 
     this.logger.log(
       `✅ ${atualizados} produtos existentes atualizados (de ${produtosParaAtualizar.length} tentados)`,
     );
-    
+
     return atualizados;
   }
 

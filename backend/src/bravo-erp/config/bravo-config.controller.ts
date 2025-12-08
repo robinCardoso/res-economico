@@ -73,7 +73,8 @@ export class BravoConfigController {
       } else {
         return {
           success: false,
-          message: 'Não foi possível conectar. Verifique o token e as configurações.',
+          message:
+            'Não foi possível conectar. Verifique o token e as configurações.',
         };
       }
     } catch (error) {

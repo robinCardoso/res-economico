@@ -35,40 +35,62 @@ export class SyncProgressService {
       });
 
       // Preparar dados de atualização, preservando valores existentes
-      const progressData: any = {
+      const progressData: {
+        updatedAt: Date;
+        progress_percentage?: Decimal;
+        current_step?: string;
+        current_page?: number;
+        total_pages?: number;
+        products_processed?: number;
+        total_produtos_bravo?: number;
+        current_product?: string | null;
+        estimated_time_remaining?: string | null;
+        status_atual?: string;
+        etapa_atual?: string;
+      } = {
         updatedAt: new Date(),
       };
 
       // Atualizar apenas os campos fornecidos (preservando os existentes)
-      if (progress.progress_percentage !== undefined) {
-        progressData.progress_percentage = new Decimal(progress.progress_percentage);
+      const progressPercentage = progress.progress_percentage;
+      if (progressPercentage !== undefined) {
+        progressData.progress_percentage = new Decimal(progressPercentage);
       }
-      if (progress.current_step !== undefined) {
-        progressData.current_step = progress.current_step;
+      const currentStep = progress.current_step;
+      if (currentStep !== undefined) {
+        progressData.current_step = currentStep;
       }
-      if (progress.current_page !== undefined) {
-        progressData.current_page = progress.current_page;
+      const currentPage = progress.current_page;
+      if (currentPage !== undefined) {
+        progressData.current_page = currentPage;
       }
-      if (progress.total_pages !== undefined) {
-        progressData.total_pages = progress.total_pages;
+      const totalPages = progress.total_pages;
+      if (totalPages !== undefined) {
+        progressData.total_pages = totalPages;
       }
-      if (progress.products_processed !== undefined) {
-        progressData.products_processed = progress.products_processed;
+      const productsProcessed = progress.products_processed;
+      if (productsProcessed !== undefined) {
+        progressData.products_processed = productsProcessed;
       }
-      if (progress.total_produtos_bravo !== undefined) {
-        progressData.total_produtos_bravo = progress.total_produtos_bravo;
+      const totalProdutosBravo = progress.total_produtos_bravo;
+      if (totalProdutosBravo !== undefined) {
+        progressData.total_produtos_bravo = totalProdutosBravo;
       }
-      if (progress.current_product !== undefined) {
-        progressData.current_product = progress.current_product;
+      const currentProduct = progress.current_product;
+      if (currentProduct !== undefined) {
+        progressData.current_product = currentProduct;
       }
-      if (progress.estimated_time_remaining !== undefined) {
-        progressData.estimated_time_remaining = progress.estimated_time_remaining;
+      const estimatedTimeRemaining = progress.estimated_time_remaining;
+      if (estimatedTimeRemaining !== undefined) {
+        progressData.estimated_time_remaining = estimatedTimeRemaining;
       }
-      if (progress.status_atual !== undefined) {
-        progressData.status_atual = progress.status_atual;
+      const statusAtual = progress.status_atual;
+      if (statusAtual !== undefined) {
+        progressData.status_atual = statusAtual;
       }
-      if (progress.etapa_atual !== undefined) {
-        progressData.etapa_atual = progress.etapa_atual;
+      const etapaAtual = progress.etapa_atual;
+      if (etapaAtual !== undefined) {
+        progressData.etapa_atual = etapaAtual;
       }
 
       if (existingProgress) {
@@ -76,7 +98,7 @@ export class SyncProgressService {
           where: { sync_log_id: syncLogId },
           data: progressData,
         });
-        
+
         this.logger.debug(
           `✅ Progresso atualizado (preservando valores existentes): sync_log_id=${syncLogId}`,
         );
@@ -86,16 +108,15 @@ export class SyncProgressService {
           data: {
             sync_log_id: syncLogId,
             ...progressData,
-            progress_percentage: progress.progress_percentage !== undefined
-              ? new Decimal(progress.progress_percentage)
-              : new Decimal(0),
+            progress_percentage:
+              progress.progress_percentage !== undefined
+                ? new Decimal(progress.progress_percentage)
+                : new Decimal(0),
             createdAt: new Date(),
           },
         });
-        
-        this.logger.debug(
-          `✅ Progresso criado: sync_log_id=${syncLogId}`,
-        );
+
+        this.logger.debug(`✅ Progresso criado: sync_log_id=${syncLogId}`);
       }
 
       // Buscar valores atuais do banco para o log (para não mostrar 0 quando não passa os valores)
@@ -105,11 +126,20 @@ export class SyncProgressService {
           where: { sync_log_id: syncLogId },
         });
       }
-      
-      const logPage = progress.current_page !== undefined ? progress.current_page : (currentProgress?.current_page ?? null);
-      const logProcessed = progress.products_processed !== undefined ? progress.products_processed : (currentProgress?.products_processed ?? null);
-      const logTotal = progress.total_produtos_bravo !== undefined ? progress.total_produtos_bravo : (currentProgress?.total_produtos_bravo ?? null);
-      
+
+      const logPage =
+        progress.current_page !== undefined
+          ? progress.current_page
+          : (currentProgress?.current_page ?? null);
+      const logProcessed =
+        progress.products_processed !== undefined
+          ? progress.products_processed
+          : (currentProgress?.products_processed ?? null);
+      const logTotal =
+        progress.total_produtos_bravo !== undefined
+          ? progress.total_produtos_bravo
+          : (currentProgress?.total_produtos_bravo ?? null);
+
       this.logger.log(
         `📊 Progresso atualizado: ${progress.current_step || currentProgress?.current_step || 'N/A'} | Página: ${logPage ?? 'mantida'} | Processados: ${logProcessed ?? 'mantidos'} | Total: ${logTotal ?? 'mantido'}`,
       );

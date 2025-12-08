@@ -92,19 +92,43 @@ export function MappingPreviewDialog({
   };
 
   const getProductIdentifier = (original: Record<string, unknown>): string => {
-    const ref = original?.ref || original?.referencia || '';
-    const titulo = original?.titulo || '';
-    return ref && titulo ? `${ref} - ${titulo}` : ref || titulo || 'Produto';
+    const ref =
+      typeof original?.ref === 'string'
+        ? original.ref
+        : typeof original?.referencia === 'string'
+          ? original.referencia
+          : '';
+    const titulo =
+      typeof original?.titulo === 'string' ? original.titulo : '';
+    if (ref && titulo) {
+      return `${ref} - ${titulo}`;
+    }
+    if (ref) {
+      return ref;
+    }
+    if (titulo) {
+      return titulo;
+    }
+    return 'Produto';
   };
 
   // Função para obter valor de campo aninhado
   const getNestedValue = (obj: Record<string, unknown>, path: string): unknown => {
-    return path.split('.').reduce((o, key) => {
-      if (o && typeof o === 'object') {
-        return o[key];
+    const partes = path.split('.');
+    let resultado: unknown = obj;
+    
+    for (const parte of partes) {
+      if (resultado === null || resultado === undefined) {
+        return undefined;
       }
-      return undefined;
-    }, obj);
+      if (typeof resultado === 'object' && resultado !== null) {
+        resultado = (resultado as Record<string, unknown>)[parte];
+      } else {
+        return undefined;
+      }
+    }
+    
+    return resultado;
   };
 
   const mappedFieldsSet = new Set(
@@ -148,7 +172,9 @@ export function MappingPreviewDialog({
                 <p className="text-sm font-medium">
                   Produto de Referência:{' '}
                   <span className="text-primary">
-                    {getProductIdentifier(previewData.original)}
+                    {previewData.original
+                      ? getProductIdentifier(previewData.original)
+                      : 'N/A'}
                   </span>
                 </p>
               </CardContent>
@@ -260,8 +286,6 @@ export function MappingPreviewDialog({
                   <CardContent className="flex-1 overflow-y-auto">
                     <div className="space-y-2">
                       {filteredFields.map((campoPath) => {
-                        const isMapped = mappedFieldsSet.has(campoPath);
-                        
                         // Buscar valor original
                         const valorOriginal = previewData.original
                           ? getNestedValue(previewData.original, campoPath)
@@ -345,7 +369,11 @@ export function MappingPreviewDialog({
             <div className="flex gap-2 justify-end">
               <Button
                 variant="outline"
-                onClick={() => copyJSON(previewData.mapped)}
+                onClick={() => {
+                  if (previewData.mapped) {
+                    copyJSON(previewData.mapped);
+                  }
+                }}
                 size="sm"
               >
                 <Copy className="h-4 w-4 mr-2" />

@@ -6,7 +6,6 @@ import {
   UseGuards,
   Request,
   Get,
-  Param,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -18,9 +17,7 @@ import { SendNotificationDto } from './dto/send-notification.dto';
 @Controller('push-notifications')
 @UseGuards(JwtAuthGuard)
 export class PushNotificationsController {
-  constructor(
-    private readonly pushService: PushNotificationsService,
-  ) {}
+  constructor(private readonly pushService: PushNotificationsService) {}
 
   /**
    * Retorna a chave pública VAPID
@@ -97,4 +94,3 @@ export class PushNotificationsController {
     throw new Error('usuarioId é obrigatório');
   }
 }
-

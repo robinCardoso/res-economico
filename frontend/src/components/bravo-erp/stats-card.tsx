@@ -76,16 +76,39 @@ export function StatsCard({ stats, loading = false, onRefresh }: StatsCardProps)
               <div className="pt-2 space-y-1">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Tipo:</span>
-                  <span className="font-medium">{stats.ultimoSync.sync_type || 'N/A'}</span>
+                  <span className="font-medium">
+                    {typeof stats.ultimoSync.sync_type === 'string'
+                      ? stats.ultimoSync.sync_type
+                      : 'N/A'}
+                  </span>
                 </div>
-                {stats.ultimoSync.total_produtos_bravo && (
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Produtos no Bravo:</span>
-                    <span className="font-medium">
-                      {stats.ultimoSync.total_produtos_bravo.toLocaleString('pt-BR')}
-                    </span>
-                  </div>
-                )}
+                {(() => {
+                  const totalProdutos = stats.ultimoSync.total_produtos_bravo;
+                  if (
+                    totalProdutos !== undefined &&
+                    totalProdutos !== null &&
+                    (typeof totalProdutos === 'number' ||
+                      typeof totalProdutos === 'string')
+                  ) {
+                    const numValue =
+                      typeof totalProdutos === 'number'
+                        ? totalProdutos
+                        : Number(totalProdutos);
+                    if (!isNaN(numValue)) {
+                      return (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">
+                            Produtos no Bravo:
+                          </span>
+                          <span className="font-medium">
+                            {numValue.toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                      );
+                    }
+                  }
+                  return null;
+                })()}
               </div>
             )}
           </div>

@@ -13,9 +13,7 @@ import { VendasAnalyticsService } from './vendas-analytics.service';
 @Controller('vendas/analytics')
 @UseGuards(JwtAuthGuard)
 export class VendasAnalyticsController {
-  constructor(
-    private readonly analyticsService: VendasAnalyticsService,
-  ) {}
+  constructor(private readonly analyticsService: VendasAnalyticsService) {}
 
   @Get()
   async buscarAnalytics(

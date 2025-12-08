@@ -80,10 +80,11 @@ const importacoesGroup: NavGroup = {
   icon: UploadCloud,
   items: [
     { label: 'Bravo ERP - Produtos', href: '/admin/importacoes/bravo-erp/produtos', icon: Package },
+    { label: 'Vendas', href: '/admin/importacoes/vendas', icon: BarChart3 },
   ],
 };
 
-// Menu Vendas (colapsável) - Estrutura temporária sem Bravo ERP
+// Menu Vendas (colapsável) - submenu dentro de Importações
 const vendasGroup: NavGroup = {
   label: 'Vendas',
   icon: BarChart3,
@@ -130,11 +131,7 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
     }
     // Abrir automaticamente o menu "Importações" se estivermos em uma de suas rotas
     if (pathname?.startsWith('/admin/importacoes')) {
-      return ['importacoes'];
-    }
-    // Abrir automaticamente o menu "Vendas" se estivermos em uma de suas rotas
-    if (pathname?.startsWith('/admin/importacoes/vendas')) {
-      return ['vendas'];
+      return ['importacoes', 'vendas'];
     }
     return [];
   });
@@ -145,7 +142,12 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
       if (prev.includes(menuKey)) {
         return prev.filter((key) => key !== menuKey);
       }
-      // Se está fechado, abre ele e fecha todos os outros (comportamento accordion)
+      // Se está fechado, abre ele
+      // Para submenus (como 'vendas'), manter o menu pai ('importacoes') aberto
+      if (menuKey === 'vendas') {
+        return [...prev.filter((key) => key !== 'vendas'), 'importacoes', 'vendas'];
+      }
+      // Para outros menus, fecha todos os outros (comportamento accordion)
       return [menuKey];
     });
   };
@@ -330,6 +332,67 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
                 {importacoesGroup.items.map((item) => {
                   const Icon = item.icon;
                   const itemIsActive = isActive(item.href);
+                  
+                  // Se for o item "Vendas", renderizar como submenu colapsável
+                  if (item.href === '/admin/importacoes/vendas') {
+                    return (
+                      <Collapsible
+                        key={item.href}
+                        open={openMenus.includes('vendas')}
+                        onOpenChange={() => {
+                          // Não fechar todos os menus, apenas alternar o submenu "Vendas"
+                          toggleMenu('vendas');
+                        }}
+                      >
+                        <CollapsibleTrigger
+                          onClick={(e) => {
+                            // Prevenir o comportamento padrão que fecha todos os menus
+                            e.stopPropagation();
+                          }}
+                          className={`w-full flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                            isGroupActive(vendasGroup)
+                              ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                              : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
+                          }`}
+                        >
+                          <Icon className="h-3.5 w-3.5 flex-shrink-0" aria-hidden />
+                          <span className="flex-1 text-left whitespace-nowrap">{item.label}</span>
+                          {openMenus.includes('vendas') ? (
+                            <ChevronDown className="h-3 w-3" />
+                          ) : (
+                            <ChevronRight className="h-3 w-3" />
+                          )}
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-0.5 space-y-0.5 pl-6 overflow-visible data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+                          {vendasGroup.items.map((subItem: NavItem) => {
+                            const SubIcon = subItem.icon;
+                            const subItemIsActive = isActive(subItem.href);
+                            return (
+                              <Link
+                                key={subItem.href}
+                                href={subItem.href}
+                                onClick={() => {
+                                  // Não fechar todos os menus, apenas fechar após navegação
+                                  // Manter "Importações" e "Vendas" abertos durante navegação
+                                  onNavClick();
+                                }}
+                                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                                  subItemIsActive
+                                    ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                                    : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
+                                }`}
+                              >
+                                <SubIcon className="h-3 w-3 flex-shrink-0" aria-hidden />
+                                <span className="whitespace-nowrap">{subItem.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    );
+                  }
+                  
+                  // Para outros itens, renderizar normalmente
                   return (
                     <Link
                       key={item.href}
@@ -353,51 +416,6 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
             </Collapsible>
           )}
 
-          {/* Vendas (colapsável) */}
-          <Collapsible
-            open={openMenus.includes('vendas')}
-            onOpenChange={() => toggleMenu('vendas')}
-          >
-            <CollapsibleTrigger
-              className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition ${
-                isGroupActive(vendasGroup)
-                  ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
-                  : 'text-foreground/90 hover:bg-secondary'
-              }`}
-            >
-              <vendasGroup.icon className="h-4 w-4 flex-shrink-0" aria-hidden />
-              <span className="flex-1 text-left whitespace-nowrap">{vendasGroup.label}</span>
-              {openMenus.includes('vendas') ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-1 space-y-0.5 pl-8 overflow-visible data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
-              {vendasGroup.items.map((item) => {
-                const Icon = item.icon;
-                const itemIsActive = isActive(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => {
-                      closeAllMenus();
-                      onNavClick();
-                    }}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                      itemIsActive
-                        ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
-                        : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5 flex-shrink-0" aria-hidden />
-                    <span className="whitespace-nowrap">{item.label}</span>
-                  </Link>
-                );
-              })}
-            </CollapsibleContent>
-          </Collapsible>
 
           {/* Atas e Reuniões - apenas para admin */}
           {isAdmin && (

@@ -215,8 +215,10 @@ export default function ImportarVendasPage() {
             <div className="space-y-2">
               <Label htmlFor="empresaId">Empresa *</Label>
               <Select
-                value={empresaId || ''}
-                onValueChange={(value) => setValue('empresaId', value)}
+                value={empresaId || undefined}
+                onValueChange={(value) => {
+                  setValue('empresaId', value);
+                }}
               >
                 <SelectTrigger id="empresaId">
                   <SelectValue placeholder="Selecione uma empresa" />
@@ -235,6 +237,9 @@ export default function ImportarVendasPage() {
                   )}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Todas as vendas do arquivo serão associadas a esta empresa
+              </p>
               {errors.empresaId && (
                 <p className="text-sm text-destructive">{errors.empresaId.message}</p>
               )}

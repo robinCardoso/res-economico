@@ -31,7 +31,16 @@ export class VendasService {
 
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: {
+      dataVenda?: { gte?: Date; lte?: Date };
+      nfe?: { contains: string; mode: 'insensitive' };
+      razaoSocial?: { contains: string; mode: 'insensitive' };
+      referencia?: { contains: string; mode: 'insensitive' };
+      marca?: { contains: string; mode: 'insensitive' };
+      grupo?: { contains: string; mode: 'insensitive' };
+      subgrupo?: { contains: string; mode: 'insensitive' };
+      empresaId?: string;
+    } = {};
 
     if (dataInicio || dataFim) {
       where.dataVenda = {};
@@ -159,7 +168,10 @@ export class VendasService {
   async getStats(filterDto: FilterVendasDto) {
     const { dataInicio, dataFim, empresaId } = filterDto;
 
-    const where: any = {};
+    const where: {
+      dataVenda?: { gte?: Date; lte?: Date };
+      empresaId?: string;
+    } = {};
 
     if (dataInicio || dataFim) {
       where.dataVenda = {};
@@ -175,26 +187,27 @@ export class VendasService {
       where.empresaId = empresaId;
     }
 
-    const [totalVendas, totalValor, totalQuantidade] = await Promise.all([
-      this.prisma.venda.count({ where }),
-      this.prisma.venda.aggregate({
-        where,
-        _sum: {
-          valorTotal: true,
-        },
-      }),
-      this.prisma.venda.aggregate({
-        where,
-        _sum: {
-          quantidade: true,
-        },
-      }),
-    ]);
+    const [totalVendas, totalValorResult, totalQuantidadeResult] =
+      await Promise.all([
+        this.prisma.venda.count({ where }),
+        this.prisma.venda.aggregate({
+          where,
+          _sum: {
+            valorTotal: true,
+          },
+        }),
+        this.prisma.venda.aggregate({
+          where,
+          _sum: {
+            quantidade: true,
+          },
+        }),
+      ]);
 
     return {
-      totalVendas,
-      totalValor: totalValor._sum.valorTotal || 0,
-      totalQuantidade: totalQuantidade._sum.quantidade || 0,
+      total: totalVendas,
+      valorTotal: totalValorResult._sum.valorTotal || 0,
+      quantidadeTotal: totalQuantidadeResult._sum.quantidade || 0,
     };
   }
 

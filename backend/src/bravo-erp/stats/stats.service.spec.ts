@@ -4,7 +4,6 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 
 describe('StatsService', () => {
   let service: StatsService;
-  let prisma: PrismaService;
 
   const mockPrismaService = {
     produto: {

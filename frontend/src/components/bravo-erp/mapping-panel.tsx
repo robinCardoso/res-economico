@@ -7,7 +7,7 @@
  * ============================================
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,7 +38,6 @@ import {
   type CampoInterno,
   type CampoBravo,
 } from '@/services/bravo-erp.service';
-import { useRouter } from 'next/navigation';
 import { MappingPreviewDialog } from './mapping-preview-dialog';
 import { Input } from '@/components/ui/input';
 import {
@@ -73,7 +72,7 @@ export function MappingPanel({ compact = false }: MappingPanelProps) {
   
   // MELHORIA 1: Produto de exemplo para visualização
   const [sampleProduct, setSampleProduct] = useState<Record<string, unknown> | null>(null);
-  const [loadingSampleProduct, setLoadingSampleProduct] = useState(false);
+  const [, setLoadingSampleProduct] = useState(false);
   
   // Preview
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -111,7 +110,7 @@ export function MappingPanel({ compact = false }: MappingPanelProps) {
     }
   };
 
-  const loadCamposBravo = async () => {
+  const loadCamposBravo = useCallback(async () => {
     setLoadingCamposBravo(true);
     try {
       const result = await bravoErpService.getBravoFields();
@@ -145,7 +144,7 @@ export function MappingPanel({ compact = false }: MappingPanelProps) {
     } finally {
       setLoadingCamposBravo(false);
     }
-  };
+  }, [toast]);
 
   // MELHORIA 1: Carregar produto de exemplo
   const loadSampleProduct = async () => {
@@ -330,19 +329,38 @@ export function MappingPanel({ compact = false }: MappingPanelProps) {
     // _ref.marca.*
     if (path.startsWith('_ref.marca.') && obj.id_marca) {
       const campo = path.replace('_ref.marca.', '');
-      return obj._ref?.marca?.[obj.id_marca]?.[campo] || null;
+      const refObj = obj._ref as
+        | { marca?: Record<string, Record<string, unknown>> }
+        | undefined;
+      const idMarca =
+        typeof obj.id_marca === 'string' ? obj.id_marca : String(obj.id_marca);
+      return refObj?.marca?.[idMarca]?.[campo] || null;
     }
     
     // _ref.categoria.*
     if (path.startsWith('_ref.categoria.') && obj.id_produto_categoria) {
       const campo = path.replace('_ref.categoria.', '');
-      return obj._ref?.categoria?.[obj.id_produto_categoria]?.[campo] || null;
+      const refObj = obj._ref as
+        | { categoria?: Record<string, Record<string, unknown>> }
+        | undefined;
+      const idCategoria =
+        typeof obj.id_produto_categoria === 'string'
+          ? obj.id_produto_categoria
+          : String(obj.id_produto_categoria);
+      return refObj?.categoria?.[idCategoria]?.[campo] || null;
     }
     
     // _ref.unidade.* (usando id_unidade_padrao_venda)
     if (path.startsWith('_ref.unidade.') && obj.id_unidade_padrao_venda) {
       const campo = path.replace('_ref.unidade.', '');
-      return obj._ref?.unidade?.[obj.id_unidade_padrao_venda]?.[campo] || null;
+      const refObj = obj._ref as
+        | { unidade?: Record<string, Record<string, unknown>> }
+        | undefined;
+      const idUnidade =
+        typeof obj.id_unidade_padrao_venda === 'string'
+          ? obj.id_unidade_padrao_venda
+          : String(obj.id_unidade_padrao_venda);
+      return refObj?.unidade?.[idUnidade]?.[campo] || null;
     }
     
     // gtin.* (gtin é um objeto indexado por ID, pegar primeiro)
@@ -355,9 +373,13 @@ export function MappingPanel({ compact = false }: MappingPanelProps) {
         return null;
       }
       if (typeof obj.gtin === 'object' && obj.gtin !== null) {
-        const gtinKeys = Object.keys(obj.gtin);
+        const gtinObj = obj.gtin as Record<string, Record<string, unknown>>;
+        const gtinKeys = Object.keys(gtinObj);
         if (gtinKeys.length > 0) {
-          return obj.gtin[gtinKeys[0]]?.[campo] || null;
+          const firstKey = gtinKeys[0];
+          if (firstKey) {
+            return gtinObj[firstKey]?.[campo] || null;
+          }
         }
       }
       return null;
@@ -365,7 +387,7 @@ export function MappingPanel({ compact = false }: MappingPanelProps) {
     
     // Para outros campos, usar acesso direto padrão
     const partes = path.split('.');
-    let resultado = obj;
+    let resultado: unknown = obj;
     
     for (let i = 0; i < partes.length; i++) {
       const parte = partes[i];
@@ -382,8 +404,8 @@ export function MappingPanel({ compact = false }: MappingPanelProps) {
         } else {
           return undefined;
         }
-      } else if (typeof resultado === 'object') {
-        resultado = resultado[parte];
+      } else if (typeof resultado === 'object' && resultado !== null) {
+        resultado = (resultado as Record<string, unknown>)[parte];
       } else {
         return undefined;
       }
@@ -444,7 +466,7 @@ export function MappingPanel({ compact = false }: MappingPanelProps) {
   // MELHORIA 2: Encontrar em qual linha um campo está mapeado
   const findMappingIndexForField = (campoNome: string): number | null => {
     const index = mapeamentos.findIndex(
-      (m, idx) => m.ativo && m.campo_interno === campoNome,
+      (m) => m.ativo && m.campo_interno === campoNome,
     );
     return index >= 0 ? index : null;
   };
@@ -488,7 +510,7 @@ export function MappingPanel({ compact = false }: MappingPanelProps) {
       console.log('🔄 Detectados mapeamentos salvos, carregando campos do Bravo ERP...');
       loadCamposBravo();
     }
-  }, [mapeamentos.length]);
+  }, [mapeamentos.length, camposBravo.length, loadingCamposBravo, loadCamposBravo]);
 
   // MELHORIA 1: Recarregar produto de exemplo quando campos do Bravo forem carregados
   useEffect(() => {

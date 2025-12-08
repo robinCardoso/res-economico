@@ -14,4 +14,3 @@ export class CreateSubscriptionDto {
   @IsOptional()
   userAgent?: string;
 }
-

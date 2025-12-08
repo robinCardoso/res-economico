@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateConfigDto, ConfigResponseDto } from '../dto/config.dto';
 
@@ -38,19 +34,32 @@ export class BravoConfigService {
           typeof configObj['bravo_cliente'] === 'string'
             ? configObj['bravo_cliente']
             : 'redeuniao_sc',
-        email: typeof configObj['bravo_email'] === 'string' ? configObj['bravo_email'] : '',
-        senha: typeof configObj['bravo_senha'] === 'string' ? configObj['bravo_senha'] : '',
-        pdv: typeof configObj['bravo_pdv'] === 'string' ? configObj['bravo_pdv'] : '1',
+        email:
+          typeof configObj['bravo_email'] === 'string'
+            ? configObj['bravo_email']
+            : '',
+        senha:
+          typeof configObj['bravo_senha'] === 'string'
+            ? configObj['bravo_senha']
+            : '',
+        pdv:
+          typeof configObj['bravo_pdv'] === 'string'
+            ? configObj['bravo_pdv']
+            : '1',
         ambiente:
           typeof configObj['bravo_ambiente'] === 'string' &&
-          (configObj['bravo_ambiente'] === 'p' || configObj['bravo_ambiente'] === 'h')
+          (configObj['bravo_ambiente'] === 'p' ||
+            configObj['bravo_ambiente'] === 'h')
             ? (configObj['bravo_ambiente'] as 'p' | 'h')
             : ('p' as const),
         server:
           typeof configObj['bravo_server'] === 'string'
             ? configObj['bravo_server']
             : 'alpha',
-        token: typeof configObj['bravo_token'] === 'string' ? configObj['bravo_token'] : '',
+        token:
+          typeof configObj['bravo_token'] === 'string'
+            ? configObj['bravo_token']
+            : '',
         timeout:
           typeof configObj['bravo_timeout'] === 'string'
             ? parseInt(configObj['bravo_timeout'], 10) || 30
@@ -79,7 +88,9 @@ export class BravoConfigService {
   /**
    * Salvar configuração do Bravo ERP
    */
-  async saveConfig(dto: CreateConfigDto): Promise<{ success: boolean; message?: string; error?: string }> {
+  async saveConfig(
+    dto: CreateConfigDto,
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       console.log('🔄 Iniciando salvamento de configuração...');
 

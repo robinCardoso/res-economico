@@ -68,10 +68,14 @@ async function waitForServiceWorkerActive(
           resolved = true;
           
           // Coletar informações de debug
+          // Usar type assertion para evitar erro de inferência de tipo 'never'
+          const activeState = (registration.active as ServiceWorker | null)?.state ?? 'null';
+          const installingState = (registration.installing as ServiceWorker | null)?.state ?? 'null';
+          const waitingState = (registration.waiting as ServiceWorker | null)?.state ?? 'null';
           const state = {
-            active: registration.active?.state || 'null',
-            installing: registration.installing?.state || 'null',
-            waiting: registration.waiting?.state || 'null',
+            active: activeState,
+            installing: installingState,
+            waiting: waitingState,
             scope: registration.scope,
             updateViaCache: registration.updateViaCache,
           };
@@ -126,31 +130,34 @@ async function waitForServiceWorkerActive(
 
     // Aguardar estar pronto (usar try-catch para segurança)
     try {
-      if (registration.ready && typeof registration.ready.then === 'function') {
-        console.log('Aguardando registration.ready...');
-        registration.ready
+      // Usar navigator.serviceWorker.ready que retorna uma Promise de ServiceWorkerRegistration
+      const readyPromise = navigator.serviceWorker.ready;
+      if (readyPromise && typeof readyPromise.then === 'function') {
+        console.log('Aguardando navigator.serviceWorker.ready...');
+        readyPromise
           .then(() => {
-            console.log('registration.ready resolvido, active:', registration.active?.state);
+            const activeState = registration.active ? registration.active.state : 'null';
+            console.log('navigator.serviceWorker.ready resolvido, active:', activeState);
             if (registration.active && !resolved) {
               resolveOnce();
             } else if (!resolved) {
               checkActive();
             }
           })
-          .catch((err) => {
-            console.error('Erro em registration.ready:', err);
+          .catch((err: unknown) => {
+            console.error('Erro em navigator.serviceWorker.ready:', err);
             if (!resolved) {
               checkActive();
             }
           });
       } else {
         // Se ready não existe ou não é uma Promise, apenas iniciar verificação periódica
-        console.log('registration.ready não disponível, usando verificação periódica');
+        console.log('navigator.serviceWorker.ready não disponível, usando verificação periódica');
         checkActive();
       }
     } catch (err) {
       // Se houver erro ao acessar ready, apenas iniciar verificação periódica
-      console.error('Erro ao acessar registration.ready:', err);
+      console.error('Erro ao acessar navigator.serviceWorker.ready:', err);
       checkActive();
     }
 
@@ -206,9 +213,9 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
       }
     } else {
       console.log('Service Worker já registrado. Estado atual:', {
-        active: registration.active?.state || 'null',
-        installing: registration.installing?.state || 'null',
-        waiting: registration.waiting?.state || 'null',
+        active: registration.active ? registration.active.state : 'null',
+        installing: registration.installing ? registration.installing.state : 'null',
+        waiting: registration.waiting ? registration.waiting.state : 'null',
       });
     }
 
@@ -278,9 +285,14 @@ export async function createPushSubscription(
   }
 
   try {
+    const keyArray = urlBase64ToUint8Array(publicKey);
+    // Criar uma cópia com ArrayBuffer garantido (evitar SharedArrayBuffer)
+    const buffer = new ArrayBuffer(keyArray.length);
+    const view = new Uint8Array(buffer);
+    view.set(keyArray);
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
+      applicationServerKey: view,
     });
 
     return subscription;

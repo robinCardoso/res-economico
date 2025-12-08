@@ -19,11 +19,11 @@ export class VendasUpdateService {
 
   /**
    * Recalcula dados denormalizados de produto em vendas relacionadas
-   * 
+   *
    * IMPORTANTE: Por padrão, vendas NÃO são atualizadas automaticamente quando
    * um produto é atualizado, pois representam dados históricos. Este método
    * permite atualização manual quando necessário.
-   * 
+   *
    * @param opcoes Opções de recálculo
    * @returns Número de vendas atualizadas
    */
@@ -35,7 +35,15 @@ export class VendasUpdateService {
     );
 
     // Buscar produto
-    let produto;
+    let produto: {
+      id: string;
+      referencia: string | null;
+      id_prod: string | null;
+      marca: string | null;
+      grupo: string | null;
+      subgrupo: string | null;
+    } | null = null;
+
     if (opcoes.produtoId) {
       produto = await this.prisma.produto.findUnique({
         where: { id: opcoes.produtoId },
@@ -67,10 +75,13 @@ export class VendasUpdateService {
     }
 
     // Construir filtro para buscar vendas relacionadas
-    const where: any = {
+    const where: {
+      OR: Array<{ referencia?: string; idProd?: string }>;
+      dataVenda?: { gte: Date };
+    } = {
       OR: [
-        { referencia: produto.referencia },
-        { idProd: produto.id_prod },
+        { referencia: produto.referencia ?? undefined },
+        { idProd: produto.id_prod ?? undefined },
       ],
     };
 
@@ -83,18 +94,22 @@ export class VendasUpdateService {
     const total = await this.prisma.venda.count({ where });
 
     // Preparar dados de atualização
-    const updateData: any = {};
+    const updateData: {
+      marca?: string;
+      grupo?: string;
+      subgrupo?: string;
+    } = {};
 
     if (opcoes.atualizarMarca !== false) {
-      updateData.marca = produto.marca || 'DESCONHECIDA';
+      updateData.marca = produto.marca ?? 'DESCONHECIDA';
     }
 
     if (opcoes.atualizarGrupo !== false) {
-      updateData.grupo = produto.grupo || 'DESCONHECIDO';
+      updateData.grupo = produto.grupo ?? 'DESCONHECIDO';
     }
 
     if (opcoes.atualizarSubgrupo !== false) {
-      updateData.subgrupo = produto.subgrupo || 'DESCONHECIDO';
+      updateData.subgrupo = produto.subgrupo ?? 'DESCONHECIDO';
     }
 
     // Atualizar vendas relacionadas
@@ -117,14 +132,7 @@ export class VendasUpdateService {
    * Recalcula dados de produto em todas as vendas relacionadas a um produto
    * quando o produto é atualizado (chamado opcionalmente)
    */
-  async onProdutoUpdated(
-    produtoId: string,
-    camposAlterados: {
-      marca?: boolean;
-      grupo?: boolean;
-      subgrupo?: boolean;
-    },
-  ): Promise<void> {
+  onProdutoUpdated(produtoId: string): void {
     // Por padrão, NÃO atualizar automaticamente
     // Este método existe apenas para ser chamado explicitamente se necessário
     this.logger.warn(

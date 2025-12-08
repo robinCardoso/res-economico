@@ -197,20 +197,36 @@ export function LogsPanel({
                       <div className="text-sm text-muted-foreground">
                         {formatDate(log.started_at)}
                       </div>
-                      {log.error_message && (
-                        <div className="text-sm text-red-600 mt-1">
-                          {log.error_message}
-                        </div>
-                      )}
+                      {(() => {
+                        const errorMsg = log.error_message;
+                        if (
+                          errorMsg !== undefined &&
+                          errorMsg !== null &&
+                          errorMsg !== ''
+                        ) {
+                          return (
+                            <div className="text-sm text-red-600 mt-1">
+                              {typeof errorMsg === 'string'
+                                ? errorMsg
+                                : String(errorMsg)}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   </div>
                   <div className="text-right ml-4">
                     <div className="font-medium">
-                      {(
-                        log.total_produtos_bravo ||
-                        log.produtos_processados ||
-                        0
-                      ).toLocaleString('pt-BR')}{' '}
+                      {(() => {
+                        const total =
+                          log.total_produtos_bravo ??
+                          (typeof log.produtos_processados === 'number'
+                            ? log.produtos_processados
+                            : 0) ??
+                          0;
+                        return Number(total).toLocaleString('pt-BR');
+                      })()}{' '}
                       produtos
                     </div>
                     {log.tempo_total_segundos && (

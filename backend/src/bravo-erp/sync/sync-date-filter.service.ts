@@ -24,9 +24,7 @@ export class SyncDateFilterService {
   }> {
     if (isCompleteSync && !aplicarFiltroData) {
       // Sincronização completa SEM filtro por data
-      this.logger.log(
-        '📅 Sincronização completa - ignorando filtro por data',
-      );
+      this.logger.log('📅 Sincronização completa - ignorando filtro por data');
       return {
         dataFiltro: null,
         operadorFiltro: '>=',
@@ -71,9 +69,7 @@ export class SyncDateFilterService {
         const agora = new Date();
 
         if (dataModifDate > agora) {
-          this.logger.warn(
-            `⚠️ MAX(dataUltModif) é futura, usando data atual`,
-          );
+          this.logger.warn(`⚠️ MAX(dataUltModif) é futura, usando data atual`);
           return {
             dataFiltro: agora.toISOString().split('T')[0],
             operadorFiltro: '>=',
@@ -108,9 +104,7 @@ export class SyncDateFilterService {
     operadorFiltro: string;
     metodoFiltro: string;
   }> {
-    this.logger.log(
-      '⚠️ Usando fallback para determinar data de filtro',
-    );
+    this.logger.log('⚠️ Usando fallback para determinar data de filtro');
 
     // Tentar usar completed_at da última sync
     const ultimaSync = await this.prisma.bravoSyncLog.findFirst({
@@ -123,9 +117,9 @@ export class SyncDateFilterService {
     });
 
     if (ultimaSync?.completed_at) {
-      const dataFiltro = new Date(
-        ultimaSync.completed_at,
-      ).toISOString().split('T')[0];
+      const dataFiltro = new Date(ultimaSync.completed_at)
+        .toISOString()
+        .split('T')[0];
       this.logger.log(
         `📅 Fallback: usando completed_at da última sync: ${dataFiltro}`,
       );

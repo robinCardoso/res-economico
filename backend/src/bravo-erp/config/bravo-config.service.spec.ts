@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BravoConfigService } from './bravo-config.service';
 import { PrismaService } from '../../core/prisma/prisma.service';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
+import { CreateConfigDto } from '../dto/config.dto';
 
 describe('BravoConfigService', () => {
   let service: BravoConfigService;
-  let prisma: PrismaService;
 
   // Mock do PrismaService
   const mockPrismaService = {
@@ -31,7 +31,6 @@ describe('BravoConfigService', () => {
     }).compile();
 
     service = module.get<BravoConfigService>(BravoConfigService);
-    prisma = module.get<PrismaService>(PrismaService);
 
     // Limpar mocks antes de cada teste
     jest.clearAllMocks();
@@ -53,7 +52,9 @@ describe('BravoConfigService', () => {
       expect(result.config?.baseUrl).toBe('https://v2.bravoerp.com.br');
       expect(result.config?.cliente).toBe('redeuniao_sc');
       expect(result.config?.ambiente).toBe('p');
-      expect(prisma.bravoSyncConfig.findMany).toHaveBeenCalledTimes(1);
+      expect(mockPrismaService.bravoSyncConfig.findMany).toHaveBeenCalledTimes(
+        1,
+      );
     });
 
     it('deve retornar configuração do banco quando existir', async () => {
@@ -101,7 +102,8 @@ describe('BravoConfigService', () => {
         // Faltando baseUrl e cliente
       };
 
-      await expect(service.saveConfig(config as any)).rejects.toThrow(
+      const configDto = config as CreateConfigDto;
+      await expect(service.saveConfig(configDto)).rejects.toThrow(
         BadRequestException,
       );
     });

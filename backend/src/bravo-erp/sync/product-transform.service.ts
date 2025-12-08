@@ -9,7 +9,15 @@ import { BravoProduto } from '../client/bravo-erp-client.interface';
 @Injectable()
 export class ProductTransformService {
   private readonly logger = new Logger(ProductTransformService.name);
-  private mapeamentoCache: Map<string, any> | null = null;
+  private mapeamentoCache: Map<
+    string,
+    {
+      campo_interno: string;
+      tipo_transformacao: string;
+      campo_bravo: string;
+      ativo: boolean;
+    }
+  > | null = null;
   private cacheTimestamp: number = 0;
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
@@ -18,14 +26,21 @@ export class ProductTransformService {
   /**
    * Busca mapeamento de campos do banco de dados (com cache)
    */
-  private async buscarMapeamentoCampos(): Promise<Map<string, any>> {
+  private async buscarMapeamentoCampos(): Promise<
+    Map<
+      string,
+      {
+        campo_interno: string;
+        tipo_transformacao: string;
+        campo_bravo: string;
+        ativo: boolean;
+      }
+    >
+  > {
     const now = Date.now();
 
     // Usar cache se ainda válido
-    if (
-      this.mapeamentoCache &&
-      now - this.cacheTimestamp < this.CACHE_TTL
-    ) {
+    if (this.mapeamentoCache && now - this.cacheTimestamp < this.CACHE_TTL) {
       return this.mapeamentoCache;
     }
 
@@ -61,145 +76,224 @@ export class ProductTransformService {
    * Obtém valor de campo aninhado com suporte a caminhos genéricos
    * Ex: _ref.unidade.abreviacao será resolvido usando id_unidade_padrao_venda
    */
-  private obterValorCampo(objeto: any, caminho: string): any {
+  private obterValorCampo(
+    objeto: Record<string, unknown>,
+    caminho: string,
+  ): unknown {
     // Tratamento especial para campos _ref que precisam buscar pelo ID correto
     // Isso permite usar caminhos genéricos sem números fixos
-    
+
+    const objRef = objeto._ref as
+      | {
+          marca?: Record<string, Record<string, unknown>>;
+          categoria?: Record<string, Record<string, unknown>>;
+          unidade?: Record<string, Record<string, unknown>>;
+        }
+      | undefined;
+    const idMarca = objeto.id_marca as string | undefined;
+    const idCategoria = objeto.id_produto_categoria as string | undefined;
+    const idUnidade = objeto.id_unidade_padrao_venda as string | undefined;
+
     // _ref.marca.*
-    if (caminho.startsWith('_ref.marca.') && objeto.id_marca) {
+    if (caminho.startsWith('_ref.marca.') && idMarca && objRef?.marca) {
       const campo = caminho.replace('_ref.marca.', '');
-      return objeto._ref?.marca?.[objeto.id_marca]?.[campo] || null;
+      const marcaObj = objRef.marca[idMarca];
+      return marcaObj?.[campo] ?? null;
     }
-    
+
     // _ref.categoria.*
-    if (caminho.startsWith('_ref.categoria.') && objeto.id_produto_categoria) {
+    if (
+      caminho.startsWith('_ref.categoria.') &&
+      idCategoria &&
+      objRef?.categoria
+    ) {
       const campo = caminho.replace('_ref.categoria.', '');
-      return objeto._ref?.categoria?.[objeto.id_produto_categoria]?.[campo] || null;
+      const categoriaObj = objRef.categoria[idCategoria];
+      return categoriaObj?.[campo] ?? null;
     }
-    
+
     // _ref.unidade.* (usando id_unidade_padrao_venda)
-    if (caminho.startsWith('_ref.unidade.') && objeto.id_unidade_padrao_venda) {
+    if (caminho.startsWith('_ref.unidade.') && idUnidade && objRef?.unidade) {
       const campo = caminho.replace('_ref.unidade.', '');
-      return objeto._ref?.unidade?.[objeto.id_unidade_padrao_venda]?.[campo] || null;
+      const unidadeObj = objRef.unidade[idUnidade];
+      return unidadeObj?.[campo] ?? null;
     }
-    
+
     // gtin.* (gtin é um objeto indexado por ID, pegar primeiro)
+    const gtinValue = objeto.gtin;
     if (caminho.startsWith('gtin.')) {
       const campo = caminho.replace('gtin.', '');
-      if (Array.isArray(objeto.gtin)) {
-        if (objeto.gtin.length > 0) {
-          return objeto.gtin[0]?.[campo] || null;
+      if (Array.isArray(gtinValue)) {
+        if (gtinValue.length > 0) {
+          const primeiroItem = gtinValue[0] as Record<string, unknown>;
+          return primeiroItem?.[campo] ?? null;
         }
         return null;
       }
-      if (typeof objeto.gtin === 'object' && objeto.gtin !== null) {
-        const gtinKeys = Object.keys(objeto.gtin);
+      if (typeof gtinValue === 'object' && gtinValue !== null) {
+        const gtinKeys = Object.keys(gtinValue);
         if (gtinKeys.length > 0) {
-          return objeto.gtin[gtinKeys[0]]?.[campo] || null;
+          const primeiroItem = (gtinValue as Record<string, unknown>)[
+            gtinKeys[0]
+          ] as Record<string, unknown>;
+          return primeiroItem?.[campo] ?? null;
         }
       }
       return null;
     }
-    
+
     // Para outros campos, usar acesso direto padrão
     return caminho.split('.').reduce((obj, key) => {
-      if (obj && typeof obj === 'object') {
-        return obj[key];
+      if (
+        obj &&
+        typeof obj === 'object' &&
+        obj !== null &&
+        !Array.isArray(obj)
+      ) {
+        return (obj as Record<string, unknown>)[key];
       }
       return undefined;
-    }, objeto);
+    }, objeto as unknown);
   }
 
   /**
    * Obtém título da marca usando ID
    */
-  private obterTituloMarca(produto: any, idMarca: string): string | null {
-    if (!produto._ref?.marca || !idMarca) return null;
-    const marcaData = produto._ref.marca[idMarca];
-    return marcaData?.titulo || null;
+  private obterTituloMarca(
+    produto: Record<string, unknown>,
+    idMarca: string,
+  ): string | null {
+    const objRef = produto._ref as
+      | { marca?: Record<string, { titulo?: unknown }> }
+      | undefined;
+    if (!objRef?.marca || !idMarca) return null;
+    const marcaData = objRef.marca[idMarca] as { titulo?: unknown } | undefined;
+    return (marcaData?.titulo as string) ?? null;
   }
 
   /**
    * Obtém título da categoria usando ID
    */
   private obterTituloCategoria(
-    produto: any,
+    produto: Record<string, unknown>,
     idCategoria: string,
   ): string | null {
-    if (!produto._ref?.categoria || !idCategoria) return null;
-    const categoriaData = produto._ref.categoria[idCategoria];
-    return categoriaData?.titulo || null;
+    const objRef = produto._ref as
+      | { categoria?: Record<string, { titulo?: unknown }> }
+      | undefined;
+    if (!objRef?.categoria || !idCategoria) return null;
+    const categoriaData = objRef.categoria[idCategoria] as
+      | { titulo?: unknown }
+      | undefined;
+    return (categoriaData?.titulo as string) ?? null;
   }
 
   /**
    * Obtém GTIN do produto
    */
-  private obterGtin(produto: any): string | null {
-    if (!produto.gtin) return null;
+  private obterGtin(produto: Record<string, unknown>): string | null {
+    const gtinValue = produto.gtin;
+    if (!gtinValue) return null;
 
-    if (Array.isArray(produto.gtin)) {
-      if (produto.gtin.length === 0) return null;
-      const primeiroGtin = produto.gtin[0];
-      return primeiroGtin?.gtin || primeiroGtin || null;
+    if (Array.isArray(gtinValue)) {
+      if (gtinValue.length === 0) return null;
+      const primeiroGtin = gtinValue[0] as { gtin?: unknown };
+      if (
+        typeof primeiroGtin === 'object' &&
+        primeiroGtin !== null &&
+        'gtin' in primeiroGtin
+      ) {
+        return (primeiroGtin as { gtin: unknown }).gtin as string | null;
+      }
+      return primeiroGtin as string | null;
     }
 
-    if (typeof produto.gtin === 'object') {
-      const gtinKeys = Object.keys(produto.gtin);
+    if (typeof gtinValue === 'object' && gtinValue !== null) {
+      const gtinKeys = Object.keys(gtinValue);
       if (gtinKeys.length > 0) {
-        const primeiroGtin = produto.gtin[gtinKeys[0]];
-        return primeiroGtin?.gtin || primeiroGtin || null;
+        const primeiroGtin = (gtinValue as Record<string, unknown>)[
+          gtinKeys[0]
+        ];
+        if (
+          typeof primeiroGtin === 'object' &&
+          primeiroGtin !== null &&
+          'gtin' in primeiroGtin
+        ) {
+          return (primeiroGtin as { gtin: unknown }).gtin as string | null;
+        }
+        return primeiroGtin as string | null;
       }
     }
 
-    return produto.gtin || null;
+    return gtinValue as string | null;
   }
 
   /**
    * Transforma produto do Bravo ERP para formato interno
    */
-  async transformarProduto(produtoBravo: BravoProduto): Promise<any> {
+  async transformarProduto(
+    produtoBravo: BravoProduto,
+  ): Promise<Record<string, unknown>> {
     const mapeamentoMap = await this.buscarMapeamentoCampos();
 
-    const resultado: any = {
+    const resultado: Record<string, unknown> = {
       updatedAt: new Date(),
     };
 
-    const metadata: any = {};
+    const metadata: Record<string, unknown> = {};
 
     // Aplicar cada mapeamento configurado
     mapeamentoMap.forEach((mapeamento, campoBravo) => {
-      let valorBravo = this.obterValorCampo(produtoBravo, campoBravo);
+      let valorBravo = this.obterValorCampo(
+        produtoBravo as Record<string, unknown>,
+        campoBravo,
+      );
 
       // Tratamentos especiais para campos específicos
       if (campoBravo === '_ref.marca.titulo' && produtoBravo.marca_id) {
-        valorBravo = this.obterTituloMarca(produtoBravo, produtoBravo.marca_id);
+        valorBravo = this.obterTituloMarca(
+          produtoBravo as Record<string, unknown>,
+          produtoBravo.marca_id,
+        );
       } else if (
         campoBravo === 'id_produto_categoria' &&
         produtoBravo.categoria_id
       ) {
         valorBravo = this.obterTituloCategoria(
-          produtoBravo,
+          produtoBravo as Record<string, unknown>,
           produtoBravo.categoria_id,
         );
       } else if (campoBravo === 'gtin.gtin') {
-        valorBravo = this.obterGtin(produtoBravo);
+        valorBravo = this.obterGtin(produtoBravo as Record<string, unknown>);
       }
 
       // Verificar se é campo metadata (sintaxe metadata->campo)
       const isMetadataField = mapeamento.campo_interno.startsWith('metadata->');
-      
+
       if (isMetadataField) {
         // Campo vai para metadata (independente do tipo de transformação)
         if (valorBravo !== null && valorBravo !== undefined) {
           const campoMeta = mapeamento.campo_interno.replace('metadata->', '');
-          
+
           // Aplicar transformação se necessário antes de salvar em metadata
           if (mapeamento.tipo_transformacao === 'boolean_invertido') {
             metadata[campoMeta] = valorBravo === 'N';
           } else if (mapeamento.tipo_transformacao === 'decimal') {
-            metadata[campoMeta] = valorBravo ? parseFloat(String(valorBravo)) : null;
+            let valorStr = '';
+            if (typeof valorBravo === 'string') {
+              valorStr = valorBravo;
+            } else if (typeof valorBravo === 'number') {
+              valorStr = String(valorBravo);
+            } else if (typeof valorBravo === 'boolean') {
+              valorStr = String(valorBravo);
+            }
+            metadata[campoMeta] = valorStr ? parseFloat(valorStr) : null;
           } else if (mapeamento.tipo_transformacao === 'datetime') {
-            metadata[campoMeta] = valorBravo ? new Date(valorBravo) : null;
+            const dateValue =
+              typeof valorBravo === 'string' || valorBravo instanceof Date
+                ? new Date(valorBravo)
+                : null;
+            metadata[campoMeta] = dateValue;
           } else {
             metadata[campoMeta] = valorBravo;
           }
@@ -211,9 +305,27 @@ export class ProductTransformService {
         // Transformação booleana invertida (excluido = 'N' → ativo = true)
         resultado[mapeamento.campo_interno] = valorBravo === 'N';
       } else if (mapeamento.tipo_transformacao === 'decimal') {
-        resultado[mapeamento.campo_interno] = valorBravo ? parseFloat(String(valorBravo)) : null;
+        let valorStr = '';
+        if (typeof valorBravo === 'string') {
+          valorStr = valorBravo;
+        } else if (typeof valorBravo === 'number') {
+          valorStr = String(valorBravo);
+        } else if (typeof valorBravo === 'boolean') {
+          valorStr = String(valorBravo);
+        }
+        resultado[mapeamento.campo_interno] = valorStr
+          ? parseFloat(valorStr)
+          : null;
       } else if (mapeamento.tipo_transformacao === 'datetime') {
-        resultado[mapeamento.campo_interno] = valorBravo ? new Date(valorBravo) : null;
+        let dateValue: Date | null = null;
+        if (valorBravo) {
+          if (typeof valorBravo === 'string' || valorBravo instanceof Date) {
+            dateValue = new Date(valorBravo);
+          } else if (typeof valorBravo === 'number') {
+            dateValue = new Date(valorBravo);
+          }
+        }
+        resultado[mapeamento.campo_interno] = dateValue;
       } else if (mapeamento.tipo_transformacao === 'json') {
         // Campo vai para metadata (compatibilidade com sintaxe antiga)
         if (valorBravo !== null && valorBravo !== undefined) {
@@ -225,7 +337,8 @@ export class ProductTransformService {
 
     // Garantir campos essenciais
     if (!resultado.referencia) {
-      resultado.referencia = produtoBravo.referencia || produtoBravo.ref || null;
+      resultado.referencia =
+        produtoBravo.referencia || produtoBravo.ref || null;
     }
 
     if (!resultado.id_prod) {

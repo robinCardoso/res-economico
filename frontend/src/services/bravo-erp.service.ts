@@ -126,7 +126,7 @@ export interface SyncLog {
   produtos_inseridos?: number;
   produtos_atualizados?: number;
   tempo_total_segundos?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface CampoMapeamento {
@@ -320,7 +320,7 @@ export const bravoErpService = {
   async getResumableSyncs(limit = 10): Promise<{
     success: boolean;
     data: {
-      resumable_syncs: any[];
+      resumable_syncs: SyncLog[];
       total: number;
     };
   }> {

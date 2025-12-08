@@ -142,7 +142,6 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
   // Polling de status quando há sincronização em andamento
   useEffect(() => {
     if (!syncing) return;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
 
     // Flag para evitar buscar logs múltiplas vezes
     let hasTriedToGetSyncLogId = false;
@@ -264,7 +263,7 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
                 });
               }
             }
-          } catch (error) {
+          } catch {
             // Ignorar erro na busca final
           }
 

@@ -4,7 +4,6 @@ import { ConfigService } from '@nestjs/config';
 
 describe('SyncLockManager', () => {
   let service: SyncLockManager;
-  let configService: ConfigService;
 
   const mockConfigService = {
     get: jest.fn(),
@@ -37,14 +36,14 @@ describe('SyncLockManager', () => {
     });
 
     it('deve retornar false quando não há sync em andamento (modo memória)', async () => {
-      await service.onModuleInit();
+      service.onModuleInit();
       const result = await service.isSyncRunning();
 
       expect(result).toBe(false);
     });
 
     it('deve retornar true quando há sync em andamento', async () => {
-      await service.onModuleInit();
+      service.onModuleInit();
 
       const result = await service.acquireLock(
         'user-123',
@@ -71,7 +70,7 @@ describe('SyncLockManager', () => {
     });
 
     it('deve adquirir lock com sucesso', async () => {
-      await service.onModuleInit();
+      service.onModuleInit();
 
       const result = await service.acquireLock(
         'user-123',
@@ -90,7 +89,7 @@ describe('SyncLockManager', () => {
     });
 
     it('deve falhar ao tentar adquirir lock quando já existe um', async () => {
-      await service.onModuleInit();
+      service.onModuleInit();
 
       const firstResult = await service.acquireLock(
         'user-123',
@@ -122,7 +121,7 @@ describe('SyncLockManager', () => {
     });
 
     it('deve liberar lock existente', async () => {
-      await service.onModuleInit();
+      service.onModuleInit();
 
       const result = await service.acquireLock(
         'user-123',
@@ -143,7 +142,7 @@ describe('SyncLockManager', () => {
     });
 
     it('deve retornar false ao tentar liberar lock inexistente', async () => {
-      await service.onModuleInit();
+      service.onModuleInit();
 
       const released = await service.releaseLock('non-existent-lock');
       expect(released).toBe(false);
@@ -156,7 +155,7 @@ describe('SyncLockManager', () => {
     });
 
     it('deve retornar informações do sync atual', async () => {
-      await service.onModuleInit();
+      service.onModuleInit();
 
       const result = await service.acquireLock(
         'user-123',
@@ -183,7 +182,7 @@ describe('SyncLockManager', () => {
     });
 
     it('deve retornar null quando não há sync em andamento', async () => {
-      await service.onModuleInit();
+      service.onModuleInit();
 
       const currentSync = await service.getCurrentSync();
 
@@ -197,7 +196,7 @@ describe('SyncLockManager', () => {
     });
 
     it('deve limpar locks expirados', async () => {
-      await service.onModuleInit();
+      service.onModuleInit();
 
       // Criar um lock
       const result = await service.acquireLock(

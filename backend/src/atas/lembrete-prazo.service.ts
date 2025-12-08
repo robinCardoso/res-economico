@@ -209,9 +209,8 @@ export class LembretePrazoService {
       }
 
       // Verificar horário permitido
-      const estaNoHorario = await this.preferenciasService.estaNoHorarioPermitido(
-        usuarioId,
-      );
+      const estaNoHorario =
+        await this.preferenciasService.estaNoHorarioPermitido(usuarioId);
       if (!estaNoHorario) {
         this.logger.debug(
           `Lembrete não enviado para usuário ${usuarioId}: fora do horário permitido`,

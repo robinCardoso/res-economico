@@ -8,7 +8,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { MappingService } from './mapping.service';
-import { CreateMappingDto, MappingResponseDto } from '../dto/mapping.dto';
+import {
+  CreateMappingDto,
+  MappingResponseDto,
+  CampoMapeamentoDto,
+} from '../dto/mapping.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @Controller('bravo-erp')
@@ -57,9 +61,9 @@ export class MappingController {
    * MELHORIA 1: Endpoint para obter campos da tabela produtos
    */
   @Get('mapping/fields/internal')
-  async getInternalFields() {
+  getInternalFields() {
     try {
-      return await this.mappingService.getInternalFields();
+      return this.mappingService.getInternalFields();
     } catch (error) {
       throw new HttpException(
         {
@@ -93,9 +97,12 @@ export class MappingController {
    * MELHORIA 3: Endpoint para preview do mapeamento
    */
   @Post('mapping/preview')
-  async previewMapping(@Body() body: { mapeamentos: any[] }) {
+  async previewMapping(
+    @Body() body: { mapeamentos: Array<Record<string, unknown>> },
+  ) {
     try {
-      return await this.mappingService.previewMapping(body.mapeamentos);
+      const mapeamentos = body.mapeamentos as unknown as CampoMapeamentoDto[];
+      return await this.mappingService.previewMapping(mapeamentos);
     } catch (error) {
       throw new HttpException(
         {

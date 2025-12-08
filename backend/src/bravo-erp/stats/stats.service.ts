@@ -2,7 +2,19 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 
 interface StatsCache {
-  data: any;
+  data: {
+    success: boolean;
+    totalProdutos: number;
+    produtosAtivos: number;
+    ultimoSync: Date | null;
+    ultimosSyncs: Array<{
+      id: string;
+      status: string;
+      started_at: Date;
+      completed_at: Date | null;
+    }>;
+    debug?: Record<string, unknown>;
+  };
   timestamp: number;
 }
 
@@ -37,47 +49,43 @@ export class StatsService {
           fromCache: true,
           tempoResposta: Date.now() - startTime,
         },
-      };
+      } as typeof this.statsCache.data;
     }
 
     this.logger.log('🚀 Iniciando busca de estatísticas...');
 
     try {
       // Executar consultas em paralelo para melhor performance
-      const [
-        totalProdutos,
-        produtosAtivos,
-        ultimoSync,
-        ultimosSyncs,
-      ] = await Promise.all([
-        this.prisma.produto.count(),
-        this.prisma.produto.count({ where: { ativo: true } }),
-        this.prisma.bravoSyncLog.findFirst({
-          orderBy: { started_at: 'desc' },
-          select: {
-            id: true,
-            sync_type: true,
-            status: true,
-            started_at: true,
-            completed_at: true,
-            total_produtos_bravo: true,
-            produtos_inseridos: true,
-            produtos_atualizados: true,
-          },
-        }),
-        this.prisma.bravoSyncLog.findMany({
-          orderBy: { started_at: 'desc' },
-          take: 10,
-          select: {
-            id: true,
-            sync_type: true,
-            status: true,
-            started_at: true,
-            completed_at: true,
-            total_produtos_bravo: true,
-          },
-        }),
-      ]);
+      const [totalProdutos, produtosAtivos, ultimoSync, ultimosSyncs] =
+        await Promise.all([
+          this.prisma.produto.count(),
+          this.prisma.produto.count({ where: { ativo: true } }),
+          this.prisma.bravoSyncLog.findFirst({
+            orderBy: { started_at: 'desc' },
+            select: {
+              id: true,
+              sync_type: true,
+              status: true,
+              started_at: true,
+              completed_at: true,
+              total_produtos_bravo: true,
+              produtos_inseridos: true,
+              produtos_atualizados: true,
+            },
+          }),
+          this.prisma.bravoSyncLog.findMany({
+            orderBy: { started_at: 'desc' },
+            take: 10,
+            select: {
+              id: true,
+              sync_type: true,
+              status: true,
+              started_at: true,
+              completed_at: true,
+              total_produtos_bravo: true,
+            },
+          }),
+        ]);
 
       const elapsedTime = Date.now() - startTime;
 
@@ -94,7 +102,7 @@ export class StatsService {
         produtosAtivos: produtosAtivos || 0,
         produtosDoBravo: 0, // Não usado no momento
         totalSincronizados: totalProdutosFinal,
-        ultimoSync: ultimoSyncFinal || null,
+        ultimoSync: ultimoSyncFinal?.started_at || null,
         ultimaSincronizacao: ultimoSyncFinal?.started_at?.toISOString() || '',
         ultimaSincronizacaoData:
           ultimoSyncFinal?.completed_at?.toISOString() || '',

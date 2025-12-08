@@ -1,11 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SyncLogService } from './sync-log.service';
 import { PrismaService } from '../../core/prisma/prisma.service';
-import { Prisma } from '@prisma/client';
-
 describe('SyncLogService', () => {
   let service: SyncLogService;
-  let prisma: PrismaService;
 
   const mockPrismaService = {
     bravoSyncLog: {
@@ -62,7 +59,7 @@ describe('SyncLogService', () => {
           status: 'running',
           apenas_ativos: true,
           userId: 'user-123',
-        }),
+        }) as unknown,
       });
     });
 
@@ -80,7 +77,7 @@ describe('SyncLogService', () => {
         data: expect.objectContaining({
           triggered_by: 'admin_user',
           user_agent: 'unknown',
-        }),
+        }) as unknown,
       });
     });
   });
@@ -162,8 +159,12 @@ describe('SyncLogService', () => {
 
       await service.updateLog('log-123', { status: 'running' });
 
-      const updateCall = mockPrismaService.bravoSyncLog.update.mock.calls[0][0];
-      expect(updateCall.data.last_activity_at).toBeDefined();
+      const updateCall = (
+        mockPrismaService.bravoSyncLog.update.mock.calls[0] as
+          | [{ data?: { last_activity_at?: unknown } }]
+          | undefined
+      )?.[0] as { data?: { last_activity_at?: unknown } } | undefined;
+      expect(updateCall?.data?.last_activity_at).toBeDefined();
     });
   });
 
@@ -182,13 +183,14 @@ describe('SyncLogService', () => {
       });
 
       expect(result).toEqual(mockLogs);
-      expect(mockPrismaService.bravoSyncLog.findMany).toHaveBeenCalledWith(
+      const findManyMock = mockPrismaService.bravoSyncLog.findMany;
+      expect(findManyMock).toHaveBeenCalledWith(
         expect.objectContaining({
           take: 10,
           where: expect.objectContaining({
             status: 'completed',
           }),
-        }),
+        }) as unknown,
       );
     });
 
@@ -200,12 +202,13 @@ describe('SyncLogService', () => {
       const result = await service.listResumableLogs();
 
       expect(result).toEqual(mockLogs);
-      expect(mockPrismaService.bravoSyncLog.findMany).toHaveBeenCalledWith(
+      const findManyMock = mockPrismaService.bravoSyncLog.findMany;
+      expect(findManyMock).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             can_resume: true,
           }),
-        }),
+        }) as unknown,
       );
     });
   });

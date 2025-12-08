@@ -52,8 +52,9 @@ export class BravoErpClientV2Service {
         cliente: configObj['bravo_cliente'] || '',
         token: configObj['bravo_token'] || '',
         ambiente:
-          configObj['bravo_ambiente'] === 'p' || configObj['bravo_ambiente'] === 'h'
-            ? (configObj['bravo_ambiente'] as 'p' | 'h')
+          configObj['bravo_ambiente'] === 'p' ||
+          configObj['bravo_ambiente'] === 'h'
+            ? configObj['bravo_ambiente']
             : 'p',
         server: configObj['bravo_server'] || 'alpha',
         timeout: configObj['bravo_timeout']
@@ -104,7 +105,7 @@ export class BravoErpClientV2Service {
 
     // Argumentos do método
     Object.keys(args).forEach((key) => {
-      const value = args[key];
+      const value = args[key] as unknown;
       if (Array.isArray(value)) {
         // Arrays (ex: sortCol e sortOrder)
         value.forEach((item, index) => {
@@ -112,8 +113,12 @@ export class BravoErpClientV2Service {
         });
       } else if (typeof value === 'object' && value !== null) {
         // Parâmetros aninhados (ex: args[filter][_data_ult_modif])
-        Object.keys(value).forEach((subKey) => {
-          url.searchParams.set(`args[${key}][${subKey}]`, String(value[subKey]));
+        const valueObj = value as Record<string, unknown>;
+        Object.keys(valueObj).forEach((subKey) => {
+          url.searchParams.set(
+            `args[${key}][${subKey}]`,
+            String(valueObj[subKey]),
+          );
         });
       } else {
         url.searchParams.set(`args[${key}]`, String(value));
@@ -128,14 +133,16 @@ export class BravoErpClientV2Service {
    */
   private async request<T>(
     method: string,
-    args: Record<string, any> = {},
+    args: Record<string, unknown> = {},
   ): Promise<BravoResponse<T>> {
     // Carregar configuração do banco
     await this.loadConfig();
 
     // Verificar token
     if (!this.config || !this.config.token) {
-      throw new Error('Token não configurado. Configure o token em /admin/bravo-erp');
+      throw new Error(
+        'Token não configurado. Configure o token em /admin/bravo-erp',
+      );
     }
 
     const url = this.buildUrl(method, args);
@@ -150,38 +157,46 @@ export class BravoErpClientV2Service {
         timeout: this.config.timeout,
       });
 
-      const text = response.data;
+      const text = response.data as unknown;
       this.logger.debug(
         `📦 Bravo ERP V2 Response (${response.status}):`,
         typeof text === 'string' ? text.substring(0, 200) : 'JSON',
       );
 
       // Tentar parsear como JSON se for string
-      let data: any;
+      let data: unknown;
       if (typeof text === 'string') {
         try {
-          data = JSON.parse(text);
-        } catch (e) {
+          data = JSON.parse(text) as unknown;
+        } catch {
           this.logger.error('❌ Resposta não é JSON válido:', text);
-          throw new Error(`Resposta inválida da API: ${text.substring(0, 100)}`);
+          throw new Error(
+            `Resposta inválida da API: ${text.substring(0, 100)}`,
+          );
         }
       } else {
         data = text;
       }
 
       // Verificar se é uma resposta de erro
-      if (data.status === 'error') {
-        throw new Error(data.error?.message || 'Erro desconhecido da API');
+      const dataObj = data as { status?: string; error?: { message?: string } };
+      if (dataObj.status === 'error') {
+        throw new Error(dataObj.error?.message || 'Erro desconhecido da API');
       }
 
       return data as BravoResponse<T>;
-    } catch (error: any) {
-      if (error.code === 'ECONNABORTED') {
-        throw new Error(`Timeout após ${this.config?.timeout || 30000 / 1000}s`);
-      }
-      if (error.response) {
+    } catch (error: unknown) {
+      const errorObj = error as
+        | { code?: string; response?: { status?: number; statusText?: string } }
+        | Error;
+      if ('code' in errorObj && errorObj.code === 'ECONNABORTED') {
         throw new Error(
-          `Erro na API: ${error.response.status} - ${error.response.statusText}`,
+          `Timeout após ${this.config?.timeout || 30000 / 1000}s`,
+        );
+      }
+      if ('response' in errorObj && errorObj.response) {
+        throw new Error(
+          `Erro na API: ${errorObj.response.status} - ${errorObj.response.statusText}`,
         );
       }
       throw error instanceof Error
@@ -200,7 +215,7 @@ export class BravoErpClientV2Service {
   async consultarProdutosCompleto(
     options: ConsultarProdutosOptions = {},
   ): Promise<BravoResponse<BravoProduto[]>> {
-    const args: any = {
+    const args: Record<string, unknown> = {
       page: options.page || 1,
     };
 
@@ -246,9 +261,7 @@ export class BravoErpClientV2Service {
   /**
    * Consulta um produto específico por ID
    */
-  async consultarProdutoPorId(
-    productId: string,
-  ): Promise<BravoProduto | null> {
+  async consultarProdutoPorId(productId: string): Promise<BravoProduto | null> {
     const args = {
       filter: {
         product_id: productId,
@@ -277,7 +290,9 @@ export class BravoErpClientV2Service {
 
       // Tentar buscar 1 produto
       const produtos = await this.consultarProdutos({ limit: 1 });
-      this.logger.log(`✅ Teste de conexão bem-sucedido! ${produtos.length} produto(s) encontrado(s)`);
+      this.logger.log(
+        `✅ Teste de conexão bem-sucedido! ${produtos.length} produto(s) encontrado(s)`,
+      );
       return true;
     } catch (error) {
       this.logger.error('❌ Falha ao testar conexão:', error);

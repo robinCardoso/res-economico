@@ -31,17 +31,20 @@ export class VendasAnalyticsService {
     this.logger.log(`Atualizando analytics para ${vendas.length} vendas`);
 
     // Agrupar vendas por chave de analytics
-    const analyticsMap = new Map<string, {
-      ano: number;
-      mes: number;
-      nomeFantasia: string;
-      marca: string;
-      grupo: string;
-      subgrupo: string;
-      uf: string;
-      totalValor: number;
-      totalQuantidade: number;
-    }>();
+    const analyticsMap = new Map<
+      string,
+      {
+        ano: number;
+        mes: number;
+        nomeFantasia: string;
+        marca: string;
+        grupo: string;
+        subgrupo: string;
+        uf: string;
+        totalValor: number;
+        totalQuantidade: number;
+      }
+    >();
 
     vendas.forEach((venda) => {
       const data = new Date(venda.dataVenda);
@@ -151,9 +154,12 @@ export class VendasAnalyticsService {
         });
       }
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro desconhecido';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Erro ao atualizar analytics: ${error.message}`,
-        error.stack,
+        `Erro ao atualizar analytics: ${errorMessage}`,
+        errorStack,
       );
       // Não lançar erro para não interromper a importação
     }
@@ -173,7 +179,15 @@ export class VendasAnalyticsService {
     dataInicio?: Date;
     dataFim?: Date;
   }) {
-    const where: any = {};
+    const where: {
+      ano?: number | { gte?: number; lte?: number };
+      mes?: number;
+      nomeFantasia?: { contains: string; mode: 'insensitive' };
+      marca?: { contains: string; mode: 'insensitive' };
+      grupo?: { contains: string; mode: 'insensitive' };
+      subgrupo?: { contains: string; mode: 'insensitive' };
+      uf?: string;
+    } = {};
 
     if (filtros.ano) {
       where.ano = filtros.ano;
@@ -223,30 +237,29 @@ export class VendasAnalyticsService {
       }
       if (filtros.dataFim) {
         const fim = new Date(filtros.dataFim);
-        where.ano = { ...where.ano, lte: fim.getFullYear() };
+        const anoAtual = where.ano;
+        where.ano =
+          typeof anoAtual === 'object' && 'gte' in (anoAtual || {})
+            ? { ...anoAtual, lte: fim.getFullYear() }
+            : { lte: fim.getFullYear() };
       }
     }
 
     return this.prisma.vendaAnalytics.findMany({
       where,
-      orderBy: [
-        { ano: 'desc' },
-        { mes: 'desc' },
-        { nomeFantasia: 'asc' },
-      ],
+      orderBy: [{ ano: 'desc' }, { mes: 'desc' }, { nomeFantasia: 'asc' }],
     });
   }
 
   /**
    * Recalcula analytics a partir das vendas (útil para correção)
    */
-  async recalculcarAnalytics(
-    dataInicio?: Date,
-    dataFim?: Date,
-  ): Promise<void> {
+  async recalculcarAnalytics(dataInicio?: Date, dataFim?: Date): Promise<void> {
     this.logger.log('Iniciando recálculo de analytics');
 
-    const where: any = {};
+    const where: {
+      dataVenda?: { gte?: Date; lte?: Date };
+    } = {};
     if (dataInicio || dataFim) {
       where.dataVenda = {};
       if (dataInicio) {
@@ -277,8 +290,12 @@ export class VendasAnalyticsService {
     // Limpar analytics existentes no período
     if (dataInicio || dataFim) {
       // Se há filtro de data, limpar apenas o período
-      const anos = new Set(vendas.map((v) => new Date(v.dataVenda).getFullYear()));
-      const meses = new Set(vendas.map((v) => new Date(v.dataVenda).getMonth() + 1));
+      const anos = new Set(
+        vendas.map((v) => new Date(v.dataVenda).getFullYear()),
+      );
+      const meses = new Set(
+        vendas.map((v) => new Date(v.dataVenda).getMonth() + 1),
+      );
 
       await this.prisma.vendaAnalytics.deleteMany({
         where: {
@@ -303,7 +320,7 @@ export class VendasAnalyticsService {
       valorTotal: v.valorTotal,
       quantidade: v.quantidade,
     }));
-    
+
     await this.atualizarAnalytics(vendasParaAnalytics);
 
     this.logger.log('Recálculo de analytics concluído');

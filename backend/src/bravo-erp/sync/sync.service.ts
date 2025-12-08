@@ -69,7 +69,7 @@ export class SyncService {
       // Verificar e adquirir lock
       if (!modo_teste) {
         const syncType = pages === 999 ? 'complete' : 'quick';
-        
+
         // Verificar se já existe sync rodando ANTES de tentar adquirir lock
         const isRunning = await this.lockManager.isSyncRunning();
         if (isRunning) {
@@ -87,7 +87,8 @@ export class SyncService {
 
         if (!lockResult.success) {
           throw new ConflictException(
-            lockResult.error || 'Sincronização já em andamento (não foi possível adquirir lock)',
+            lockResult.error ||
+              'Sincronização já em andamento (não foi possível adquirir lock)',
           );
         }
 
@@ -101,7 +102,7 @@ export class SyncService {
 
       // Teste de duplicatas (se solicitado)
       if (teste_duplicatas) {
-        return await this.executarTesteDuplicatas();
+        return this.executarTesteDuplicatas();
       }
 
       // Determinar data de filtro
@@ -145,22 +146,21 @@ export class SyncService {
       }
 
       // Buscar e processar produtos página por página
-      const resultado = await this.processarPaginas(
-        {
-          isCompleteSync,
-          isResumeSync,
-          realmenteRetomando,
-          pages,
-          effectiveLimit,
-          dataFiltro,
-          operadorFiltro,
-          apenas_ativos,
-          verificar_duplicatas,
-          modo_teste,
-          syncLogId,
-        },
-        startTime,
-      );
+      const resultado = await this.processarPaginas({
+        isCompleteSync,
+        isResumeSync,
+        realmenteRetomando,
+        pages,
+        effectiveLimit,
+        dataFiltro,
+        operadorFiltro,
+        apenas_ativos,
+        verificar_duplicatas,
+        modo_teste,
+        syncLogId,
+      });
+
+      const tempoTotal = Math.round((Date.now() - startTime) / 1000);
 
       // Finalizar sincronização
       if (!modo_teste && syncLogId) {
@@ -170,11 +170,9 @@ export class SyncService {
           metodoFiltro,
           dataFiltro,
           operadorFiltro,
-          startTime,
+          tempoTotal,
         );
       }
-
-      const tempoTotal = Math.round((Date.now() - startTime) / 1000);
 
       return {
         success: true,
@@ -215,7 +213,10 @@ export class SyncService {
         }
       }
 
-      if (error instanceof ConflictException || error instanceof BadRequestException) {
+      if (
+        error instanceof ConflictException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
 
@@ -227,7 +228,9 @@ export class SyncService {
       if (lockId) {
         try {
           await this.lockManager.releaseLock(lockId, lockStatus);
-          this.logger.log(`🔓 Lock liberado: ${lockId} (status: ${lockStatus})`);
+          this.logger.log(
+            `🔓 Lock liberado: ${lockId} (status: ${lockStatus})`,
+          );
         } catch (releaseError) {
           // Se falhar ao liberar lock, logar mas não bloquear
           this.logger.error(`❌ Erro ao liberar lock ${lockId}:`, releaseError);
@@ -271,22 +274,19 @@ export class SyncService {
   /**
    * Processa páginas de produtos
    */
-  private async processarPaginas(
-    params: {
-      isCompleteSync: boolean;
-      isResumeSync: boolean;
-      realmenteRetomando: boolean;
-      pages: number;
-      effectiveLimit?: number;
-      dataFiltro: string | null;
-      operadorFiltro: string;
-      apenas_ativos: boolean;
-      verificar_duplicatas: boolean;
-      modo_teste: boolean;
-      syncLogId: string | null;
-    },
-    startTime: number,
-  ): Promise<{
+  private async processarPaginas(params: {
+    isCompleteSync: boolean;
+    isResumeSync: boolean;
+    realmenteRetomando: boolean;
+    pages: number;
+    effectiveLimit?: number;
+    dataFiltro: string | null;
+    operadorFiltro: string;
+    apenas_ativos: boolean;
+    verificar_duplicatas: boolean;
+    modo_teste: boolean;
+    syncLogId: string | null;
+  }): Promise<{
     totalProdutos: number;
     totalPagesProcessed: number;
     totalInseridos: number;
@@ -308,11 +308,11 @@ export class SyncService {
       syncLogId,
     } = params;
 
-    let allProdutos: any[] = [];
+    let allProdutos: Array<Record<string, unknown>> = [];
     let totalPagesProcessed = 0;
-    let maxPages = isCompleteSync ? 999 : pages;
+    const maxPages = isCompleteSync ? 999 : pages;
     let currentPage = 1;
-    
+
     // Contadores acumulados de inseridos/atualizados
     let totalInseridos = 0;
     let totalAtualizados = 0;
@@ -321,7 +321,7 @@ export class SyncService {
 
     // Se for retomada, começar da página salva
     if (isResumeSync && syncLogId && realmenteRetomando) {
-      const existingLog = await this.logService.getLogById(syncLogId!);
+      const existingLog = await this.logService.getLogById(syncLogId);
       if (existingLog?.resume_from_page) {
         currentPage = existingLog.resume_from_page;
       }
@@ -338,13 +338,14 @@ export class SyncService {
     // Processar página por página
     const MAX_SYNC_DURATION_MS = 2 * 60 * 60 * 1000; // 2 horas máximo
     const syncStartTime = Date.now();
-    
+
     while (currentPage <= maxPages) {
       // Verificar timeout (máximo 2 horas)
       if (!modo_teste && Date.now() - syncStartTime > MAX_SYNC_DURATION_MS) {
-        const errorMsg = 'Sincronização excedeu o tempo máximo permitido (2 horas)';
+        const errorMsg =
+          'Sincronização excedeu o tempo máximo permitido (2 horas)';
         this.logger.error(`⏱️ ${errorMsg}`);
-        
+
         if (syncLogId) {
           await this.logService.updateLog(syncLogId, {
             status: 'failed',
@@ -353,7 +354,7 @@ export class SyncService {
             can_resume: true,
           });
         }
-        
+
         throw new BadRequestException(errorMsg);
       }
 
@@ -380,7 +381,8 @@ export class SyncService {
           current_step: `Buscando página ${currentPage} de ${maxPages}...`,
           current_page: currentPage,
           products_processed: allProdutos.length, // Produtos já encontrados até agora
-          total_produtos_bravo: allProdutos.length > 0 ? allProdutos.length : undefined, // Total acumulado (undefined se ainda não encontrou nada)
+          total_produtos_bravo:
+            allProdutos.length > 0 ? allProdutos.length : undefined, // Total acumulado (undefined se ainda não encontrou nada)
           estimated_time_remaining: `${Math.max(1, maxPages - currentPage)} páginas restantes`,
         });
       }
@@ -398,18 +400,26 @@ export class SyncService {
       });
 
       if (response.status !== 'success') {
-        this.logger.error(`❌ Erro na página ${currentPage}:`, response.error?.message);
+        this.logger.error(
+          `❌ Erro na página ${currentPage}:`,
+          response.error?.message,
+        );
         break;
       }
 
       const produtosPagina = response.data || [];
 
       if (produtosPagina.length === 0) {
-        this.logger.log(`📄 Página ${currentPage} está vazia - fim dos produtos`);
+        this.logger.log(
+          `📄 Página ${currentPage} está vazia - fim dos produtos`,
+        );
         break;
       }
 
-      allProdutos = [...allProdutos, ...produtosPagina];
+      allProdutos = [
+        ...allProdutos,
+        ...(produtosPagina as Array<Record<string, unknown>>),
+      ];
       totalPagesProcessed = currentPage;
 
       this.logger.log(
@@ -445,13 +455,13 @@ export class SyncService {
         verificar_duplicatas,
         modo_teste,
       );
-      
+
       // Acumular contadores
       totalInseridos += stats.inseridos;
       totalAtualizados += stats.atualizados;
       totalIgnorados += stats.ignorados;
       totalComErro += stats.comErro;
-      
+
       // Atualizar log com valores acumulados após cada página
       if (!modo_teste && syncLogId) {
         this.logger.debug(
@@ -546,7 +556,7 @@ export class SyncService {
     metodoFiltro: string,
     dataFiltro: string | null,
     operadorFiltro: string,
-    startTime: number,
+    tempoTotal: number,
   ): Promise<void> {
     await this.progressService.updateProgress(syncLogId, {
       progress_percentage: 90,
@@ -559,7 +569,6 @@ export class SyncService {
     await this.processorService.atualizarTabelasAgregadas();
 
     // Atualizar progresso final
-    const tempoTotal = Math.round((Date.now() - startTime) / 1000);
     await this.progressService.updateProgress(syncLogId, {
       progress_percentage: 100,
       current_step: 'Sincronização concluída com sucesso!',
@@ -582,7 +591,7 @@ export class SyncService {
       produtos_atualizados: resultado.totalAtualizados,
       produtos_ignorados: resultado.totalIgnorados,
       produtos_com_erro: resultado.totalComErro,
-      tempo_total_segundos: tempoTotal,
+      tempo_total_segundos: Number(tempoTotal),
       completed_at: new Date(),
       sync_details: {
         metodo_filtro_data: metodoFiltro,
@@ -591,7 +600,7 @@ export class SyncService {
       } as Prisma.InputJsonValue,
       can_resume: false,
     });
-    
+
     this.logger.log(
       `✅ Sincronização finalizada: ${resultado.totalInseridos} inseridos, ${resultado.totalAtualizados} atualizados, ${resultado.totalPagesProcessed} páginas processadas`,
     );
@@ -600,11 +609,9 @@ export class SyncService {
   /**
    * Executa teste de duplicatas (5 páginas)
    */
-  private async executarTesteDuplicatas(): Promise<SyncResponseDto> {
+  private executarTesteDuplicatas(): SyncResponseDto {
     // TODO: Implementar teste de duplicatas se necessário
-    throw new BadRequestException(
-      'Teste de duplicatas ainda não implementado',
-    );
+    throw new BadRequestException('Teste de duplicatas ainda não implementado');
   }
 
   /**
@@ -613,10 +620,23 @@ export class SyncService {
   private async cleanupOrphanedLogsIfNeeded(): Promise<void> {
     try {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      
+
       // Usar o PrismaService através do logService
-      const prisma = (this.logService as any).prisma;
-      const orphanedLogs = await prisma.bravoSyncLog.findMany({
+
+      const prisma = (
+        this.logService as unknown as {
+          prisma?: { bravoSyncLog?: { findMany: unknown } };
+        }
+      ).prisma;
+      if (!prisma?.bravoSyncLog?.findMany) {
+        return;
+      }
+
+      const orphanedLogs = await (
+        prisma.bravoSyncLog.findMany as (
+          args: unknown,
+        ) => Promise<Array<{ id: string }>>
+      )({
         where: {
           status: 'running',
           started_at: {
@@ -642,7 +662,8 @@ export class SyncService {
             await this.logService.updateLog(log.id, {
               status: 'failed',
               status_detalhado: 'orphaned_log_cleaned',
-              error_message: 'Sincronização interrompida e não finalizada corretamente (log órfão limpo automaticamente)',
+              error_message:
+                'Sincronização interrompida e não finalizada corretamente (log órfão limpo automaticamente)',
               completed_at: new Date(),
               can_resume: false,
             });

@@ -25,11 +25,10 @@ export class SyncLockManager implements OnModuleInit {
   private readonly useRedis: boolean;
 
   constructor(private readonly configService: ConfigService) {
-    this.useRedis =
-      this.configService.get<string>('REDIS_HOST') !== undefined;
+    this.useRedis = this.configService.get<string>('REDIS_HOST') !== undefined;
   }
 
-  async onModuleInit() {
+  onModuleInit() {
     if (this.useRedis) {
       try {
         const host = this.configService.get<string>('REDIS_HOST', 'localhost');
@@ -49,13 +48,15 @@ export class SyncLockManager implements OnModuleInit {
           this.logger.log(`SyncLockManager: Redis conectado: ${host}:${port}`);
         });
 
-        this.redis.on('error', (error) => {
+        this.redis.on('error', (err) => {
+          const errorMessage =
+            err instanceof Error ? err.message : 'Erro desconhecido';
           this.logger.warn(
-            `SyncLockManager: Erro no Redis (usando memória): ${error.message}`,
+            `SyncLockManager: Erro no Redis (usando memória): ${errorMessage}`,
           );
           this.redis = null;
         });
-      } catch (error) {
+      } catch {
         this.logger.warn(
           'SyncLockManager: Redis não disponível, usando memória',
         );
@@ -138,20 +139,28 @@ export class SyncLockManager implements OnModuleInit {
           Math.floor(this.LOCK_TIMEOUT / 1000),
           'NX',
         );
-        
+
         if (result === 'OK') {
-          this.logger.log(`🔒 Lock adquirido (Redis): ${lockId} por ${userEmail} (${type})`);
+          this.logger.log(
+            `🔒 Lock adquirido (Redis): ${lockId} por ${userEmail} (${type})`,
+          );
           return { success: true, lockId };
         } else {
           // result é null quando NX falha (chave já existe)
-          this.logger.warn(`⚠️ Tentativa de adquirir lock quando já existe: ${lockId}`);
+          this.logger.warn(
+            `⚠️ Tentativa de adquirir lock quando já existe: ${lockId}`,
+          );
           return {
             success: false,
-            error: 'Sincronização já em andamento (lock adquirido por outro processo)',
+            error:
+              'Sincronização já em andamento (lock adquirido por outro processo)',
           };
         }
       } catch (error) {
-        this.logger.warn('Erro ao salvar lock no Redis, usando memória:', error);
+        this.logger.warn(
+          'Erro ao salvar lock no Redis, usando memória:',
+          error,
+        );
         // Fallback para memória - verificar novamente antes de adicionar
         if (this.locks.size > 0) {
           const existingLock = Array.from(this.locks.values())[0];
@@ -161,7 +170,9 @@ export class SyncLockManager implements OnModuleInit {
           };
         }
         this.locks.set(lockId, lock);
-        this.logger.log(`🔒 Lock adquirido (Memória): ${lockId} por ${userEmail} (${type})`);
+        this.logger.log(
+          `🔒 Lock adquirido (Memória): ${lockId} por ${userEmail} (${type})`,
+        );
         return { success: true, lockId };
       }
     } else {
@@ -174,7 +185,9 @@ export class SyncLockManager implements OnModuleInit {
         };
       }
       this.locks.set(lockId, lock);
-      this.logger.log(`🔒 Lock adquirido (Memória): ${lockId} por ${userEmail} (${type})`);
+      this.logger.log(
+        `🔒 Lock adquirido (Memória): ${lockId} por ${userEmail} (${type})`,
+      );
       return { success: true, lockId };
     }
   }
@@ -191,11 +204,13 @@ export class SyncLockManager implements OnModuleInit {
         const lockKey = `${this.LOCK_KEY_PREFIX}${lockId}`;
         const lockData = await this.redis.get(lockKey);
         if (!lockData) {
-          this.logger.warn(`⚠️ Tentativa de liberar lock inexistente: ${lockId}`);
+          this.logger.warn(
+            `⚠️ Tentativa de liberar lock inexistente: ${lockId}`,
+          );
           return false;
         }
 
-        const lock: SyncLock = JSON.parse(lockData);
+        const lock = JSON.parse(lockData) as SyncLock;
         lock.status = status;
         await this.redis.set(lockKey, JSON.stringify(lock), 'EX', 300); // 5 minutos para histórico
         await this.redis.del(lockKey);
@@ -247,17 +262,19 @@ export class SyncLockManager implements OnModuleInit {
   async getStats() {
     const isRunning = await this.isSyncRunning();
     const currentSync = await this.getCurrentSync();
-    
+
     return {
       isRunning,
-      currentSync: currentSync ? {
-        id: currentSync.id,
-        userEmail: currentSync.userEmail,
-        type: currentSync.type,
-        startedAt: currentSync.startedAt,
-        status: currentSync.status,
-        duration: Date.now() - currentSync.startedAt.getTime(),
-      } : null,
+      currentSync: currentSync
+        ? {
+            id: currentSync.id,
+            userEmail: currentSync.userEmail,
+            type: currentSync.type,
+            startedAt: currentSync.startedAt,
+            status: currentSync.status,
+            duration: Date.now() - currentSync.startedAt.getTime(),
+          }
+        : null,
     };
   }
 
@@ -273,7 +290,7 @@ export class SyncLockManager implements OnModuleInit {
         for (const key of keys) {
           const lockData = await this.redis.get(key);
           if (lockData) {
-            const lock: SyncLock = JSON.parse(lockData);
+            const lock = JSON.parse(lockData) as SyncLock;
             const lockAge = now - new Date(lock.startedAt).getTime();
             if (lockAge > this.LOCK_TIMEOUT) {
               this.logger.log(`🧹 Limpando lock expirado: ${lock.id}`);

@@ -9,7 +9,6 @@ import {
   Query,
   UseGuards,
   Request,
-  ParseIntPipe,
   UploadedFile,
   UseInterceptors,
   BadRequestException,
@@ -35,10 +34,7 @@ export class VendasController {
   ) {}
 
   @Post()
-  async create(
-    @Body() createVendaDto: CreateVendaDto,
-    @Request() req: { user?: { id?: string } },
-  ) {
+  async create(@Body() createVendaDto: CreateVendaDto) {
     return this.vendasService.create(createVendaDto);
   }
 
@@ -93,9 +89,7 @@ export class VendasController {
   }
 
   @Post('recalcular-dados-produto')
-  async recalcularDadosProduto(
-    @Body() dto: RecalcularDadosProdutoDto,
-  ) {
+  async recalcularDadosProduto(@Body() dto: RecalcularDadosProdutoDto) {
     return this.vendasUpdateService.recalcularDadosProdutoEmVendas({
       ...dto,
       dataLimite: dto.dataLimite ? new Date(dto.dataLimite) : undefined,

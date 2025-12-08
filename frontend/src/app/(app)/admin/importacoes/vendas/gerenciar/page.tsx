@@ -186,12 +186,23 @@ export default function GerenciarVendasPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="empresa">Empresa</Label>
-              <Select value={empresaId} onValueChange={(value) => { setEmpresaId(value); handleFilterChange(); }}>
+              <Select 
+                value={empresaId || undefined} 
+                onValueChange={(value) => { 
+                  // Se selecionar "all", limpar o filtro
+                  if (value === 'all') {
+                    setEmpresaId('');
+                  } else {
+                    setEmpresaId(value);
+                  }
+                  handleFilterChange(); 
+                }}
+              >
                 <SelectTrigger id="empresa">
                   <SelectValue placeholder="Todas as empresas" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas as empresas</SelectItem>
+                  <SelectItem value="all">Todas as empresas</SelectItem>
                   {empresas?.map((empresa) => (
                     <SelectItem key={empresa.id} value={empresa.id}>
                       {empresa.nomeFantasia || empresa.razaoSocial}

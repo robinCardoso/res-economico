@@ -13,8 +13,7 @@ export class StatsController {
    */
   @Get()
   async getStats(@Query('force') force?: string) {
-    const forceRefresh =
-      force === '1' || force === 'true' || force === 'yes';
+    const forceRefresh = force === '1' || force === 'true' || force === 'yes';
     return this.statsService.getStats(forceRefresh);
   }
 }

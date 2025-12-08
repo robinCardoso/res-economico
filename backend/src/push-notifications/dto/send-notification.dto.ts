@@ -28,4 +28,3 @@ export class SendNotificationDto {
   @IsOptional()
   data?: Record<string, unknown>;
 }
-

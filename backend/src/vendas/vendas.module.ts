@@ -20,6 +20,11 @@ import { CoreModule } from '../core/core.module';
     VendasAnalyticsService,
     VendasUpdateService,
   ],
-  exports: [VendasService, VendasImportService, VendasAnalyticsService, VendasUpdateService],
+  exports: [
+    VendasService,
+    VendasImportService,
+    VendasAnalyticsService,
+    VendasUpdateService,
+  ],
 })
 export class VendasModule {}

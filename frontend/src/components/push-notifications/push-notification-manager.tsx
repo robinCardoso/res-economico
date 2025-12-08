@@ -42,7 +42,7 @@ export function PushNotificationManager() {
       
       try {
         // Verificar se já existe um service worker registrado
-        registration = await navigator.serviceWorker.getRegistration();
+        registration = (await navigator.serviceWorker.getRegistration()) ?? null;
         
         if (!registration) {
           // Se não existe, registrar
@@ -51,7 +51,7 @@ export function PushNotificationManager() {
         }
         
         // Aguardar o service worker estar pronto
-        await registration.ready;
+        await navigator.serviceWorker.ready;
         
         // Verificar subscription
         const subscription = await getPushSubscription(registration);
@@ -61,7 +61,7 @@ export function PushNotificationManager() {
         // Tentar registrar novamente
         try {
           registration = await registerServiceWorker();
-          await registration.ready;
+          await navigator.serviceWorker.ready;
           const subscription = await getPushSubscription(registration);
           setIsSubscribed(!!subscription);
         } catch (regError) {
