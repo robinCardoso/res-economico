@@ -64,6 +64,8 @@ export interface VendaImportacaoLog {
   sucessoCount: number;
   erroCount: number;
   produtosNaoEncontrados: number;
+  duplicatasCount: number; // Registros que já existiam (foram atualizados)
+  novosCount: number; // Registros novos (foram criados)
   usuarioEmail: string;
   usuarioId?: string;
   createdAt: string;
@@ -133,9 +135,27 @@ export interface FilterVendasDto {
   empresaId?: string;
 }
 
+export interface ColumnMappingDto {
+  nfe?: string;
+  data?: string;
+  idDoc?: string;
+  idProd?: string;
+  referencia?: string;
+  prodCodMestre?: string;
+  tipoOperacao?: string;
+  qtd?: string;
+  valorUnit?: string;
+  valorTotal?: string;
+  razaoSocial?: string;
+  nomeFantasia?: string;
+  ufDestino?: string;
+  ufOrigem?: string;
+}
+
 export interface ImportVendasDto {
   mappingName?: string;
   empresaId?: string;
+  columnMapping?: ColumnMappingDto;
 }
 
 export interface ImportVendasResponse {
@@ -212,6 +232,9 @@ export const vendasService = {
     if (importDto.empresaId) {
       formData.append('empresaId', importDto.empresaId);
     }
+    if (importDto.columnMapping) {
+      formData.append('columnMapping', JSON.stringify(importDto.columnMapping));
+    }
 
     const { data } = await api.post<ImportVendasResponse>('/vendas/import', formData, {
       headers: {
@@ -240,6 +263,11 @@ export const vendasService = {
 
   async getImportLogs(): Promise<VendaImportacaoLog[]> {
     const { data } = await api.get<VendaImportacaoLog[]>('/vendas/import-logs');
+    return Array.isArray(data) ? data : [];
+  },
+
+  async getMappingFields(): Promise<Array<{ value: string; label: string; dataType: string; required: boolean }>> {
+    const { data } = await api.get<Array<{ value: string; label: string; dataType: string; required: boolean }>>('/vendas/mapping-fields');
     return Array.isArray(data) ? data : [];
   },
 };

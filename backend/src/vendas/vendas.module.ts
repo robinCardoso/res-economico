@@ -7,6 +7,7 @@ import { VendasValidatorService } from './import/vendas-validator.service';
 import { VendasAnalyticsService } from './analytics/vendas-analytics.service';
 import { VendasAnalyticsController } from './analytics/vendas-analytics.controller';
 import { VendasUpdateService } from './vendas-update.service';
+import { VendasAnalyticsSyncService } from './analytics/vendas-analytics-sync.service';
 import { CoreModule } from '../core/core.module';
 
 @Module({
@@ -18,12 +19,14 @@ import { CoreModule } from '../core/core.module';
     ColumnMapperService,
     VendasValidatorService,
     VendasAnalyticsService,
+    VendasAnalyticsSyncService,
     VendasUpdateService,
   ],
   exports: [
     VendasService,
     VendasImportService,
     VendasAnalyticsService,
+    VendasAnalyticsSyncService,
     VendasUpdateService,
   ],
 })

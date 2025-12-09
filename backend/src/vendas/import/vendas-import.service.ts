@@ -89,11 +89,42 @@ export class VendasImportService {
         Array.isArray(headersRow) ? headersRow : []
       ).map((h) => (typeof h === 'string' ? h : String(h ?? '')));
 
-      // 3. Mapear colunas
-      const columnMapping = this.columnMapper.mapColumns(headers);
+      this.logger.log(`Cabeçalhos encontrados no arquivo: ${JSON.stringify(headers)}`);
+
+      // 3. Mapear colunas - APENAS mapeamento manual do frontend
+      if (!importDto.columnMapping || Object.keys(importDto.columnMapping).length === 0) {
+        throw new BadRequestException(
+          'Mapeamento de colunas é obrigatório. Por favor, mapeie as colunas no frontend antes de importar.',
+        );
+      }
+
+      // Converter nomes dos campos do frontend para os nomes usados internamente
+      const fieldNameMap: Record<string, string> = {
+        'data': 'data',
+        'qtd': 'qtd',
+        'valorUnit': 'valorUnit',
+        'valorTotal': 'valorTotal',
+      };
+      
+      const columnMapping: Record<string, string | undefined> = {};
+      for (const [frontendField, fileColumn] of Object.entries(importDto.columnMapping)) {
+        // Manter o nome original do campo (frontend usa 'data', backend usa 'data' no mapping mas 'dataVenda' no banco)
+        const internalField = fieldNameMap[frontendField] || frontendField;
+        columnMapping[internalField] = fileColumn;
+      }
+      
       this.logger.log(
-        `Mapeamento de colunas: ${JSON.stringify(columnMapping)}`,
+        `Usando mapeamento manual do frontend: ${JSON.stringify(columnMapping)}`,
       );
+      
+      // Validar se os campos obrigatórios estão mapeados
+      const camposObrigatorios = ['nfe', 'data', 'razaoSocial'];
+      const camposFaltando = camposObrigatorios.filter(campo => !columnMapping[campo]);
+      if (camposFaltando.length > 0) {
+        throw new BadRequestException(
+          `Campos obrigatórios não mapeados: ${camposFaltando.join(', ')}. Por favor, mapeie todos os campos obrigatórios no frontend.`,
+        );
+      }
 
       // 4. Validar e transformar dados
       const vendasRaw: VendaRawData[] = [];
@@ -176,6 +207,8 @@ export class VendasImportService {
       }
 
       // 9. Atualizar analytics em tempo real
+      // NOTA: Analytics será atualizado mesmo se grupo/subgrupo estiverem como "DESCONHECIDO"
+      // Quando produtos forem atualizados, o analytics será recalculado automaticamente
       const vendasParaAnalytics = vendasProcessadas.map((v) => ({
         dataVenda: v.dataVenda,
         nomeFantasia: v.nomeFantasia,
@@ -189,6 +222,21 @@ export class VendasImportService {
       await this.analyticsService.atualizarAnalytics(vendasParaAnalytics);
 
       // 10. Salvar log de importação
+      // Garantir que as colunas existem antes de criar o log
+      try {
+        await this.prisma.$executeRaw`
+          ALTER TABLE "VendaImportacaoLog" 
+          ADD COLUMN IF NOT EXISTS "duplicatasCount" INTEGER NOT NULL DEFAULT 0;
+        `;
+        await this.prisma.$executeRaw`
+          ALTER TABLE "VendaImportacaoLog" 
+          ADD COLUMN IF NOT EXISTS "novosCount" INTEGER NOT NULL DEFAULT 0;
+        `;
+      } catch (error) {
+        // Ignorar erros se as colunas já existirem
+        this.logger.debug('Colunas já existem ou erro ao criar:', error);
+      }
+
       const log = await this.prisma.vendaImportacaoLog.create({
         data: {
           nomeArquivo: file.originalname,
@@ -197,9 +245,11 @@ export class VendasImportService {
           sucessoCount,
           erroCount,
           produtosNaoEncontrados,
+          duplicatasCount: duplicatasCount,
+          novosCount: novosCount,
           usuarioEmail: userEmail,
           usuarioId: userId,
-        },
+        } as any, // Type assertion temporária até o Prisma Client ser atualizado
       });
 
       const tempoTotal = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -229,6 +279,21 @@ export class VendasImportService {
       this.logger.error(`Erro ao importar vendas: ${errorMessage}`, errorStack);
 
       // Salvar log de erro
+      // Garantir que as colunas existem antes de criar o log
+      try {
+        await this.prisma.$executeRaw`
+          ALTER TABLE "VendaImportacaoLog" 
+          ADD COLUMN IF NOT EXISTS "duplicatasCount" INTEGER NOT NULL DEFAULT 0;
+        `;
+        await this.prisma.$executeRaw`
+          ALTER TABLE "VendaImportacaoLog" 
+          ADD COLUMN IF NOT EXISTS "novosCount" INTEGER NOT NULL DEFAULT 0;
+        `;
+      } catch (error) {
+        // Ignorar erros se as colunas já existirem
+        this.logger.debug('Colunas já existem ou erro ao criar:', error);
+      }
+
       await this.prisma.vendaImportacaoLog.create({
         data: {
           nomeArquivo: file.originalname,
@@ -237,9 +302,11 @@ export class VendasImportService {
           sucessoCount,
           erroCount: erroCount + 1,
           produtosNaoEncontrados,
+          duplicatasCount: duplicatasCount,
+          novosCount: novosCount,
           usuarioEmail: userEmail,
           usuarioId: userId,
-        },
+        } as any, // Type assertion temporária até o Prisma Client ser atualizado
       });
 
       throw new BadRequestException(`Erro ao importar vendas: ${errorMessage}`);

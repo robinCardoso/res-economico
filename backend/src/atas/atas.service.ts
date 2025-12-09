@@ -119,7 +119,7 @@ export class AtasService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
       },
@@ -212,7 +212,7 @@ export class AtasService {
             select: {
               id: true,
               razaoSocial: true,
-              nomeFantasia: true,
+              filial: true,
             },
           },
           participantes: {
@@ -268,7 +268,7 @@ export class AtasService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
         participantes: {
@@ -407,7 +407,7 @@ export class AtasService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
         participantes: {
@@ -501,7 +501,7 @@ export class AtasService {
       conteudo: ata.conteudo,
       decisoes: ata.decisoes,
       observacoes: ata.observacoes,
-      participantes: ata.participantes.map((p) => ({
+      participantes: (ata.participantes || []).map((p) => ({
         nome: p.nomeExterno || p.usuario?.nome || 'Participante',
         cargo: p.cargo || p.usuario?.email || '',
         presente: p.presente,
@@ -509,7 +509,7 @@ export class AtasService {
       empresa: ata.empresa
         ? {
             razaoSocial: ata.empresa.razaoSocial,
-            nomeFantasia: ata.empresa.nomeFantasia,
+            nomeFantasia: ata.empresa.filial,
           }
         : null,
     };
@@ -2914,7 +2914,7 @@ Retorne APENAS o JSON, sem texto adicional ou explicações.`;
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
         modeloAta: {
@@ -3005,7 +3005,7 @@ Retorne APENAS o JSON, sem texto adicional ou explicações.`;
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
       },

@@ -1188,7 +1188,7 @@ model VendaAnalytics {
   updatedAt        DateTime @updatedAt
   createdAt        DateTime @default(now())
   
-  @@unique([ano, mes, nomeFantasia, marca, uf])
+  @@unique([ano, mes, nomeFantasia, marca, grupo, subgrupo, uf])
   @@index([ano, mes])
   @@index([marca])
   @@index([grupo])
@@ -1209,6 +1209,8 @@ model VendaImportacaoLog {
   sucessoCount      Int      @default(0)
   erroCount         Int      @default(0)
   produtosNaoEncontrados Int @default(0) // Quantidade de produtos não encontrados na tabela Produto
+  duplicatasCount   Int      @default(0) // Quantidade de registros que já existiam (foram atualizados)
+  novosCount        Int      @default(0) // Quantidade de registros novos (foram criados)
   
   // Usuário
   usuarioEmail      String

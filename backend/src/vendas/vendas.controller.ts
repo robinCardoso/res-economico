@@ -48,22 +48,14 @@ export class VendasController {
     return this.vendasService.getStats(filterDto);
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.vendasService.findOne(id);
+  @Get('import-logs')
+  async getImportLogs() {
+    return this.vendasService.getImportLogs();
   }
 
-  @Put(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() updateVendaDto: UpdateVendaDto,
-  ) {
-    return this.vendasService.update(id, updateVendaDto);
-  }
-
-  @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return this.vendasService.remove(id);
+  @Get('mapping-fields')
+  async getMappingFields() {
+    return this.vendasService.getMappingFields();
   }
 
   @Post('import')
@@ -96,8 +88,21 @@ export class VendasController {
     });
   }
 
-  @Get('import-logs')
-  async getImportLogs() {
-    return this.vendasService.getImportLogs();
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return this.vendasService.findOne(id);
+  }
+
+  @Put(':id')
+  async update(
+    @Param('id') id: string,
+    @Body() updateVendaDto: UpdateVendaDto,
+  ) {
+    return this.vendasService.update(id, updateVendaDto);
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    return this.vendasService.remove(id);
   }
 }

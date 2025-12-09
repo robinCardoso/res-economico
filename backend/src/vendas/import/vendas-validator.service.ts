@@ -200,12 +200,57 @@ export class VendasValidatorService {
 
     // String date
     const dateStr = String(value).trim();
+    
+    // Tentar formato brasileiro DD/MM/YYYY ou DD/MM/YY
+    const brazilianDateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/;
+    const match = dateStr.match(brazilianDateRegex);
+    
+    if (match) {
+      const day = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10) - 1; // JavaScript months are 0-indexed
+      let year = parseInt(match[3], 10);
+      
+      // Se o ano tem 2 dígitos, assumir 2000-2099
+      if (year < 100) {
+        year += 2000;
+      }
+      
+      const parsed = new Date(year, month, day);
+      
+      // Validar se a data é válida
+      if (
+        parsed.getFullYear() === year &&
+        parsed.getMonth() === month &&
+        parsed.getDate() === day
+      ) {
+        return parsed;
+      }
+    }
+    
+    // Tentar outros formatos com new Date
     const parsed = new Date(dateStr);
-
-    if (isNaN(parsed.getTime())) {
-      throw new Error(`Data inválida: ${dateStr}`);
+    
+    if (!isNaN(parsed.getTime())) {
+      return parsed;
+    }
+    
+    // Tentar formato ISO (YYYY-MM-DD)
+    const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      const year = parseInt(isoMatch[1], 10);
+      const month = parseInt(isoMatch[2], 10) - 1;
+      const day = parseInt(isoMatch[3], 10);
+      const isoParsed = new Date(year, month, day);
+      
+      if (
+        isoParsed.getFullYear() === year &&
+        isoParsed.getMonth() === month &&
+        isoParsed.getDate() === day
+      ) {
+        return isoParsed;
+      }
     }
 
-    return parsed;
+    throw new Error(`Data inválida: ${dateStr}`);
   }
 }

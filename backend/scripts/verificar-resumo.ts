@@ -16,7 +16,7 @@ async function verificarResumo() {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
         criador: {
@@ -41,7 +41,7 @@ async function verificarResumo() {
     console.log(`   Mês: ${resumo.mes || 'null'}`);
     console.log(`   Status: ${resumo.status}`);
     console.log(`   Tipo: ${resumo.tipoAnalise}`);
-    console.log(`   Empresa: ${resumo.empresa?.nomeFantasia || resumo.empresa?.razaoSocial || 'null'}`);
+    console.log(`   Empresa: ${resumo.empresa?.filial || resumo.empresa?.razaoSocial || 'null'}`);
     console.log(`   Criado por: ${resumo.criador?.nome || resumo.criador?.email || 'null'}`);
     console.log(`   Criado em: ${resumo.createdAt}`);
 

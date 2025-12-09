@@ -88,7 +88,7 @@ export class EmpresaContextoService {
     return {
       // Informações básicas
       razaoSocial: empresa.razaoSocial,
-      nomeFantasia: empresa.nomeFantasia || undefined,
+      nomeFantasia: empresa.filial || undefined,
       cnpj: empresa.cnpj,
       uf: empresa.uf || undefined,
       tipo: empresa.tipo,

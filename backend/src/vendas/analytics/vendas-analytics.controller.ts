@@ -9,11 +9,15 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { VendasAnalyticsService } from './vendas-analytics.service';
+import { VendasAnalyticsSyncService } from './vendas-analytics-sync.service';
 
 @Controller('vendas/analytics')
 @UseGuards(JwtAuthGuard)
 export class VendasAnalyticsController {
-  constructor(private readonly analyticsService: VendasAnalyticsService) {}
+  constructor(
+    private readonly analyticsService: VendasAnalyticsService,
+    private readonly syncService: VendasAnalyticsSyncService,
+  ) {}
 
   @Get()
   async buscarAnalytics(
@@ -49,5 +53,20 @@ export class VendasAnalyticsController {
       body.dataFim ? new Date(body.dataFim) : undefined,
     );
     return { message: 'Analytics recalculado com sucesso' };
+  }
+
+  @Get('validar-sincronizacao')
+  async validarSincronizacao(
+    @Query('ano', new ParseIntPipe({ optional: true })) ano?: number,
+    @Query('mes', new ParseIntPipe({ optional: true })) mes?: number,
+  ) {
+    return this.syncService.validarSincronizacao({ ano, mes });
+  }
+
+  @Post('corrigir-sincronizacao')
+  async corrigirSincronizacao(
+    @Body() body: { ano?: number; mes?: number },
+  ) {
+    return this.syncService.corrigirSincronizacao(body);
   }
 }

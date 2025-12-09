@@ -10,9 +10,10 @@ import { SyncController } from './sync.controller';
 import { SyncStatusController } from './sync-status.controller';
 import { CoreModule } from '../../core/core.module';
 import { BravoErpClientModule } from '../client/client.module';
+import { VendasModule } from '../../vendas/vendas.module';
 
 @Module({
-  imports: [CoreModule, BravoErpClientModule],
+  imports: [CoreModule, BravoErpClientModule, VendasModule],
   controllers: [SyncController, SyncStatusController],
   providers: [
     SyncService,

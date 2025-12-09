@@ -35,7 +35,15 @@ export class ColumnMapperService {
       if (
         normalized.includes('NFE') ||
         normalized.includes('NOTA FISCAL') ||
-        normalized.includes('NFe')
+        normalized.includes('NFe') ||
+        normalized.includes('NOTA') ||
+        normalized.includes('NF') ||
+        normalized.includes('NUMERO NOTA') ||
+        normalized.includes('NÚMERO NOTA') ||
+        normalized.includes('NUM NOTA') ||
+        normalized.includes('NÚM NOTA') ||
+        normalized === 'NF' ||
+        normalized === 'NOTA'
       ) {
         mapping.nfe = headers[index];
       }
@@ -118,17 +126,38 @@ export class ColumnMapperService {
         normalized.includes('VALOR_UNIT') ||
         normalized.includes('VALOR UNIT') ||
         normalized.includes('VALOR_UNITARIO') ||
+        normalized.includes('VALOR UNITÁRIO') ||
         normalized.includes('PRECO_UNITARIO') ||
-        normalized.includes('PREÇO UNITÁRIO')
+        normalized.includes('PREÇO UNITÁRIO') ||
+        normalized.includes('PRECO UNIT') ||
+        normalized.includes('PREÇO UNIT') ||
+        normalized.includes('PRECO_UNIT') ||
+        normalized.includes('PREÇO_UNIT') ||
+        normalized.includes('UNITARIO') ||
+        normalized.includes('UNITÁRIO') ||
+        normalized.includes('VALOR UNIT') ||
+        normalized.includes('VLR UNIT') ||
+        normalized.includes('VL UNIT') ||
+        normalized.includes('PRECO') ||
+        normalized.includes('PREÇO')
       ) {
-        mapping.valorUnit = headers[index];
+        // Evitar conflito com VALOR_TOTAL - só mapear se não for TOTAL
+        if (!normalized.includes('TOTAL') && !normalized.includes('LIQ')) {
+          mapping.valorUnit = headers[index];
+        }
       }
 
       // VALOR_TOTAL
       if (
         normalized.includes('VALOR_TOTAL') ||
         normalized.includes('VALOR TOTAL') ||
-        normalized.includes('TOTAL')
+        normalized.includes('TOTAL') ||
+        normalized.includes('TOTAL LIQ') ||
+        normalized.includes('TOTAL_LIQ') ||
+        normalized.includes('TOTAL LIQUIDO') ||
+        normalized.includes('TOTAL_LIQUIDO') ||
+        normalized.includes('TOTAL LÍQUIDO') ||
+        normalized.includes('TOTAL_LÍQUIDO')
       ) {
         mapping.valorTotal = headers[index];
       }

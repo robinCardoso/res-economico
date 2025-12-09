@@ -32,14 +32,14 @@ async function main() {
       data: {
         cnpj: cnpj.replace(/\D/g, ''), // Remove formatação
         razaoSocial,
-        nomeFantasia: nomeFantasia || null,
+        filial: nomeFantasia || null,
       },
     });
 
     console.log('\n✅ Empresa criada com sucesso!\n');
     console.log(`   ID: ${empresa.id}`);
     console.log(`   Razão Social: ${empresa.razaoSocial}`);
-    console.log(`   Nome Fantasia: ${empresa.nomeFantasia || 'Não informado'}`);
+    console.log(`   Nome Fantasia: ${empresa.filial || 'Não informado'}`);
     console.log(`   CNPJ: ${empresa.cnpj}\n`);
   } catch (error: any) {
     console.error('\n❌ Erro ao criar empresa:', error.message);

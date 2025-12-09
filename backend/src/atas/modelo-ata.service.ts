@@ -46,7 +46,7 @@ export class ModeloAtaService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
       },
@@ -94,7 +94,7 @@ export class ModeloAtaService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
       },
@@ -124,7 +124,7 @@ export class ModeloAtaService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
       },
@@ -201,7 +201,7 @@ export class ModeloAtaService {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
       },

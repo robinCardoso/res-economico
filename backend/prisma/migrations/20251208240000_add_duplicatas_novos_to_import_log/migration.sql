@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "VendaImportacaoLog" ADD COLUMN IF NOT EXISTS "duplicatasCount" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "VendaImportacaoLog" ADD COLUMN IF NOT EXISTS "novosCount" INTEGER NOT NULL DEFAULT 0;

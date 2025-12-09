@@ -26,7 +26,7 @@ async function verificarUploadsComErro() {
       empresa: {
         select: {
           razaoSocial: true,
-          nomeFantasia: true,
+          filial: true,
         },
       },
       _count: {
@@ -54,8 +54,8 @@ async function verificarUploadsComErro() {
       console.log(`   Arquivo: ${upload.nomeArquivo}`);
       console.log(`   Travado há: ${tempoTravado} minutos`);
       console.log(`   Última atualização: ${upload.updatedAt.toLocaleString('pt-BR')}`);
-      console.log(`   Linhas processadas: ${upload._count.linhas}`);
-      console.log(`   Alertas: ${upload._count.alertas}`);
+      console.log(`   Linhas processadas: ${upload._count?.linhas || 0}`);
+      console.log(`   Alertas: ${upload._count?.alertas || 0}`);
       console.log(
         `   💡 Ação: Reprocessar via interface ou endpoint PATCH /uploads/${upload.id}/reprocessar`,
       );
@@ -71,7 +71,7 @@ async function verificarUploadsComErro() {
       empresa: {
         select: {
           razaoSocial: true,
-          nomeFantasia: true,
+          filial: true,
         },
       },
       _count: {
@@ -95,8 +95,8 @@ async function verificarUploadsComErro() {
       console.log(`   Período: ${upload.mes}/${upload.ano}`);
       console.log(`   Arquivo: ${upload.nomeArquivo}`);
       console.log(`   Cancelado em: ${upload.updatedAt.toLocaleString('pt-BR')}`);
-      console.log(`   Linhas processadas: ${upload._count.linhas}`);
-      console.log(`   Alertas: ${upload._count.alertas}`);
+      console.log(`   Linhas processadas: ${upload._count?.linhas || 0}`);
+      console.log(`   Alertas: ${upload._count?.alertas || 0}`);
       console.log(
         `   💡 Ação: Reprocessar via interface ou endpoint PATCH /uploads/${upload.id}/reprocessar`,
       );

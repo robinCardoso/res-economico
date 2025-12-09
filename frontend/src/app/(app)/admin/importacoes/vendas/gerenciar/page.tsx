@@ -145,7 +145,11 @@ export default function GerenciarVendasPage() {
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalVendas.toLocaleString('pt-BR')}</div>
+              <div className="text-2xl font-bold">
+                {typeof stats.totalVendas === 'number' 
+                  ? stats.totalVendas.toLocaleString('pt-BR') 
+                  : '0'}
+              </div>
             </CardContent>
           </Card>
           <Card>
@@ -155,7 +159,9 @@ export default function GerenciarVendasPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                R$ {Number(stats.totalValor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                R$ {stats.totalValor !== undefined && stats.totalValor !== null
+                  ? Number(stats.totalValor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  : '0,00'}
               </div>
             </CardContent>
           </Card>
@@ -165,7 +171,11 @@ export default function GerenciarVendasPage() {
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalQuantidade.toLocaleString('pt-BR')}</div>
+              <div className="text-2xl font-bold">
+                {typeof stats.totalQuantidade === 'number' 
+                  ? stats.totalQuantidade.toLocaleString('pt-BR') 
+                  : '0'}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -203,11 +213,16 @@ export default function GerenciarVendasPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as empresas</SelectItem>
-                  {empresas?.map((empresa) => (
-                    <SelectItem key={empresa.id} value={empresa.id}>
-                      {empresa.nomeFantasia || empresa.razaoSocial}
-                    </SelectItem>
-                  ))}
+                  {empresas?.map((empresa) => {
+                    const displayText = empresa.razaoSocial && empresa.filial
+                      ? `${empresa.razaoSocial} - ${empresa.filial}`
+                      : empresa.razaoSocial || empresa.filial || 'Empresa sem nome';
+                    return (
+                      <SelectItem key={empresa.id} value={empresa.id}>
+                        {displayText}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -325,66 +340,80 @@ export default function GerenciarVendasPage() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="w-full" style={{ tableLayout: 'auto' }}>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>NFE</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Produto</TableHead>
-                      <TableHead>Marca</TableHead>
-                      <TableHead>Grupo</TableHead>
-                      <TableHead>Quantidade</TableHead>
-                      <TableHead>Valor Unit.</TableHead>
-                      <TableHead>Valor Total</TableHead>
-                      <TableHead>UF</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
+                      <TableHead className="whitespace-nowrap px-4 py-2">Data</TableHead>
+                      <TableHead className="whitespace-nowrap px-4 py-2">NFE</TableHead>
+                      <TableHead className="whitespace-nowrap px-4 py-2">Cliente</TableHead>
+                      <TableHead className="whitespace-nowrap px-4 py-2">Produto</TableHead>
+                      <TableHead className="whitespace-nowrap px-4 py-2">Marca</TableHead>
+                      <TableHead className="whitespace-nowrap px-4 py-2">Grupo</TableHead>
+                      <TableHead className="whitespace-nowrap px-4 py-2">Quantidade</TableHead>
+                      <TableHead className="whitespace-nowrap px-4 py-2">Valor Unit.</TableHead>
+                      <TableHead className="whitespace-nowrap px-4 py-2">Valor Total</TableHead>
+                      <TableHead className="whitespace-nowrap px-4 py-2">UF</TableHead>
+                      <TableHead className="text-right whitespace-nowrap px-4 py-2">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {vendas.map((venda) => (
                       <TableRow key={venda.id}>
-                        <TableCell>
+                        <TableCell className="whitespace-normal break-words px-4 py-2 align-top min-w-[100px]">
                           <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            {new Date(venda.dataVenda).toLocaleDateString('pt-BR')}
+                            <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <span>{new Date(venda.dataVenda).toLocaleDateString('pt-BR')}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{venda.nfe}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <div className="font-medium">{venda.razaoSocial}</div>
+                        <TableCell className="font-mono text-sm whitespace-normal break-words px-4 py-2 align-top min-w-[100px]">
+                          {venda.nfe}
+                        </TableCell>
+                        <TableCell className="whitespace-normal break-words px-4 py-2 align-top min-w-[150px]">
+                          <div className="flex items-start gap-2">
+                            <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium break-words">{venda.razaoSocial}</div>
                               {venda.nomeFantasia && (
-                                <div className="text-sm text-muted-foreground">{venda.nomeFantasia}</div>
+                                <div className="text-sm text-muted-foreground break-words">{venda.nomeFantasia}</div>
                               )}
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{venda.referencia || venda.idProd || '-'}</div>
+                        <TableCell className="whitespace-normal break-words px-4 py-2 align-top min-w-[150px]">
+                          <div className="max-w-none">
+                            <div className="font-medium break-words">{venda.referencia || venda.idProd || '-'}</div>
                             {venda.descricaoProduto && (
-                              <div className="text-sm text-muted-foreground truncate max-w-[200px]">
+                              <div className="text-sm text-muted-foreground break-words">
                                 {venda.descricaoProduto}
                               </div>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-normal break-words px-4 py-2 align-top min-w-[100px]">
                           <Badge variant="outline">{venda.marca || 'N/A'}</Badge>
                         </TableCell>
-                        <TableCell>{venda.grupo || 'N/A'}</TableCell>
-                        <TableCell>{venda.quantidade.toLocaleString('pt-BR')}</TableCell>
-                        <TableCell>
-                          R$ {Number(venda.valorUnitario).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <TableCell className="whitespace-normal break-words px-4 py-2 align-top min-w-[100px]">
+                          {venda.grupo || 'N/A'}
                         </TableCell>
-                        <TableCell className="font-medium">
-                          R$ {Number(venda.valorTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <TableCell className="whitespace-normal break-words px-4 py-2 align-top min-w-[100px]">
+                          {venda.quantidade !== undefined && venda.quantidade !== null
+                            ? Number(venda.quantidade).toLocaleString('pt-BR')
+                            : '0'}
                         </TableCell>
-                        <TableCell>{venda.ufDestino || '-'}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="whitespace-normal break-words px-4 py-2 align-top min-w-[100px]">
+                          R$ {venda.valorUnitario !== undefined && venda.valorUnitario !== null
+                            ? Number(venda.valorUnitario).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : '0,00'}
+                        </TableCell>
+                        <TableCell className="font-medium whitespace-normal break-words px-4 py-2 align-top min-w-[100px]">
+                          R$ {venda.valorTotal !== undefined && venda.valorTotal !== null
+                            ? Number(venda.valorTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : '0,00'}
+                        </TableCell>
+                        <TableCell className="whitespace-normal break-words px-4 py-2 align-top min-w-[80px]">
+                          {venda.ufDestino || '-'}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap px-4 py-2">
                           <Button
                             variant="ghost"
                             size="sm"

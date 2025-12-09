@@ -4,6 +4,7 @@ import { ProductTransformService } from './product-transform.service';
 import { SyncLogService } from './sync-log.service';
 import { BravoProduto } from '../client/bravo-erp-client.interface';
 import { Prisma } from '@prisma/client';
+import { VendasUpdateService } from '../../vendas/vendas-update.service';
 
 /**
  * Serviço para processar lotes de produtos
@@ -17,6 +18,7 @@ export class SyncProcessorService {
     private readonly prisma: PrismaService,
     private readonly transformService: ProductTransformService,
     private readonly logService: SyncLogService,
+    private readonly vendasUpdateService: VendasUpdateService,
   ) {}
 
   /**
@@ -510,10 +512,71 @@ export class SyncProcessorService {
       };
 
       try {
+        // Buscar dados antigos do produto para comparar
+        const produtoAntes = await this.prisma.produto.findUnique({
+          where: { id: id as string },
+          select: {
+            subgrupo: true,
+            grupo: true,
+            marca: true,
+          },
+        });
+
         await this.prisma.produto.update({
           where: { id: id as string },
           data: dadosAtualizacao as Prisma.ProdutoUpdateInput,
         });
+
+        // Verificar se subgrupo, grupo ou marca foram atualizados
+        const dadosAtualizados: {
+          subgrupo?: string | null;
+          grupo?: string | null;
+          marca?: string | null;
+        } = {};
+
+        if (
+          produtoAntes &&
+          (dadosAtualizacao.subgrupo !== undefined ||
+            dadosAtualizacao.grupo !== undefined ||
+            dadosAtualizacao.marca !== undefined)
+        ) {
+          if (
+            dadosAtualizacao.subgrupo !== undefined &&
+            dadosAtualizacao.subgrupo !== produtoAntes.subgrupo
+          ) {
+            dadosAtualizados.subgrupo = dadosAtualizacao.subgrupo as
+              | string
+              | null;
+          }
+          if (
+            dadosAtualizacao.grupo !== undefined &&
+            dadosAtualizacao.grupo !== produtoAntes.grupo
+          ) {
+            dadosAtualizados.grupo = dadosAtualizacao.grupo as string | null;
+          }
+          if (
+            dadosAtualizacao.marca !== undefined &&
+            dadosAtualizacao.marca !== produtoAntes.marca
+          ) {
+            dadosAtualizados.marca = dadosAtualizacao.marca as string | null;
+          }
+
+          // Se algum campo relevante foi atualizado, recalcular vendas e analytics
+          if (
+            Object.keys(dadosAtualizados).length > 0
+          ) {
+            // Chamar de forma assíncrona para não bloquear o sync
+            this.vendasUpdateService
+              .onProdutoUpdated(id as string, dadosAtualizados)
+              .catch((error) => {
+                this.logger.error(
+                  `Erro ao atualizar vendas após atualização de produto ${id}:`,
+                  error,
+                );
+              });
+          }
+        }
+
         atualizados++;
       } catch (error: unknown) {
         const produtoRef = produto as { referencia?: unknown };

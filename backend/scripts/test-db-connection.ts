@@ -101,7 +101,7 @@ async function main() {
           select: {
             id: true,
             razaoSocial: true,
-            nomeFantasia: true,
+            filial: true,
           },
         },
         linhas: {
@@ -120,9 +120,9 @@ async function main() {
     console.log(`   ✅ Uploads processados encontrados: ${uploads.length}`);
     
     if (uploads.length > 0) {
-      const totalLinhas = uploads.reduce((sum, u) => sum + u.linhas.length, 0);
+      const totalLinhas = uploads.reduce((sum, u) => sum + (u.linhas?.length || 0), 0);
       const totalValor = uploads.reduce((sum, u) => {
-        const valorUpload = u.linhas.reduce((s, l) => s + Number(l.saldoAtual || 0), 0);
+        const valorUpload = (u.linhas || []).reduce((s, l) => s + Number(l.saldoAtual || 0), 0);
         return sum + valorUpload;
       }, 0);
       
@@ -132,10 +132,10 @@ async function main() {
       console.log('\n📋 Exemplo de upload:');
       const exemplo = uploads[0];
       console.log(`   - ID: ${exemplo.id}`);
-      console.log(`   - Empresa: ${exemplo.empresa.razaoSocial}`);
+      console.log(`   - Empresa: ${exemplo.empresa?.razaoSocial || 'N/A'}`);
       console.log(`   - Período: ${exemplo.mes}/${exemplo.ano}`);
       console.log(`   - Status: ${exemplo.status}`);
-      console.log(`   - Linhas 745: ${exemplo.linhas.length}`);
+      console.log(`   - Linhas 745: ${exemplo.linhas?.length || 0}`);
     } else {
       console.log('   ⚠️ Nenhum upload processado encontrado!');
       console.log('   💡 Isso pode explicar por que o dashboard não mostra dados.');

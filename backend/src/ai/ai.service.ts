@@ -236,7 +236,7 @@ export class AiService {
                 select: {
                   id: true,
                   razaoSocial: true,
-                  nomeFantasia: true,
+                  filial: true,
                   cnpj: true,
                 },
               },
@@ -375,7 +375,7 @@ export class AiService {
                 select: {
                   id: true,
                   razaoSocial: true,
-                  nomeFantasia: true,
+                  filial: true,
                 },
               },
             },

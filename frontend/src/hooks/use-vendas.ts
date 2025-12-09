@@ -92,6 +92,14 @@ export function useVendasImportLogs() {
   });
 }
 
+export function useVendasMappingFields() {
+  return useQuery<Array<{ value: string; label: string; dataType: string; required: boolean }>>({
+    queryKey: ['vendas', 'mapping-fields'],
+    queryFn: () => vendasService.getMappingFields(),
+    staleTime: 1000 * 60 * 60, // Cache por 1 hora (campos raramente mudam)
+  });
+}
+
 export function useVendasAnalytics(filters?: {
   ano?: number;
   mes?: number;

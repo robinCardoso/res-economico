@@ -22,6 +22,7 @@ export class VendasAnalyticsService {
   /**
    * Atualiza analytics para uma lista de vendas
    * Agrupa por ano, mês, nomeFantasia, marca, grupo, subgrupo e uf
+   * NOTA: grupo e subgrupo foram adicionados à chave de agrupamento para evitar cálculos incorretos
    */
   async atualizarAnalytics(vendas: VendaParaAnalytics[]): Promise<void> {
     if (vendas.length === 0) {
@@ -57,7 +58,8 @@ export class VendasAnalyticsService {
       const uf = venda.ufDestino || 'DESCONHECIDO';
 
       // Criar chave única para agrupamento
-      const key = `${ano}_${mes}_${nomeFantasia}_${marca}_${uf}`;
+      // Incluindo grupo e subgrupo para evitar agrupamento incorreto
+      const key = `${ano}_${mes}_${nomeFantasia}_${marca}_${grupo}_${subgrupo}_${uf}`;
 
       if (!analyticsMap.has(key)) {
         analyticsMap.set(key, {
@@ -105,13 +107,29 @@ export class VendasAnalyticsService {
     totalQuantidade: number;
   }): Promise<void> {
     try {
-      // Buscar registro existente
+      // Usar upsert com base no constraint único
+      // Isso garante que não haverá duplicatas mesmo se o constraint ainda não estiver atualizado
+      const whereUnique = {
+        ano_mes_nomeFantasia_marca_grupo_subgrupo_uf: {
+          ano: analytics.ano,
+          mes: analytics.mes,
+          nomeFantasia: analytics.nomeFantasia,
+          marca: analytics.marca,
+          grupo: analytics.grupo,
+          subgrupo: analytics.subgrupo,
+          uf: analytics.uf,
+        },
+      };
+
+      // Buscar registro existente primeiro
       const existente = await this.prisma.vendaAnalytics.findFirst({
         where: {
           ano: analytics.ano,
           mes: analytics.mes,
           nomeFantasia: analytics.nomeFantasia,
           marca: analytics.marca,
+          grupo: analytics.grupo,
+          subgrupo: analytics.subgrupo,
           uf: analytics.uf,
         },
       });
@@ -121,8 +139,6 @@ export class VendasAnalyticsService {
         await this.prisma.vendaAnalytics.update({
           where: { id: existente.id },
           data: {
-            grupo: analytics.grupo,
-            subgrupo: analytics.subgrupo,
             totalValor: new Decimal(
               (
                 parseFloat(existente.totalValor.toString()) +
@@ -139,19 +155,68 @@ export class VendasAnalyticsService {
         });
       } else {
         // Criar novo registro
-        await this.prisma.vendaAnalytics.create({
-          data: {
-            ano: analytics.ano,
-            mes: analytics.mes,
-            nomeFantasia: analytics.nomeFantasia,
-            marca: analytics.marca,
-            grupo: analytics.grupo,
-            subgrupo: analytics.subgrupo,
-            uf: analytics.uf,
-            totalValor: new Decimal(analytics.totalValor.toString()),
-            totalQuantidade: new Decimal(analytics.totalQuantidade.toString()),
-          },
-        });
+        try {
+          await this.prisma.vendaAnalytics.create({
+            data: {
+              ano: analytics.ano,
+              mes: analytics.mes,
+              nomeFantasia: analytics.nomeFantasia,
+              marca: analytics.marca,
+              grupo: analytics.grupo,
+              subgrupo: analytics.subgrupo,
+              uf: analytics.uf,
+              totalValor: new Decimal(analytics.totalValor.toString()),
+              totalQuantidade: new Decimal(
+                analytics.totalQuantidade.toString(),
+              ),
+            },
+          });
+        } catch (createError: any) {
+          // Se falhar por constraint único, tentar atualizar novamente (race condition)
+          if (
+            createError?.code === 'P2002' ||
+            createError?.message?.includes('Unique constraint')
+          ) {
+            const existenteNovamente = await this.prisma.vendaAnalytics.findFirst(
+              {
+                where: {
+                  ano: analytics.ano,
+                  mes: analytics.mes,
+                  nomeFantasia: analytics.nomeFantasia,
+                  marca: analytics.marca,
+                  grupo: analytics.grupo,
+                  subgrupo: analytics.subgrupo,
+                  uf: analytics.uf,
+                },
+              },
+            );
+
+            if (existenteNovamente) {
+              await this.prisma.vendaAnalytics.update({
+                where: { id: existenteNovamente.id },
+                data: {
+                  totalValor: new Decimal(
+                    (
+                      parseFloat(existenteNovamente.totalValor.toString()) +
+                      analytics.totalValor
+                    ).toString(),
+                  ),
+                  totalQuantidade: new Decimal(
+                    (
+                      parseFloat(
+                        existenteNovamente.totalQuantidade.toString(),
+                      ) + analytics.totalQuantidade
+                    ).toString(),
+                  ),
+                },
+              });
+            } else {
+              throw createError;
+            }
+          } else {
+            throw createError;
+          }
+        }
       }
     } catch (error) {
       const errorMessage =

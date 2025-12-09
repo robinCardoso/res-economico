@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../core/prisma/prisma.service';
+import { VendasAnalyticsService } from './analytics/vendas-analytics.service';
 
 export interface RecalcularDadosProdutoOptions {
   produtoId?: string;
@@ -15,7 +16,10 @@ export interface RecalcularDadosProdutoOptions {
 export class VendasUpdateService {
   private readonly logger = new Logger(VendasUpdateService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private analyticsService: VendasAnalyticsService,
+  ) {}
 
   /**
    * Recalcula dados denormalizados de produto em vendas relacionadas
@@ -122,6 +126,51 @@ export class VendasUpdateService {
       `Recálculo concluído: ${result.count} de ${total} vendas atualizadas`,
     );
 
+    // Recalcular analytics para as vendas atualizadas
+    // IMPORTANTE: Isso garante que o analytics seja atualizado com grupo/subgrupo corretos
+    if (result.count > 0) {
+      try {
+        // Buscar todos os períodos únicos das vendas atualizadas
+        const vendasAtualizadas = await this.prisma.venda.findMany({
+          where,
+          select: {
+            dataVenda: true,
+          },
+          distinct: ['dataVenda'],
+        });
+
+        if (vendasAtualizadas.length > 0) {
+          // Agrupar por ano/mês e recalcular analytics para cada período
+          const periodos = new Set<string>();
+          vendasAtualizadas.forEach((v) => {
+            const data = new Date(v.dataVenda);
+            const ano = data.getFullYear();
+            const mes = data.getMonth() + 1;
+            periodos.add(`${ano}-${mes}`);
+          });
+
+          // Recalcular analytics para cada período único
+          for (const periodo of periodos) {
+            const [ano, mes] = periodo.split('-').map(Number);
+            await this.analyticsService.recalculcarAnalytics(
+              new Date(ano, mes - 1, 1),
+              new Date(ano, mes, 0, 23, 59, 59, 999),
+            );
+          }
+
+          this.logger.log(
+            `Analytics recalculado para ${periodos.size} período(s) após atualização de ${result.count} venda(s)`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Erro ao recalcular analytics após atualização de produto:`,
+          error,
+        );
+        // Não falhar se o analytics falhar
+      }
+    }
+
     return {
       atualizadas: result.count,
       total,
@@ -131,15 +180,48 @@ export class VendasUpdateService {
   /**
    * Recalcula dados de produto em todas as vendas relacionadas a um produto
    * quando o produto é atualizado (chamado opcionalmente)
+   * 
+   * ATUALIZADO: Agora atualiza automaticamente vendas e analytics quando subgrupo é atualizado
    */
-  onProdutoUpdated(produtoId: string): void {
-    // Por padrão, NÃO atualizar automaticamente
-    // Este método existe apenas para ser chamado explicitamente se necessário
-    this.logger.warn(
-      `Produto ${produtoId} foi atualizado. Vendas relacionadas NÃO serão atualizadas automaticamente (preservação histórica).`,
-    );
-    this.logger.warn(
-      `Se necessário, use recalcularDadosProdutoEmVendas() manualmente.`,
-    );
+  async onProdutoUpdated(
+    produtoId: string,
+    dadosAtualizados: {
+      subgrupo?: string | null;
+      grupo?: string | null;
+      marca?: string | null;
+    },
+  ): Promise<void> {
+    // Se subgrupo, grupo ou marca foram atualizados, recalcular vendas e analytics
+    if (
+      dadosAtualizados.subgrupo !== undefined ||
+      dadosAtualizados.grupo !== undefined ||
+      dadosAtualizados.marca !== undefined
+    ) {
+      this.logger.log(
+        `Produto ${produtoId} teve dados atualizados. Recalculando vendas e analytics...`,
+      );
+
+      try {
+        await this.recalcularDadosProdutoEmVendas({
+          produtoId,
+          atualizarMarca: dadosAtualizados.marca !== undefined,
+          atualizarGrupo: dadosAtualizados.grupo !== undefined,
+          atualizarSubgrupo: dadosAtualizados.subgrupo !== undefined,
+        });
+
+        this.logger.log(
+          `Vendas e analytics atualizados automaticamente para produto ${produtoId}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Erro ao atualizar vendas e analytics para produto ${produtoId}:`,
+          error,
+        );
+      }
+    } else {
+      this.logger.debug(
+        `Produto ${produtoId} foi atualizado, mas não há mudanças que afetem vendas.`,
+      );
+    }
   }
 }
