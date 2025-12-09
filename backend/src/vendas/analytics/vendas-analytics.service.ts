@@ -93,7 +93,7 @@ export class VendasAnalyticsService {
   }
 
   /**
-   * Faz UPSERT de uma entrada de analytics
+   * Faz UPSERT de uma entrada de analytics usando SQL ON CONFLICT para evitar race conditions
    */
   private async upsertAnalytics(analytics: {
     ano: number;
@@ -107,126 +107,113 @@ export class VendasAnalyticsService {
     totalQuantidade: number;
   }): Promise<void> {
     try {
-      // Usar upsert com base no constraint único
-      // Isso garante que não haverá duplicatas mesmo se o constraint ainda não estiver atualizado
-      const whereUnique = {
-        ano_mes_nomeFantasia_marca_grupo_subgrupo_uf: {
-          ano: analytics.ano,
-          mes: analytics.mes,
-          nomeFantasia: analytics.nomeFantasia,
-          marca: analytics.marca,
-          grupo: analytics.grupo,
-          subgrupo: analytics.subgrupo,
-          uf: analytics.uf,
-        },
-      };
-
-      // Buscar registro existente primeiro
-      const existente = await this.prisma.vendaAnalytics.findFirst({
-        where: {
-          ano: analytics.ano,
-          mes: analytics.mes,
-          nomeFantasia: analytics.nomeFantasia,
-          marca: analytics.marca,
-          grupo: analytics.grupo,
-          subgrupo: analytics.subgrupo,
-          uf: analytics.uf,
-        },
-      });
-
-      if (existente) {
-        // Atualizar registro existente (somar valores)
-        await this.prisma.vendaAnalytics.update({
-          where: { id: existente.id },
-          data: {
-            totalValor: new Decimal(
-              (
-                parseFloat(existente.totalValor.toString()) +
-                analytics.totalValor
-              ).toString(),
-            ),
-            totalQuantidade: new Decimal(
-              (
-                parseFloat(existente.totalQuantidade.toString()) +
-                analytics.totalQuantidade
-              ).toString(),
-            ),
-          },
-        });
-      } else {
-        // Criar novo registro
-        try {
-          await this.prisma.vendaAnalytics.create({
-            data: {
+      // Usar SQL raw com ON CONFLICT para fazer upsert atômico
+      // Isso evita race conditions quando múltiplas requisições processam em paralelo
+      // O id é gerado usando gen_random_uuid() (PostgreSQL 13+)
+      // IMPORTANTE: Se houver constraint antigo (sem grupo/subgrupo), ele será tratado no catch
+      try {
+        await this.prisma.$executeRaw`
+          INSERT INTO "VendaAnalytics" (
+            "id", "ano", "mes", "nomeFantasia", "marca", "grupo", "subgrupo", "uf", 
+            "totalValor", "totalQuantidade", "createdAt", "updatedAt"
+          )
+          VALUES (
+            gen_random_uuid(),
+            ${analytics.ano}::integer,
+            ${analytics.mes}::integer,
+            ${analytics.nomeFantasia}::text,
+            ${analytics.marca}::text,
+            ${analytics.grupo}::text,
+            ${analytics.subgrupo}::text,
+            ${analytics.uf}::text,
+            ${analytics.totalValor}::decimal,
+            ${analytics.totalQuantidade}::decimal,
+            NOW(),
+            NOW()
+          )
+          ON CONFLICT ("ano", "mes", "nomeFantasia", "marca", "grupo", "subgrupo", "uf")
+          DO UPDATE SET
+            "totalValor" = "VendaAnalytics"."totalValor" + ${analytics.totalValor}::decimal,
+            "totalQuantidade" = "VendaAnalytics"."totalQuantidade" + ${analytics.totalQuantidade}::decimal,
+            "updatedAt" = NOW()
+        `;
+      } catch (conflictError: any) {
+        // Se falhar por constraint antigo (sem grupo/subgrupo), buscar e consolidar registros
+        if (
+          conflictError?.code === '23505' &&
+          conflictError?.message?.includes('already exists') &&
+          conflictError?.message?.includes('ano, mes, "nomeFantasia", marca, uf')
+        ) {
+          // Constraint antigo detectado - buscar TODOS os registros existentes (pode haver múltiplos)
+          const registrosExistentes = await this.prisma.vendaAnalytics.findMany({
+            where: {
               ano: analytics.ano,
               mes: analytics.mes,
               nomeFantasia: analytics.nomeFantasia,
               marca: analytics.marca,
-              grupo: analytics.grupo,
-              subgrupo: analytics.subgrupo,
               uf: analytics.uf,
-              totalValor: new Decimal(analytics.totalValor.toString()),
-              totalQuantidade: new Decimal(
-                analytics.totalQuantidade.toString(),
-              ),
+              // Não filtrar por grupo/subgrupo (constraint antigo)
             },
           });
-        } catch (createError: any) {
-          // Se falhar por constraint único, tentar atualizar novamente (race condition)
-          if (
-            createError?.code === 'P2002' ||
-            createError?.message?.includes('Unique constraint')
-          ) {
-            const existenteNovamente = await this.prisma.vendaAnalytics.findFirst(
-              {
-                where: {
-                  ano: analytics.ano,
-                  mes: analytics.mes,
-                  nomeFantasia: analytics.nomeFantasia,
-                  marca: analytics.marca,
-                  grupo: analytics.grupo,
-                  subgrupo: analytics.subgrupo,
-                  uf: analytics.uf,
-                },
-              },
-            );
 
-            if (existenteNovamente) {
-              await this.prisma.vendaAnalytics.update({
-                where: { id: existenteNovamente.id },
-                data: {
-                  totalValor: new Decimal(
-                    (
-                      parseFloat(existenteNovamente.totalValor.toString()) +
-                      analytics.totalValor
-                    ).toString(),
-                  ),
-                  totalQuantidade: new Decimal(
-                    (
-                      parseFloat(
-                        existenteNovamente.totalQuantidade.toString(),
-                      ) + analytics.totalQuantidade
-                    ).toString(),
-                  ),
+          if (registrosExistentes.length > 0) {
+            // Consolidar todos os registros existentes + novo valor
+            let totalValorConsolidado = analytics.totalValor;
+            let totalQuantidadeConsolidado = analytics.totalQuantidade;
+            
+            for (const reg of registrosExistentes) {
+              totalValorConsolidado += parseFloat(reg.totalValor.toString());
+              totalQuantidadeConsolidado += parseFloat(reg.totalQuantidade.toString());
+            }
+
+            // Usar o primeiro registro como base e atualizar
+            const primeiroRegistro = registrosExistentes[0];
+            const outrosRegistros = registrosExistentes.slice(1);
+
+            // Atualizar o primeiro registro com valores consolidados e novo grupo/subgrupo
+            await this.prisma.vendaAnalytics.update({
+              where: { id: primeiroRegistro.id },
+              data: {
+                grupo: analytics.grupo,
+                subgrupo: analytics.subgrupo,
+                totalValor: new Decimal(totalValorConsolidado.toString()),
+                totalQuantidade: new Decimal(totalQuantidadeConsolidado.toString()),
+              },
+            });
+
+            // Deletar outros registros duplicados se houver
+            if (outrosRegistros.length > 0) {
+              await this.prisma.vendaAnalytics.deleteMany({
+                where: {
+                  id: { in: outrosRegistros.map((r) => r.id) },
                 },
               });
-            } else {
-              throw createError;
             }
+
+            this.logger.warn(
+              `Constraint antigo detectado. Consolidados ${registrosExistentes.length} registro(s) existente(s) com novo grupo/subgrupo: ${analytics.grupo}/${analytics.subgrupo}`,
+            );
           } else {
-            throw createError;
+            // Se não encontrou, pode ser outro tipo de conflito - relançar erro
+            throw conflictError;
           }
+        } else {
+          // Outro tipo de erro - relançar
+          throw conflictError;
         }
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Se falhar, logar o erro mas não interromper a importação
+      // O SQL ON CONFLICT deve resolver a maioria dos casos de race condition
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido';
       const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Erro ao atualizar analytics: ${errorMessage}`,
+        `Erro ao fazer upsert de analytics: ${errorMessage}. Dados: ${JSON.stringify(analytics)}`,
         errorStack,
       );
       // Não lançar erro para não interromper a importação
+      // O analytics pode ser recalculado depois se necessário
     }
   }
 
