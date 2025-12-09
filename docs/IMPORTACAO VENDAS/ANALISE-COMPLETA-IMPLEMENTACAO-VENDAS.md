@@ -290,7 +290,9 @@ model VendaAnalytics {
   updatedAt        DateTime @updatedAt
   createdAt        DateTime @default(now())
   
-  @@unique([ano, mes, nomeFantasia, marca, uf])
+  // IMPORTANTE: Constraint único inclui grupo e subgrupo para evitar agrupamento incorreto
+  // Isso garante que vendas de diferentes grupos/subgrupos da mesma marca sejam contabilizadas separadamente
+  @@unique([ano, mes, nomeFantasia, marca, grupo, subgrupo, uf])
   @@index([ano, mes])
   @@index([marca])
   @@index([grupo])
@@ -299,6 +301,26 @@ model VendaAnalytics {
   @@index([nomeFantasia])
 }
 ```
+
+**⚠️ ATUALIZAÇÃO IMPORTANTE - Constraint Único:**
+
+O constraint único foi **atualizado** para incluir `grupo` e `subgrupo` na chave de agrupamento. Isso é **essencial** para evitar cálculos incorretos quando há múltiplos grupos/subgrupos da mesma marca.
+
+**Antes (INCORRETO):**
+```prisma
+  // IMPORTANTE: Constraint único inclui grupo e subgrupo para evitar agrupamento incorreto
+  // Isso garante que vendas de diferentes grupos/subgrupos da mesma marca sejam contabilizadas separadamente
+  @@unique([ano, mes, nomeFantasia, marca, grupo, subgrupo, uf])
+```
+
+**Depois (CORRETO):**
+```prisma
+@@unique([ano, mes, nomeFantasia, marca, grupo, subgrupo, uf])
+```
+
+**Por que isso é importante?**
+- Se uma marca tem produtos em diferentes grupos (ex: "ELETRÔNICOS" e "INFORMÁTICA"), sem incluir grupo/subgrupo na chave, os valores seriam somados incorretamente
+- O analytics agora agrupa corretamente por grupo e subgrupo, permitindo análises mais precisas
 
 #### 2.1.3. Tabela `VendaImportacaoLog` (Nova - Histórico)
 
@@ -314,6 +336,9 @@ model VendaImportacaoLog {
   // Resultados
   sucessoCount      Int      @default(0)
   erroCount         Int      @default(0)
+  duplicatasCount   Int      @default(0)  // Quantidade de registros que já existiam (atualizados)
+  novosCount        Int      @default(0)   // Quantidade de registros novos (inseridos)
+  produtosNaoEncontrados Int? // Quantidade de produtos não encontrados na tabela Produto
   
   // Usuário
   usuarioEmail      String
@@ -329,6 +354,11 @@ model VendaImportacaoLog {
   @@index([usuarioId])
 }
 ```
+
+**Campos Adicionados:**
+- `duplicatasCount`: Quantidade de registros que já existiam no banco (foram atualizados via UPSERT)
+- `novosCount`: Quantidade de registros novos que foram inseridos
+- `produtosNaoEncontrados`: Quantidade de produtos que não foram encontrados na tabela `Produto` (usaram valores padrão)
 
 ### 2.2. Relacionamentos com Tabelas Existentes
 
@@ -681,10 +711,47 @@ console.log(`📊 Estatísticas: ${produtosNaoEncontradosCount} produtos não en
 3. ✅ Usar marca, grupo e subgrupo denormalizados da tabela `Venda` (já disponíveis, sem necessidade de JOIN)
 4. ✅ Implementar atualização em tempo real durante importação
 5. ✅ Criar endpoints de consulta
+6. ✅ **Implementar upsert atômico com SQL `ON CONFLICT`** para evitar race conditions
+7. ✅ **Criar serviço de sincronização** (`VendasAnalyticsSyncService`) para validar e corrigir dados
+8. ✅ **Implementar recálculo automático** quando vendas são alteradas ou produtos são atualizados
 
 #### Arquivos:
 - `backend/src/vendas/analytics/vendas-analytics.service.ts`
 - `backend/src/vendas/analytics/vendas-analytics.controller.ts`
+- `backend/src/vendas/analytics/vendas-analytics-sync.service.ts` (NOVO)
+- `backend/src/vendas/vendas-update.service.ts` (NOVO)
+
+#### Melhorias Implementadas:
+
+**1. Upsert Atômico com SQL ON CONFLICT:**
+```typescript
+// Usa SQL raw com ON CONFLICT para fazer upsert atômico
+// Isso evita race conditions quando múltiplas requisições processam em paralelo
+await this.prisma.$executeRaw`
+  INSERT INTO "VendaAnalytics" (...)
+  VALUES (...)
+  ON CONFLICT ("ano", "mes", "nomeFantasia", "marca", "grupo", "subgrupo", "uf")
+  DO UPDATE SET
+    "totalValor" = "VendaAnalytics"."totalValor" + ${analytics.totalValor}::decimal,
+    "totalQuantidade" = "VendaAnalytics"."totalQuantidade" + ${analytics.totalQuantidade}::decimal,
+    "updatedAt" = NOW()
+`;
+```
+
+**2. Tratamento de Constraint Antigo:**
+- Durante migração, o sistema detecta se o constraint antigo (sem grupo/subgrupo) ainda existe
+- Consolida registros antigos com os novos valores de grupo/subgrupo
+- Remove duplicatas e atualiza registros existentes
+
+**3. Recálculo Automático:**
+- Quando uma venda é atualizada ou removida, o analytics é recalculado automaticamente para o período afetado
+- Quando um produto é atualizado (especialmente grupo/subgrupo/marca), todas as vendas relacionadas são atualizadas e o analytics é recalculado
+- Isso garante que o analytics sempre esteja sincronizado com os dados de vendas
+
+**4. Serviço de Sincronização:**
+- `VendasAnalyticsSyncService` valida se os dados de analytics estão sincronizados com as vendas
+- Endpoint `GET /vendas/analytics/validar-sincronizacao` para verificar divergências
+- Endpoint `POST /vendas/analytics/corrigir-sincronizacao` para corrigir automaticamente
 
 #### Implementação de Agregação (com dados denormalizados):
 ```typescript
@@ -1525,6 +1592,53 @@ Permitir que o usuário escolha um "modo seguro" que:
 
 ---
 
-**Última Atualização:** 2025-01-XX  
-**Versão:** 1.0.0  
-**Status:** 📋 Pronto para Implementação
+---
+
+## 🔄 ATUALIZAÇÕES E MELHORIAS IMPLEMENTADAS
+
+### ✅ Versão 2.0.0 - Melhorias de Analytics e Sincronização (2025-12-09)
+
+#### 1. Constraint Único Atualizado
+- **Antes:** `@@unique([ano, mes, nomeFantasia, marca, uf])`
+- **Depois:** `@@unique([ano, mes, nomeFantasia, marca, grupo, subgrupo, uf])`
+- **Motivo:** Evitar cálculos incorretos quando há múltiplos grupos/subgrupos da mesma marca
+- **Migration:** `20251209010000_fix_venda_analytics_constraint_final`
+
+#### 2. Upsert Atômico com SQL ON CONFLICT
+- **Implementação:** Uso de SQL raw com `ON CONFLICT` para evitar race conditions
+- **Benefício:** Operação atômica, mais eficiente que `findFirst` + `update/create`
+- **Tratamento:** Detecta e consolida registros antigos durante migração
+
+#### 3. Recálculo Automático de Analytics
+- **Quando vendas são alteradas:** Analytics é recalculado automaticamente para o período afetado
+- **Quando produtos são atualizados:** Vendas relacionadas são atualizadas e analytics é recalculado
+- **Serviços envolvidos:**
+  - `VendasService.update()` - Recalcula analytics após atualizar venda
+  - `VendasService.remove()` - Recalcula analytics após remover venda
+  - `VendasUpdateService.onProdutoUpdated()` - Atualiza vendas e analytics quando produto muda
+
+#### 4. Serviço de Sincronização
+- **VendasAnalyticsSyncService:** Valida e corrige sincronização entre `Venda` e `VendaAnalytics`
+- **Endpoints:**
+  - `GET /vendas/analytics/validar-sincronizacao` - Valida se dados estão sincronizados
+  - `POST /vendas/analytics/corrigir-sincronizacao` - Corrige dados dessincronizados
+
+#### 5. Campos Adicionais no Log de Importação
+- `duplicatasCount`: Quantidade de registros que já existiam (atualizados)
+- `novosCount`: Quantidade de registros novos (inseridos)
+- `produtosNaoEncontrados`: Quantidade de produtos não encontrados
+
+#### 6. Mapeamento Manual Obrigatório
+- **Removido:** Mapeamento automático de colunas
+- **Implementado:** Apenas mapeamento manual do frontend
+- **Validação:** Campos obrigatórios devem estar mapeados antes de importar
+
+#### 7. Integração com Sincronização de Produtos
+- **SyncProcessorService:** Detecta mudanças em `grupo`, `subgrupo` ou `marca` de produtos
+- **Ação automática:** Chama `VendasUpdateService.onProdutoUpdated()` para atualizar vendas e analytics
+
+---
+
+**Última Atualização:** 2025-12-09  
+**Versão:** 2.0.0  
+**Status:** ✅ Implementado e Funcionando

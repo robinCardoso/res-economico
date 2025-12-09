@@ -58,6 +58,26 @@ export class VendasController {
     return this.vendasService.getMappingFields();
   }
 
+  @Get('tipos-operacao')
+  async getTiposOperacao() {
+    return this.vendasService.getTiposOperacao();
+  }
+
+  @Get('marcas')
+  async getMarcas() {
+    return this.vendasService.getMarcas();
+  }
+
+  @Get('grupos')
+  async getGrupos() {
+    return this.vendasService.getGrupos();
+  }
+
+  @Get('subgrupos')
+  async getSubgrupos() {
+    return this.vendasService.getSubgrupos();
+  }
+
   @Post('import')
   @UseInterceptors(FileInterceptor('file'))
   async import(

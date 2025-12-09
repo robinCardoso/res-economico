@@ -32,6 +32,7 @@ export class VendasService {
       marca,
       grupo,
       subgrupo,
+      tipoOperacao,
       empresaId,
     } = filterDto;
 
@@ -45,6 +46,7 @@ export class VendasService {
       marca?: { contains: string; mode: 'insensitive' };
       grupo?: { contains: string; mode: 'insensitive' };
       subgrupo?: { contains: string; mode: 'insensitive' };
+      tipoOperacao?: { contains: string; mode: 'insensitive' };
       empresaId?: string;
     } = {};
 
@@ -198,10 +200,29 @@ export class VendasService {
   }
 
   async getStats(filterDto: FilterVendasDto) {
-    const { dataInicio, dataFim, empresaId } = filterDto;
+    const {
+      dataInicio,
+      dataFim,
+      nfe,
+      razaoSocial,
+      referencia,
+      marca,
+      grupo,
+      subgrupo,
+      tipoOperacao,
+      empresaId,
+    } = filterDto;
 
+    // Aplicar os mesmos filtros do findAll para garantir consistência
     const where: {
       dataVenda?: { gte?: Date; lte?: Date };
+      nfe?: { contains: string; mode: 'insensitive' };
+      razaoSocial?: { contains: string; mode: 'insensitive' };
+      referencia?: { contains: string; mode: 'insensitive' };
+      marca?: { contains: string; mode: 'insensitive' };
+      grupo?: { contains: string; mode: 'insensitive' };
+      subgrupo?: { contains: string; mode: 'insensitive' };
+      tipoOperacao?: { contains: string; mode: 'insensitive' };
       empresaId?: string;
     } = {};
 
@@ -215,9 +236,43 @@ export class VendasService {
       }
     }
 
+    if (nfe) {
+      where.nfe = { contains: nfe, mode: 'insensitive' };
+    }
+
+    if (razaoSocial) {
+      where.razaoSocial = { contains: razaoSocial, mode: 'insensitive' };
+    }
+
+    if (referencia) {
+      where.referencia = { contains: referencia, mode: 'insensitive' };
+    }
+
+    if (marca) {
+      where.marca = { contains: marca, mode: 'insensitive' };
+    }
+
+    if (grupo) {
+      where.grupo = { contains: grupo, mode: 'insensitive' };
+    }
+
+    if (subgrupo) {
+      where.subgrupo = { contains: subgrupo, mode: 'insensitive' };
+    }
+
+    if (tipoOperacao) {
+      where.tipoOperacao = { contains: tipoOperacao, mode: 'insensitive' };
+    }
+
     if (empresaId) {
       where.empresaId = empresaId;
     }
+
+    // Verificar total de vendas no banco (sem filtros) para debug
+    const totalVendasNoBanco = await this.prisma.venda.count({});
+    this.logger.debug(
+      `Total de vendas no banco (sem filtros): ${totalVendasNoBanco}`,
+    );
 
     const [totalVendas, totalValorResult, totalQuantidadeResult] =
       await Promise.all([
@@ -236,10 +291,23 @@ export class VendasService {
         }),
       ]);
 
+    // Converter Decimal para number
+    const totalValor = totalValorResult._sum.valorTotal
+      ? parseFloat(totalValorResult._sum.valorTotal.toString())
+      : 0;
+    
+    const totalQuantidade = totalQuantidadeResult._sum.quantidade
+      ? parseFloat(totalQuantidadeResult._sum.quantidade.toString())
+      : 0;
+
+    this.logger.log(
+      `Stats calculados (com filtros): totalVendas=${totalVendas}, totalValor=${totalValor}, totalQuantidade=${totalQuantidade}. Filtros aplicados: ${JSON.stringify(where)}`,
+    );
+
     return {
-      total: totalVendas,
-      valorTotal: totalValorResult._sum.valorTotal || 0,
-      quantidadeTotal: totalQuantidadeResult._sum.quantidade || 0,
+      totalVendas: totalVendas,
+      totalValor: totalValor,
+      totalQuantidade: totalQuantidade,
     };
   }
 
@@ -257,6 +325,55 @@ export class VendasService {
         },
       },
     });
+  }
+
+  async getTiposOperacao() {
+    // Buscar valores únicos de tipoOperacao da tabela Venda usando raw SQL para melhor performance
+    const result = await this.prisma.$queryRaw<Array<{ tipoOperacao: string }>>`
+      SELECT DISTINCT "tipoOperacao"
+      FROM "Venda"
+      WHERE "tipoOperacao" IS NOT NULL
+      ORDER BY "tipoOperacao" ASC
+    `;
+
+    // Retornar apenas os valores únicos
+    return result.map((row) => row.tipoOperacao);
+  }
+
+  async getMarcas() {
+    // Buscar valores únicos de marca da tabela Venda usando raw SQL para melhor performance
+    const result = await this.prisma.$queryRaw<Array<{ marca: string }>>`
+      SELECT DISTINCT "marca"
+      FROM "Venda"
+      WHERE "marca" IS NOT NULL
+      ORDER BY "marca" ASC
+    `;
+
+    return result.map((row) => row.marca);
+  }
+
+  async getGrupos() {
+    // Buscar valores únicos de grupo da tabela Venda usando raw SQL para melhor performance
+    const result = await this.prisma.$queryRaw<Array<{ grupo: string }>>`
+      SELECT DISTINCT "grupo"
+      FROM "Venda"
+      WHERE "grupo" IS NOT NULL
+      ORDER BY "grupo" ASC
+    `;
+
+    return result.map((row) => row.grupo);
+  }
+
+  async getSubgrupos() {
+    // Buscar valores únicos de subgrupo da tabela Venda usando raw SQL para melhor performance
+    const result = await this.prisma.$queryRaw<Array<{ subgrupo: string }>>`
+      SELECT DISTINCT "subgrupo"
+      FROM "Venda"
+      WHERE "subgrupo" IS NOT NULL
+      ORDER BY "subgrupo" ASC
+    `;
+
+    return result.map((row) => row.subgrupo);
   }
 
   async getMappingFields() {

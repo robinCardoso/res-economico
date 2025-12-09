@@ -132,6 +132,7 @@ export interface FilterVendasDto {
   marca?: string;
   grupo?: string;
   subgrupo?: string;
+  tipoOperacao?: string;
   empresaId?: string;
 }
 
@@ -268,6 +269,26 @@ export const vendasService = {
 
   async getMappingFields(): Promise<Array<{ value: string; label: string; dataType: string; required: boolean }>> {
     const { data } = await api.get<Array<{ value: string; label: string; dataType: string; required: boolean }>>('/vendas/mapping-fields');
+    return Array.isArray(data) ? data : [];
+  },
+
+  async getTiposOperacao(): Promise<string[]> {
+    const { data } = await api.get<string[]>('/vendas/tipos-operacao');
+    return Array.isArray(data) ? data : [];
+  },
+
+  async getMarcas(): Promise<string[]> {
+    const { data } = await api.get<string[]>('/vendas/marcas');
+    return Array.isArray(data) ? data : [];
+  },
+
+  async getGrupos(): Promise<string[]> {
+    const { data } = await api.get<string[]>('/vendas/grupos');
+    return Array.isArray(data) ? data : [];
+  },
+
+  async getSubgrupos(): Promise<string[]> {
+    const { data } = await api.get<string[]>('/vendas/subgrupos');
     return Array.isArray(data) ? data : [];
   },
 };

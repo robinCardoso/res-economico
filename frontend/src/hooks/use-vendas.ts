@@ -100,6 +100,38 @@ export function useVendasMappingFields() {
   });
 }
 
+export function useTiposOperacao() {
+  return useQuery<string[]>({
+    queryKey: ['vendas', 'tipos-operacao'],
+    queryFn: () => vendasService.getTiposOperacao(),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+export function useMarcas() {
+  return useQuery<string[]>({
+    queryKey: ['vendas', 'marcas'],
+    queryFn: () => vendasService.getMarcas(),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+export function useGrupos() {
+  return useQuery<string[]>({
+    queryKey: ['vendas', 'grupos'],
+    queryFn: () => vendasService.getGrupos(),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+export function useSubgrupos() {
+  return useQuery<string[]>({
+    queryKey: ['vendas', 'subgrupos'],
+    queryFn: () => vendasService.getSubgrupos(),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
 export function useVendasAnalytics(filters?: {
   ano?: number;
   mes?: number;

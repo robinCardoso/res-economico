@@ -2,9 +2,10 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useVendas, useVendasStats, useDeleteVenda } from '@/hooks/use-vendas';
+import { useVendas, useVendasStats, useDeleteVenda, useVenda, useTiposOperacao, useMarcas, useGrupos, useSubgrupos } from '@/hooks/use-vendas';
 import { useEmpresas } from '@/hooks/use-empresas';
-import type { FilterVendasDto } from '@/services/vendas.service';
+import { useDebounce } from '@/hooks/use-debounce';
+import type { FilterVendasDto, Venda } from '@/services/vendas.service';
 import { 
   Calendar, 
   Building2, 
@@ -16,6 +17,8 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,23 +44,36 @@ export default function GerenciarVendasPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { data: empresas } = useEmpresas();
+  const { data: tiposOperacao = [] } = useTiposOperacao();
+  const { data: marcas = [] } = useMarcas();
+  const { data: grupos = [] } = useGrupos();
+  const { data: subgrupos = [] } = useSubgrupos();
   const deleteMutation = useDeleteVenda();
 
-  // Filtros
+  // Filtros (valores locais para inputs)
   const [page, setPage] = useState(1);
   const [limit] = useState(50);
   const [dataInicio, setDataInicio] = useState<string>('');
   const [dataFim, setDataFim] = useState<string>('');
-  const [nfe, setNfe] = useState<string>('');
-  const [razaoSocial, setRazaoSocial] = useState<string>('');
-  const [referencia, setReferencia] = useState<string>('');
+  const [nfeInput, setNfeInput] = useState<string>('');
+  const [razaoSocialInput, setRazaoSocialInput] = useState<string>('');
+  const [referenciaInput, setReferenciaInput] = useState<string>('');
   const [marca, setMarca] = useState<string>('');
   const [grupo, setGrupo] = useState<string>('');
   const [subgrupo, setSubgrupo] = useState<string>('');
+  const [tipoOperacao, setTipoOperacao] = useState<string>('Venda');
   const [empresaId, setEmpresaId] = useState<string>('');
+
+  // Debounce nos filtros de texto (500ms)
+  const nfe = useDebounce(nfeInput, 500);
+  const razaoSocial = useDebounce(razaoSocialInput, 500);
+  const referencia = useDebounce(referenciaInput, 500);
 
   // Estado para diálogo de confirmação de exclusão
   const [vendaParaExcluir, setVendaParaExcluir] = useState<string | null>(null);
+  
+  // Estado para visualização de detalhes
+  const [vendaSelecionada, setVendaSelecionada] = useState<string | null>(null);
 
   // Construir filtros
   const filters = useMemo(() => {
@@ -74,10 +90,11 @@ export default function GerenciarVendasPage() {
     if (marca) f.marca = marca;
     if (grupo) f.grupo = grupo;
     if (subgrupo) f.subgrupo = subgrupo;
+    if (tipoOperacao) f.tipoOperacao = tipoOperacao;
     if (empresaId) f.empresaId = empresaId;
 
     return f;
-  }, [page, limit, dataInicio, dataFim, nfe, razaoSocial, referencia, marca, grupo, subgrupo, empresaId]);
+  }, [page, limit, dataInicio, dataFim, nfe, razaoSocial, referencia, marca, grupo, subgrupo, tipoOperacao, empresaId]);
 
   const { data: vendasData, isLoading, error } = useVendas(filters);
   const { data: stats } = useVendasStats(filters);
@@ -106,11 +123,71 @@ export default function GerenciarVendasPage() {
   };
 
   const handleExport = () => {
-    // TODO: Implementar exportação para Excel/CSV
-    toast({
-      title: 'Exportação',
-      description: 'Funcionalidade de exportação em desenvolvimento.',
-    });
+    try {
+      // Criar CSV com os dados filtrados
+      const headers = [
+        'Data',
+        'NFE',
+        'Razão Social',
+        'Nome Fantasia',
+        'CNPJ Cliente',
+        'Referência',
+        'Descrição Produto',
+        'Marca',
+        'Grupo',
+        'Subgrupo',
+        'Quantidade',
+        'Valor Unitário',
+        'Valor Total',
+        'UF Destino',
+        'UF Origem',
+      ];
+
+      const rows = vendas.map((venda) => [
+        new Date(venda.dataVenda).toLocaleDateString('pt-BR'),
+        venda.nfe || '',
+        venda.razaoSocial || '',
+        venda.nomeFantasia || '',
+        venda.cnpjCliente || '',
+        venda.referencia || venda.idProd || '',
+        venda.descricaoProduto || '',
+        venda.marca || '',
+        venda.grupo || '',
+        venda.subgrupo || '',
+        venda.quantidade?.toString() || '0',
+        venda.valorUnitario?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0,00',
+        venda.valorTotal?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0,00',
+        venda.ufDestino || '',
+        venda.ufOrigem || '',
+      ]);
+
+      const csvContent = [
+        headers.join(';'),
+        ...rows.map((row) => row.map((cell) => `"${cell}"`).join(';')),
+      ].join('\n');
+
+      // Criar blob e fazer download
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `vendas_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: 'Exportação concluída',
+        description: `Arquivo CSV com ${vendas.length} vendas foi baixado.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro na exportação',
+        description: 'Não foi possível exportar os dados.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const vendas = vendasData?.data || [];
@@ -252,8 +329,8 @@ export default function GerenciarVendasPage() {
               <Input
                 id="nfe"
                 placeholder="Buscar por NFE..."
-                value={nfe}
-                onChange={(e) => { setNfe(e.target.value); handleFilterChange(); }}
+                value={nfeInput}
+                onChange={(e) => { setNfeInput(e.target.value); handleFilterChange(); }}
               />
             </div>
 
@@ -262,8 +339,8 @@ export default function GerenciarVendasPage() {
               <Input
                 id="razaoSocial"
                 placeholder="Buscar por cliente..."
-                value={razaoSocial}
-                onChange={(e) => { setRazaoSocial(e.target.value); handleFilterChange(); }}
+                value={razaoSocialInput}
+                onChange={(e) => { setRazaoSocialInput(e.target.value); handleFilterChange(); }}
               />
             </div>
 
@@ -272,39 +349,101 @@ export default function GerenciarVendasPage() {
               <Input
                 id="referencia"
                 placeholder="Buscar por referência..."
-                value={referencia}
-                onChange={(e) => { setReferencia(e.target.value); handleFilterChange(); }}
+                value={referenciaInput}
+                onChange={(e) => { setReferenciaInput(e.target.value); handleFilterChange(); }}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="marca">Marca</Label>
-              <Input
-                id="marca"
-                placeholder="Buscar por marca..."
+              <Select
                 value={marca}
-                onChange={(e) => { setMarca(e.target.value); handleFilterChange(); }}
-              />
+                onValueChange={(value) => {
+                  setMarca(value === 'all' ? '' : value);
+                  handleFilterChange();
+                }}
+              >
+                <SelectTrigger id="marca">
+                  <SelectValue placeholder="Selecione a marca..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {marcas.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="grupo">Grupo</Label>
-              <Input
-                id="grupo"
-                placeholder="Buscar por grupo..."
+              <Select
                 value={grupo}
-                onChange={(e) => { setGrupo(e.target.value); handleFilterChange(); }}
-              />
+                onValueChange={(value) => {
+                  setGrupo(value === 'all' ? '' : value);
+                  handleFilterChange();
+                }}
+              >
+                <SelectTrigger id="grupo">
+                  <SelectValue placeholder="Selecione o grupo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {grupos.map((g) => (
+                    <SelectItem key={g} value={g}>
+                      {g}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="subgrupo">Subgrupo</Label>
-              <Input
-                id="subgrupo"
-                placeholder="Buscar por subgrupo..."
+              <Select
                 value={subgrupo}
-                onChange={(e) => { setSubgrupo(e.target.value); handleFilterChange(); }}
-              />
+                onValueChange={(value) => {
+                  setSubgrupo(value === 'all' ? '' : value);
+                  handleFilterChange();
+                }}
+              >
+                <SelectTrigger id="subgrupo">
+                  <SelectValue placeholder="Selecione o subgrupo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {subgrupos.map((sg) => (
+                    <SelectItem key={sg} value={sg}>
+                      {sg}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tipoOperacao">Tipo de Operação</Label>
+              <Select
+                value={tipoOperacao}
+                onValueChange={(value) => {
+                  setTipoOperacao(value === 'all' ? '' : value);
+                  handleFilterChange();
+                }}
+              >
+                <SelectTrigger id="tipoOperacao">
+                  <SelectValue placeholder="Selecione o tipo de operação..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {tiposOperacao.map((tipo) => (
+                    <SelectItem key={tipo} value={tipo}>
+                      {tipo}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -353,7 +492,7 @@ export default function GerenciarVendasPage() {
                       <TableHead className="whitespace-nowrap px-4 py-2">Valor Unit.</TableHead>
                       <TableHead className="whitespace-nowrap px-4 py-2">Valor Total</TableHead>
                       <TableHead className="whitespace-nowrap px-4 py-2">UF</TableHead>
-                      <TableHead className="text-right whitespace-nowrap px-4 py-2">Ações</TableHead>
+                      <TableHead className="text-center whitespace-nowrap px-4 py-2">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -413,18 +552,32 @@ export default function GerenciarVendasPage() {
                         <TableCell className="whitespace-normal break-words px-4 py-2 align-top min-w-[80px]">
                           {venda.ufDestino || '-'}
                         </TableCell>
-                        <TableCell className="text-right whitespace-nowrap px-4 py-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setVendaParaExcluir(venda.id);
-                            }}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <TableCell className="text-center whitespace-nowrap px-4 py-2">
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setVendaSelecionada(venda.id);
+                              }}
+                              title="Ver detalhes"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setVendaParaExcluir(venda.id);
+                              }}
+                              className="text-destructive hover:text-destructive"
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -485,6 +638,216 @@ export default function GerenciarVendasPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal de Detalhes da Venda */}
+      {vendaSelecionada && (
+        <VendaDetailsModal
+          vendaId={vendaSelecionada}
+          onClose={() => setVendaSelecionada(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Componente Modal de Detalhes
+function VendaDetailsModal({ vendaId, onClose }: { vendaId: string; onClose: () => void }) {
+  const { data: venda, isLoading } = useVenda(vendaId);
+
+  if (!venda && !isLoading) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-background rounded-lg shadow-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-2xl font-bold">Detalhes da Venda</h2>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : venda ? (
+          <div className="p-6 space-y-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Informações da Venda</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Data da Venda</Label>
+                    <p className="font-medium">{new Date(venda.dataVenda).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Nota Fiscal (NFE)</Label>
+                    <p className="font-mono font-medium">{venda.nfe}</p>
+                  </div>
+                  {venda.idDoc && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">ID do Documento</Label>
+                      <p className="font-medium">{venda.idDoc}</p>
+                    </div>
+                  )}
+                  {venda.tipoOperacao && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Tipo de Operação</Label>
+                      <p className="font-medium">{venda.tipoOperacao}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Cliente</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Razão Social</Label>
+                    <p className="font-medium">{venda.razaoSocial}</p>
+                  </div>
+                  {venda.nomeFantasia && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Nome Fantasia</Label>
+                      <p className="font-medium">{venda.nomeFantasia}</p>
+                    </div>
+                  )}
+                  {venda.cnpjCliente && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">CNPJ</Label>
+                      <p className="font-medium">{venda.cnpjCliente}</p>
+                    </div>
+                  )}
+                  <div className="flex gap-4">
+                    {venda.ufDestino && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">UF Destino</Label>
+                        <p className="font-medium">{venda.ufDestino}</p>
+                      </div>
+                    )}
+                    {venda.ufOrigem && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">UF Origem</Label>
+                        <p className="font-medium">{venda.ufOrigem}</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Produto</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {venda.referencia && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Referência</Label>
+                      <p className="font-medium">{venda.referencia}</p>
+                    </div>
+                  )}
+                  {venda.idProd && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">ID Produto</Label>
+                      <p className="font-medium">{venda.idProd}</p>
+                    </div>
+                  )}
+                  {venda.prodCodMestre && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Código Mestre</Label>
+                      <p className="font-medium">{venda.prodCodMestre}</p>
+                    </div>
+                  )}
+                  {venda.descricaoProduto && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Descrição</Label>
+                      <p className="font-medium">{venda.descricaoProduto}</p>
+                    </div>
+                  )}
+                  <div className="flex gap-4">
+                    {venda.marca && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Marca</Label>
+                        <Badge variant="outline">{venda.marca}</Badge>
+                      </div>
+                    )}
+                    {venda.grupo && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Grupo</Label>
+                        <p className="font-medium">{venda.grupo}</p>
+                      </div>
+                    )}
+                    {venda.subgrupo && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Subgrupo</Label>
+                        <p className="font-medium">{venda.subgrupo}</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Valores</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Quantidade</Label>
+                    <p className="text-2xl font-bold">
+                      {venda.quantidade !== undefined && venda.quantidade !== null
+                        ? Number(venda.quantidade).toLocaleString('pt-BR')
+                        : '0'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Valor Unitário</Label>
+                    <p className="text-xl font-semibold">
+                      R$ {venda.valorUnitario !== undefined && venda.valorUnitario !== null
+                        ? Number(venda.valorUnitario).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : '0,00'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Valor Total</Label>
+                    <p className="text-2xl font-bold text-primary">
+                      R$ {venda.valorTotal !== undefined && venda.valorTotal !== null
+                        ? Number(venda.valorTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : '0,00'}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {venda.empresa && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Empresa</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="font-medium">
+                    {venda.empresa.razaoSocial}
+                    {venda.empresa.nomeFantasia && ` - ${venda.empresa.nomeFantasia}`}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button variant="outline" onClick={onClose}>
+                Fechar
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

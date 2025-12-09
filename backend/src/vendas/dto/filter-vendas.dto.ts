@@ -54,6 +54,10 @@ export class FilterVendasDto {
   subgrupo?: string;
 
   @IsOptional()
+  @IsString()
+  tipoOperacao?: string;
+
+  @IsOptional()
   @IsUUID()
   empresaId?: string;
 }
