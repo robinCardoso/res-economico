@@ -41,6 +41,11 @@ type ImportStepperProps = {
     supportsUpsert?: boolean;
     empresaId?: string;
     onEmpresaIdChange?: (empresaId: string) => void;
+    // Props opcionais para usar banco de dados ao invés de localStorage
+    useDatabaseMappings?: boolean;
+    onLoadMappings?: () => Promise<Array<{ id: string; name: string; mappings: Record<string, MappingInfo>; filters: Filter[] }>>;
+    onSaveMapping?: (name: string, mappings: Record<string, MappingInfo>, filters: Filter[]) => Promise<{ id: string }>;
+    onDeleteMapping?: (id: string) => Promise<void>;
 };
 
 type MappingInfo = { fileColumn: string | null; dataType: 'text' | 'integer' | 'decimal' | 'currency' | 'date' };
@@ -76,6 +81,10 @@ export function ImportStepper({
     supportsUpsert = false,
     empresaId,
     onEmpresaIdChange,
+    useDatabaseMappings = false,
+    onLoadMappings,
+    onSaveMapping,
+    onDeleteMapping,
 }: ImportStepperProps) {
     const { toast } = useToast();
     const [step, setStep] = useState(1);
@@ -98,17 +107,36 @@ export function ImportStepper({
     const [importResult, setImportResult] = useState<Record<string, unknown> | null>(null);
     const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
 
-    // Carregar mapeamentos salvos do localStorage
+    // Carregar mapeamentos salvos (do banco de dados ou localStorage)
     useEffect(() => {
-        const storedMappings = localStorage.getItem(`importMappings_${importType}`);
-        if (storedMappings) {
+        const loadMappings = async () => {
+            setIsLoadingMappings(true);
             try {
-                setSavedMappings(JSON.parse(storedMappings));
+                if (useDatabaseMappings && onLoadMappings) {
+                    // Carregar do banco de dados
+                    const mappings = await onLoadMappings();
+                    setSavedMappings(mappings);
+                } else {
+                    // Carregar do localStorage (compatibilidade com outros tipos)
+                    const storedMappings = localStorage.getItem(`importMappings_${importType}`);
+                    if (storedMappings) {
+                        setSavedMappings(JSON.parse(storedMappings));
+                    }
+                }
             } catch (error) {
                 console.error('Erro ao carregar mapeamentos salvos:', error);
+                toast({ 
+                    variant: "destructive", 
+                    title: "Erro", 
+                    description: "Erro ao carregar mapeamentos salvos" 
+                });
+            } finally {
+                setIsLoadingMappings(false);
             }
-        }
-    }, [importType]);
+        };
+        
+        loadMappings();
+    }, [importType, useDatabaseMappings, onLoadMappings, toast]);
 
     const uniqueColumnValues = useMemo(() => {
         const uniqueValues: Record<string, string[]> = {};
@@ -202,30 +230,44 @@ export function ImportStepper({
         setNewMappingName(e.target.value);
     }, []);
 
-    const handleSaveMapping = () => {
+    const handleSaveMapping = async () => {
         if (!newMappingName) {
             toast({ variant: "destructive", title: "Erro", description: "Dê um nome ao seu mapeamento." });
             return;
         }
 
         try {
-            const newMapping = {
-                id: Date.now().toString(),
-                name: newMappingName,
-                mappings,
-                filters
-            };
-            
-            const updatedMappings = [...savedMappings, newMapping];
-            setSavedMappings(updatedMappings);
-            localStorage.setItem(`importMappings_${importType}`, JSON.stringify(updatedMappings));
-            
-            toast({ title: "Sucesso", description: "Mapeamento e filtros salvos!" });
-            setSelectedMapping(newMapping.id);
+            if (useDatabaseMappings && onSaveMapping) {
+                // Salvar no banco de dados
+                const result = await onSaveMapping(newMappingName, mappings, filters);
+                const newMapping = {
+                    id: result.id,
+                    name: newMappingName,
+                    mappings,
+                    filters
+                };
+                setSavedMappings([...savedMappings, newMapping]);
+                toast({ title: "Sucesso", description: "Mapeamento e filtros salvos no banco de dados!" });
+                setSelectedMapping(newMapping.id);
+            } else {
+                // Salvar no localStorage (compatibilidade com outros tipos)
+                const newMapping = {
+                    id: Date.now().toString(),
+                    name: newMappingName,
+                    mappings,
+                    filters
+                };
+                const updatedMappings = [...savedMappings, newMapping];
+                setSavedMappings(updatedMappings);
+                localStorage.setItem(`importMappings_${importType}`, JSON.stringify(updatedMappings));
+                toast({ title: "Sucesso", description: "Mapeamento e filtros salvos!" });
+                setSelectedMapping(newMapping.id);
+            }
             setNewMappingName('');
         } catch (error: unknown) {
             console.error('Erro ao salvar mapeamento:', error);
-            toast({ variant: "destructive", title: "Erro", description: "Erro ao salvar mapeamento" });
+            const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+            toast({ variant: "destructive", title: "Erro", description: `Erro ao salvar mapeamento: ${errorMessage}` });
         }
     };
 
@@ -238,13 +280,22 @@ export function ImportStepper({
         }
     };
     
-    const handleDeleteMapping = (id: string) => {
+    const handleDeleteMapping = async (id: string) => {
         try {
-            const updatedMappings = savedMappings.filter(m => m.id !== id);
-            setSavedMappings(updatedMappings);
-            localStorage.setItem(`importMappings_${importType}`, JSON.stringify(updatedMappings));
+            if (useDatabaseMappings && onDeleteMapping) {
+                // Deletar do banco de dados
+                await onDeleteMapping(id);
+                const updatedMappings = savedMappings.filter(m => m.id !== id);
+                setSavedMappings(updatedMappings);
+                toast({ title: "Sucesso", description: "Mapeamento excluído do banco de dados." });
+            } else {
+                // Deletar do localStorage (compatibilidade com outros tipos)
+                const updatedMappings = savedMappings.filter(m => m.id !== id);
+                setSavedMappings(updatedMappings);
+                localStorage.setItem(`importMappings_${importType}`, JSON.stringify(updatedMappings));
+                toast({ title: "Sucesso", description: "Mapeamento excluído." });
+            }
             
-            toast({ title: "Sucesso", description: "Mapeamento excluído." });
             if (selectedMapping === id) {
                 setSelectedMapping('');
                 setMappings(createInitialMappings());
@@ -252,7 +303,8 @@ export function ImportStepper({
             }
         } catch (error: unknown) {
             console.error('Erro ao excluir mapeamento:', error);
-            toast({ variant: "destructive", title: "Erro", description: "Erro ao excluir mapeamento" });
+            const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+            toast({ variant: "destructive", title: "Erro", description: `Erro ao excluir mapeamento: ${errorMessage}` });
         }
     };
 

@@ -12,17 +12,23 @@ import {
   UploadedFile,
   UseInterceptors,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { VendasService } from './vendas.service';
 import { VendasImportService } from './import/vendas-import.service';
+import { VendasImportDeleteService } from './import/vendas-import-delete.service';
 import { VendasUpdateService } from './vendas-update.service';
+import { VendasColumnMappingService } from './vendas-column-mapping.service';
+import { VendasAnalyticsFilterService } from './vendas-analytics-filter.service';
 import { CreateVendaDto } from './dto/create-venda.dto';
 import { UpdateVendaDto } from './dto/update-venda.dto';
 import { FilterVendasDto } from './dto/filter-vendas.dto';
 import { ImportVendasDto } from './dto/import-vendas.dto';
 import { RecalcularDadosProdutoDto } from './dto/recalcular-dados-produto.dto';
+import { CreateVendaColumnMappingDto } from './dto/create-venda-column-mapping.dto';
+import { CreateVendaAnalyticsFilterDto } from './dto/create-venda-analytics-filter.dto';
 
 @Controller('vendas')
 @UseGuards(JwtAuthGuard)
@@ -30,7 +36,10 @@ export class VendasController {
   constructor(
     private readonly vendasService: VendasService,
     private readonly vendasImportService: VendasImportService,
+    private readonly vendasImportDeleteService: VendasImportDeleteService,
     private readonly vendasUpdateService: VendasUpdateService,
+    private readonly vendasColumnMappingService: VendasColumnMappingService,
+    private readonly vendasAnalyticsFilterService: VendasAnalyticsFilterService,
   ) {}
 
   @Post()
@@ -51,6 +60,24 @@ export class VendasController {
   @Get('import-logs')
   async getImportLogs() {
     return this.vendasService.getImportLogs();
+  }
+
+  @Get('import-logs/:id/progresso')
+  async getImportLogProgress(@Param('id') id: string) {
+    return this.vendasService.getImportLogProgress(id);
+  }
+
+  @Delete('import-logs/:id')
+  async deletarImportacao(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException('Usuário não autenticado');
+    }
+
+    return this.vendasImportDeleteService.deletarImportacao(id, userId);
   }
 
   @Get('mapping-fields')
@@ -76,6 +103,11 @@ export class VendasController {
   @Get('subgrupos')
   async getSubgrupos() {
     return this.vendasService.getSubgrupos();
+  }
+
+  @Get('nomes-fantasia')
+  async getNomesFantasia() {
+    return this.vendasService.getNomesFantasia();
   }
 
   @Post('import')
@@ -107,6 +139,85 @@ export class VendasController {
       dataLimite: dto.dataLimite ? new Date(dto.dataLimite) : undefined,
     });
   }
+
+  // =====================================================
+  // ENDPOINTS DE MAPEAMENTO DE COLUNAS
+  // IMPORTANTE: Devem estar ANTES das rotas com :id
+  // =====================================================
+
+  @Get('column-mappings')
+  async getColumnMappings() {
+    return this.vendasColumnMappingService.findAll();
+  }
+
+  @Get('column-mappings/:id')
+  async getColumnMapping(@Param('id') id: string) {
+    return this.vendasColumnMappingService.findOne(id);
+  }
+
+  @Post('column-mappings')
+  async createColumnMapping(
+    @Body() dto: CreateVendaColumnMappingDto,
+    @Request() req: any,
+  ) {
+    const userId = req.user?.id;
+    return this.vendasColumnMappingService.create(dto, userId);
+  }
+
+  @Put('column-mappings/:id')
+  async updateColumnMapping(
+    @Param('id') id: string,
+    @Body() dto: Partial<CreateVendaColumnMappingDto>,
+  ) {
+    return this.vendasColumnMappingService.update(id, dto);
+  }
+
+  @Delete('column-mappings/:id')
+  async deleteColumnMapping(@Param('id') id: string) {
+    return this.vendasColumnMappingService.remove(id);
+  }
+
+  // =====================================================
+  // ENDPOINTS DE FILTROS DE ANALYTICS
+  // IMPORTANTE: Devem estar ANTES das rotas com :id
+  // =====================================================
+
+  @Get('analytics-filters')
+  async getAnalyticsFilters() {
+    return this.vendasAnalyticsFilterService.findAll();
+  }
+
+  @Get('analytics-filters/:id')
+  async getAnalyticsFilter(@Param('id') id: string) {
+    return this.vendasAnalyticsFilterService.findOne(id);
+  }
+
+  @Post('analytics-filters')
+  async createAnalyticsFilter(
+    @Body() dto: CreateVendaAnalyticsFilterDto,
+    @Request() req: any,
+  ) {
+    const userId = req.user?.id;
+    return this.vendasAnalyticsFilterService.create(dto, userId);
+  }
+
+  @Put('analytics-filters/:id')
+  async updateAnalyticsFilter(
+    @Param('id') id: string,
+    @Body() dto: Partial<CreateVendaAnalyticsFilterDto>,
+  ) {
+    return this.vendasAnalyticsFilterService.update(id, dto);
+  }
+
+  @Delete('analytics-filters/:id')
+  async deleteAnalyticsFilter(@Param('id') id: string) {
+    return this.vendasAnalyticsFilterService.remove(id);
+  }
+
+  // =====================================================
+  // ROTAS COM PARÂMETROS DINÂMICOS (:id)
+  // Devem estar DEPOIS das rotas específicas
+  // =====================================================
 
   @Get(':id')
   async findOne(@Param('id') id: string) {

@@ -48,7 +48,7 @@ export class SyncService {
     let lockStatus: 'completed' | 'failed' | 'cancelled' = 'completed';
 
     const {
-      apenas_ativos = true,
+      apenas_ativos = false, // ALTERADO: Agora importa produtos inativos também por padrão (era true)
       limit,
       pages = 1,
       resume_sync_id = null,
@@ -60,7 +60,7 @@ export class SyncService {
 
     try {
       this.logger.log(
-        `🚀 Iniciando sincronização - Limit: ${limit}, Páginas: ${pages}, Apenas ativos: ${apenas_ativos}`,
+        `🚀 Iniciando sincronização - Limit: ${limit}, Páginas: ${pages}, Apenas ativos: ${apenas_ativos} (padrão: false - importa todos os produtos)`,
       );
 
       // Limpar logs órfãos antes de verificar lock (prevenir falsos positivos)

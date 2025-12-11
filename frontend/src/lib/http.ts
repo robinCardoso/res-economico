@@ -56,7 +56,7 @@ const getBaseURL = (): string | undefined => {
 
 // Criar instância do axios sem baseURL fixa
 export const api = axios.create({
-  timeout: 60_000, // 60 segundos para uploads grandes
+  timeout: 60_000, // 60 segundos padrão
   headers: {
     "Content-Type": "application/json",
   },

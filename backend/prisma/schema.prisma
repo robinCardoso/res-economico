@@ -75,6 +75,8 @@ model Usuario {
   pushSubscriptions      PushSubscription[]
   logsAlteracoesAtas     LogAlteracaoAta[]
   vendasImportacaoLogs   VendaImportacaoLog[]
+  vendaColumnMappings    VendaColumnMapping[]    // Mapeamentos de colunas de vendas criados pelo usuário
+  vendaAnalyticsFilters  VendaAnalyticsFilter[]  // Filtros de analytics salvos pelo usuário
   empresa                Empresa?                @relation(fields: [empresaId], references: [id])
 }
 
@@ -1127,6 +1129,7 @@ model Venda {
   // Relacionamentos
   empresaId       String?  // Empresa relacionada
   produtoId       String?  // Produto relacionado (se existir na tabela Produto)
+  importacaoLogId String?  // ID da importação que criou esta venda
   
   // Metadata JSONB para campos dinâmicos
   metadata        Json?    // { origem, tipo_venda, desconto, etc }
@@ -1138,6 +1141,7 @@ model Venda {
   // Relacionamentos
   empresa         Empresa? @relation(fields: [empresaId], references: [id])
   produto         Produto? @relation(fields: [produtoId], references: [id])
+  importacaoLog   VendaImportacaoLog? @relation(fields: [importacaoLogId], references: [id], onDelete: SetNull)
   
   @@index([nfe])
   @@index([dataVenda])
@@ -1150,6 +1154,7 @@ model Venda {
   @@index([subgrupo])
   @@index([prodCodMestre])
   @@index([tipoOperacao])
+  @@index([importacaoLogId]) // Índice para performance em deleção de importações
   
   // Chave única composta para evitar duplicatas
   // IMPORTANTE: Esta chave garante que não haverá duplicatas mesmo se:
@@ -1177,6 +1182,9 @@ model VendaAnalytics {
   grupo            String?  // Grupo do produto (denormalizado da tabela Venda, opcional)
   subgrupo         String?  // Subgrupo do produto (denormalizado da tabela Venda, opcional)
   
+  // Agregação por operação
+  tipoOperacao     String?  // Tipo de operação (denormalizado da tabela Venda, opcional)
+  
   // Agregação geográfica
   uf               String   // UF
   
@@ -1188,11 +1196,12 @@ model VendaAnalytics {
   updatedAt        DateTime @updatedAt
   createdAt        DateTime @default(now())
   
-  @@unique([ano, mes, nomeFantasia, marca, grupo, subgrupo, uf])
+  @@unique([ano, mes, nomeFantasia, marca, grupo, subgrupo, tipoOperacao, uf])
   @@index([ano, mes])
   @@index([marca])
   @@index([grupo])
   @@index([subgrupo])
+  @@index([tipoOperacao])
   @@index([uf])
   @@index([nomeFantasia])
 }
@@ -1212,6 +1221,10 @@ model VendaImportacaoLog {
   duplicatasCount   Int      @default(0) // Quantidade de registros que já existiam (foram atualizados)
   novosCount        Int      @default(0) // Quantidade de registros novos (foram criados)
   
+  // Progresso
+  progresso         Int      @default(0) // Progresso da importação (0-100)
+  linhasProcessadas Int      @default(0) // Quantidade de linhas já processadas
+  
   // Usuário
   usuarioEmail      String
   usuarioId         String?
@@ -1221,7 +1234,53 @@ model VendaImportacaoLog {
   
   // Relacionamentos
   usuario           Usuario? @relation(fields: [usuarioId], references: [id])
+  vendas            Venda[]  // Vendas criadas por esta importação
   
   @@index([createdAt])
   @@index([usuarioId])
+}
+
+// =====================================================
+// VENDAS - MAPEAMENTO DE COLUNAS
+// =====================================================
+
+model VendaColumnMapping {
+  id            String   @id @default(uuid())
+  nome          String   // Nome do mapeamento (ex: "Mapeamento Padrão", "Mapeamento Cliente X")
+  columnMapping Json     // { nfe: "NNF", data: "DataE", razaoSocial: "Cliente", ... }
+  filters       Json?    // Filtros salvos (opcional) - [{ column: "UF", condition: "equals", value: "SC" }]
+  descricao     String?  // Descrição opcional do mapeamento
+  usuarioId     String?  // Usuário que criou (opcional, para auditoria)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relacionamentos
+  usuario       Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  
+  @@index([usuarioId])
+  @@index([createdAt])
+}
+
+// =====================================================
+// VENDAS - FILTROS DE ANALYTICS SALVOS
+// =====================================================
+
+model VendaAnalyticsFilter {
+  id            String   @id @default(uuid())
+  nome          String   // Nome do filtro (ex: "Filtro Mensal 2025", "Filtro Por Marca X")
+  filters       Json     // Filtros de analytics salvos: { tipoOperacao?: string[], filial?: string[], ano?: number[], ... }
+  descricao     String?  // Descrição opcional do filtro
+  usuarioId     String?  // Usuário que criou (opcional, para auditoria)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relacionamentos
+  usuario       Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  
+  @@index([usuarioId])
+  @@index([createdAt])
 }

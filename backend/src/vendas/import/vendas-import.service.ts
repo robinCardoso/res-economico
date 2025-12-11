@@ -11,7 +11,7 @@ import { VendasAnalyticsService } from '../analytics/vendas-analytics.service';
 import * as XLSX from 'xlsx';
 import { Decimal } from '@prisma/client/runtime/library';
 
-const BATCH_SIZE = 400;
+const BATCH_SIZE = 300; // Reduzido para melhor performance e evitar travamentos
 
 interface VendaProcessada {
   nfe: string;
@@ -194,34 +194,8 @@ export class VendasImportService {
       duplicatasCount = duplicatas;
       novosCount = novos;
 
-      // 8. Processar em lotes e fazer UPSERT
-      const vendasProcessadas = vendasComDadosProduto.map((v) =>
-        this.prepararVendaParaUpsert(v, importDto.empresaId),
-      );
-
-      for (let i = 0; i < vendasProcessadas.length; i += BATCH_SIZE) {
-        const chunk = vendasProcessadas.slice(i, i + BATCH_SIZE);
-        const { sucesso, erros } = await this.processarLote(chunk);
-        sucessoCount += sucesso;
-        erroCount += erros;
-      }
-
-      // 9. Atualizar analytics em tempo real
-      // NOTA: Analytics será atualizado mesmo se grupo/subgrupo estiverem como "DESCONHECIDO"
-      // Quando produtos forem atualizados, o analytics será recalculado automaticamente
-      const vendasParaAnalytics = vendasProcessadas.map((v) => ({
-        dataVenda: v.dataVenda,
-        nomeFantasia: v.nomeFantasia,
-        marca: v.marca || 'DESCONHECIDA',
-        grupo: v.grupo || 'DESCONHECIDO',
-        subgrupo: v.subgrupo || 'DESCONHECIDO',
-        ufDestino: v.ufDestino,
-        valorTotal: v.valorTotal,
-        quantidade: v.quantidade,
-      }));
-      await this.analyticsService.atualizarAnalytics(vendasParaAnalytics);
-
-      // 10. Salvar log de importação
+      // 8. Criar log de importação ANTES de processar vendas
+      // IMPORTANTE: Criar o log primeiro para ter o ID disponível para associar às vendas
       // Garantir que as colunas existem antes de criar o log
       try {
         await this.prisma.$executeRaw`
@@ -242,34 +216,57 @@ export class VendasImportService {
           nomeArquivo: file.originalname,
           mappingName: importDto.mappingName,
           totalLinhas,
-          sucessoCount,
-          erroCount,
-          produtosNaoEncontrados,
-          duplicatasCount: duplicatasCount,
-          novosCount: novosCount,
+          sucessoCount: 0, // Será atualizado depois
+          erroCount: 0,
+          produtosNaoEncontrados: 0,
+          duplicatasCount: 0,
+          novosCount: 0,
+          progresso: 0, // Iniciar progresso em 0%
+          linhasProcessadas: 0, // Iniciar linhas processadas em 0
           usuarioEmail: userEmail,
           usuarioId: userId,
         } as any, // Type assertion temporária até o Prisma Client ser atualizado
       });
 
-      const tempoTotal = ((Date.now() - startTime) / 1000).toFixed(2);
+      const importacaoLogId = log.id;
+      this.logger.log(`Log de importação criado: ${importacaoLogId}`);
 
-      this.logger.log(
-        `Importação concluída: ${sucessoCount} sucessos, ${erroCount} erros em ${tempoTotal}s`,
-      );
+      // IMPORTANTE: Processar vendas em background para não bloquear a resposta
+      // Retornar o logId imediatamente para o frontend poder mostrar progresso
+      this.processarVendasEmBackground(
+        vendasComDadosProduto,
+        importDto.empresaId,
+        importacaoLogId,
+        totalLinhas,
+        produtosNaoEncontrados,
+        duplicatasCount,
+        novosCount,
+      ).catch((error) => {
+        this.logger.error(`Erro ao processar vendas em background: ${error.message}`, error.stack);
+        // Atualizar log com erro
+        this.prisma.vendaImportacaoLog.update({
+          where: { id: importacaoLogId },
+          data: {
+            erroCount: totalLinhas,
+            progresso: 100,
+          },
+        }).catch((updateError) => {
+          this.logger.error(`Erro ao atualizar log após falha: ${updateError.message}`);
+        });
+      });
 
+      // Retornar imediatamente com o logId
       return {
         success: true,
-        message: 'Importação concluída com sucesso',
-        logId: log.id,
+        message: 'Importação iniciada. Processando em background...',
+        logId: importacaoLogId,
         estatisticas: {
           totalLinhas,
-          sucessoCount,
-          erroCount,
+          sucessoCount: 0, // Será atualizado durante o processamento
+          erroCount: 0,
           produtosNaoEncontrados,
           duplicatas: duplicatasCount,
           novos: novosCount,
-          tempoTotal: `${tempoTotal}s`,
         },
       };
     } catch (error) {
@@ -279,7 +276,6 @@ export class VendasImportService {
       this.logger.error(`Erro ao importar vendas: ${errorMessage}`, errorStack);
 
       // Salvar log de erro
-      // Garantir que as colunas existem antes de criar o log
       try {
         await this.prisma.$executeRaw`
           ALTER TABLE "VendaImportacaoLog" 
@@ -289,9 +285,8 @@ export class VendasImportService {
           ALTER TABLE "VendaImportacaoLog" 
           ADD COLUMN IF NOT EXISTS "novosCount" INTEGER NOT NULL DEFAULT 0;
         `;
-      } catch (error) {
-        // Ignorar erros se as colunas já existirem
-        this.logger.debug('Colunas já existem ou erro ao criar:', error);
+      } catch (alterError) {
+        this.logger.debug('Colunas já existem ou erro ao criar:', alterError);
       }
 
       await this.prisma.vendaImportacaoLog.create({
@@ -299,18 +294,133 @@ export class VendasImportService {
           nomeArquivo: file.originalname,
           mappingName: importDto.mappingName,
           totalLinhas,
-          sucessoCount,
-          erroCount: erroCount + 1,
-          produtosNaoEncontrados,
-          duplicatasCount: duplicatasCount,
-          novosCount: novosCount,
+          sucessoCount: 0,
+          erroCount: totalLinhas,
+          produtosNaoEncontrados: 0,
+          duplicatasCount: 0,
+          novosCount: 0,
+          progresso: 100,
+          linhasProcessadas: totalLinhas,
           usuarioEmail: userEmail,
           usuarioId: userId,
-        } as any, // Type assertion temporária até o Prisma Client ser atualizado
+        } as any,
       });
 
       throw new BadRequestException(`Erro ao importar vendas: ${errorMessage}`);
     }
+  }
+
+  /**
+   * Processa vendas em background (assíncrono)
+   */
+  private async processarVendasEmBackground(
+    vendasComDadosProduto: VendaProcessada[],
+    empresaId: string,
+    importacaoLogId: string,
+    totalLinhas: number,
+    produtosNaoEncontrados: number,
+    duplicatasCount: number,
+    novosCount: number,
+  ): Promise<void> {
+    const startTime = Date.now();
+    let sucessoCount = 0;
+    let erroCount = 0;
+
+    // 10. Processar vendas em lotes (agora com importacaoLogId)
+    const totalLinhasParaProcessar = vendasComDadosProduto.length;
+    let linhasProcessadas = 0;
+
+    for (let i = 0; i < vendasComDadosProduto.length; i += BATCH_SIZE) {
+      const chunk = vendasComDadosProduto.slice(i, i + BATCH_SIZE);
+      // Garantir que todas as vendas tenham empresaId definido
+      const chunkComEmpresaId = chunk.map((v) => ({
+        ...v,
+        empresaId: v.empresaId || empresaId,
+      })) as Array<{
+          nfe: string;
+          idDoc: string;
+          referencia: string;
+          dataVenda: Date;
+          razaoSocial: string;
+          nomeFantasia?: string;
+          cnpjCliente?: string;
+          ufDestino?: string;
+          ufOrigem?: string;
+          idProd?: string;
+          prodCodMestre?: string;
+          descricaoProduto?: string;
+          marca: string;
+          grupo: string;
+          subgrupo: string;
+          tipoOperacao?: string;
+          quantidade: Decimal;
+          valorUnitario: Decimal;
+          valorTotal: Decimal;
+          empresaId: string;
+          produtoId?: string;
+          metadata?: unknown;
+        }>;
+      const { sucesso, erros } = await this.processarLote(
+        chunkComEmpresaId,
+        empresaId,
+        importacaoLogId, // NOVO: passar importacaoLogId
+      );
+      sucessoCount += sucesso;
+      erroCount += erros;
+      linhasProcessadas += chunk.length;
+
+      // Atualizar progresso em tempo real
+      const progresso = Math.round((linhasProcessadas / totalLinhasParaProcessar) * 100);
+      await this.prisma.vendaImportacaoLog.update({
+        where: { id: importacaoLogId },
+        data: {
+          progresso,
+          linhasProcessadas,
+          sucessoCount,
+          erroCount,
+        },
+      });
+
+      this.logger.log(
+        `Progresso: ${progresso}% (${linhasProcessadas}/${totalLinhasParaProcessar} linhas processadas)`,
+      );
+    }
+
+    // 11. Atualizar analytics em tempo real
+    // NOTA: Analytics será atualizado mesmo se grupo/subgrupo estiverem como "DESCONHECIDO"
+    // Quando produtos forem atualizados, o analytics será recalculado automaticamente
+    const vendasParaAnalytics = vendasComDadosProduto.map((v) => ({
+      dataVenda: v.dataVenda,
+      nomeFantasia: v.nomeFantasia,
+      marca: v.marca || 'DESCONHECIDA',
+      grupo: v.grupo || 'DESCONHECIDO',
+      subgrupo: v.subgrupo || 'DESCONHECIDO',
+      tipoOperacao: v.tipoOperacao,
+      ufDestino: v.ufDestino,
+      valorTotal: v.valorTotal,
+      quantidade: v.quantidade,
+    }));
+    await this.analyticsService.atualizarAnalytics(vendasParaAnalytics);
+
+    // 12. Atualizar log com estatísticas finais (100% concluído)
+    await this.prisma.vendaImportacaoLog.update({
+      where: { id: importacaoLogId },
+      data: {
+        sucessoCount,
+        erroCount,
+        produtosNaoEncontrados,
+        duplicatasCount: duplicatasCount,
+        novosCount: novosCount,
+        progresso: 100, // 100% concluído
+        linhasProcessadas: totalLinhasParaProcessar,
+      },
+    });
+
+    const tempoTotal = ((Date.now() - startTime) / 1000).toFixed(2);
+
+    this.logger.log(
+      `Importação concluída: ${sucessoCount} sucessos, ${erroCount} erros em ${tempoTotal}s`,
+    );
   }
 
   /**
@@ -479,6 +589,7 @@ export class VendasImportService {
   private prepararVendaParaUpsert(
     venda: VendaProcessada,
     empresaId: string,
+    importacaoLogId: string, // NOVO PARÂMETRO
   ): {
     nfe: string;
     idDoc: string;
@@ -501,6 +612,7 @@ export class VendasImportService {
     valorTotal: Decimal;
     empresaId: string;
     produtoId?: string;
+    importacaoLogId: string; // NOVO CAMPO
     metadata?: unknown;
   } {
     return {
@@ -525,6 +637,7 @@ export class VendasImportService {
       valorTotal: new Decimal(venda.valorTotal.toString()),
       empresaId: empresaId, // Sempre usa o empresaId informado pelo usuário
       produtoId: venda.produtoId,
+      importacaoLogId, // NOVO: associar venda à importação
       metadata: venda.metadata,
     };
   }
@@ -558,53 +671,63 @@ export class VendasImportService {
       produtoId?: string;
       metadata?: unknown;
     }>,
+    empresaId: string,
+    importacaoLogId: string, // NOVO PARÂMETRO
   ): Promise<{ sucesso: number; erros: number }> {
     let sucesso = 0;
     let erros = 0;
 
     for (const venda of vendas) {
       try {
+        // Preparar dados da venda com importacaoLogId
+        const vendaData = this.prepararVendaParaUpsert(
+          venda as VendaProcessada,
+          empresaId,
+          importacaoLogId,
+        );
+
         // Buscar registro existente usando a chave única composta
         const existente = await this.prisma.venda.findFirst({
           where: {
-            nfe: venda.nfe,
-            idDoc: venda.idDoc || '',
-            referencia: venda.referencia || '',
+            nfe: vendaData.nfe,
+            idDoc: vendaData.idDoc || '',
+            referencia: vendaData.referencia || '',
           },
         });
 
         if (existente) {
-          // Atualizar registro existente
+          // Atualizar registro existente (incluindo importacaoLogId)
           await this.prisma.venda.update({
             where: { id: existente.id },
             data: {
-              dataVenda: venda.dataVenda,
-              razaoSocial: venda.razaoSocial,
-              nomeFantasia: venda.nomeFantasia,
-              cnpjCliente: venda.cnpjCliente,
-              ufDestino: venda.ufDestino,
-              ufOrigem: venda.ufOrigem,
-              idProd: venda.idProd,
-              prodCodMestre: venda.prodCodMestre,
-              descricaoProduto: venda.descricaoProduto,
-              marca: venda.marca,
-              grupo: venda.grupo,
-              subgrupo: venda.subgrupo,
-              tipoOperacao: venda.tipoOperacao,
-              quantidade: venda.quantidade,
-              valorUnitario: venda.valorUnitario,
-              valorTotal: venda.valorTotal,
-              empresaId: venda.empresaId,
-              produtoId: venda.produtoId,
-              metadata: (venda.metadata as Prisma.InputJsonValue) ?? null,
+              dataVenda: vendaData.dataVenda,
+              razaoSocial: vendaData.razaoSocial,
+              nomeFantasia: vendaData.nomeFantasia,
+              cnpjCliente: vendaData.cnpjCliente,
+              ufDestino: vendaData.ufDestino,
+              ufOrigem: vendaData.ufOrigem,
+              idProd: vendaData.idProd,
+              prodCodMestre: vendaData.prodCodMestre,
+              descricaoProduto: vendaData.descricaoProduto,
+              marca: vendaData.marca,
+              grupo: vendaData.grupo,
+              subgrupo: vendaData.subgrupo,
+              tipoOperacao: vendaData.tipoOperacao,
+              quantidade: vendaData.quantidade,
+              valorUnitario: vendaData.valorUnitario,
+              valorTotal: vendaData.valorTotal,
+              empresaId: vendaData.empresaId,
+              produtoId: vendaData.produtoId,
+              importacaoLogId: vendaData.importacaoLogId, // NOVO: atualizar importacaoLogId
+              metadata: (vendaData.metadata as Prisma.InputJsonValue) ?? null,
             },
           });
         } else {
-          // Criar novo registro
+          // Criar novo registro (com importacaoLogId)
           await this.prisma.venda.create({
             data: {
-              ...venda,
-              metadata: (venda.metadata as Prisma.InputJsonValue) ?? null,
+              ...vendaData,
+              metadata: (vendaData.metadata as Prisma.InputJsonValue) ?? null,
             } as Prisma.VendaCreateInput,
           });
         }

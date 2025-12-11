@@ -1,15 +1,51 @@
 'use client';
 
-import { useVendasImportLogs } from '@/hooks/use-vendas';
+import { useState } from 'react';
+import { useVendasImportLogs, useDeleteImportLog } from '@/hooks/use-vendas';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { Trash2, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export function ImportHistoryTable() {
   const { data: logs, isLoading } = useVendasImportLogs();
+  const deleteMutation = useDeleteImportLog();
+  const { toast } = useToast();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (logId: string, nomeArquivo: string, sucessoCount: number) => {
+    setDeletingId(logId);
+    try {
+      await deleteMutation.mutateAsync(logId);
+      toast({
+        title: 'Importação deletada',
+        description: `A importação "${nomeArquivo}" e ${sucessoCount} vendas foram removidas com sucesso.`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao deletar',
+        description: error instanceof Error ? error.message : 'Erro desconhecido ao deletar importação',
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -55,6 +91,7 @@ export function ImportHistoryTable() {
                 <TableHead>Existentes</TableHead>
                 <TableHead>Erros</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="w-[100px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -85,6 +122,59 @@ export function ImportHistoryTable() {
                     >
                       {log.erroCount === 0 ? 'Sucesso' : 'Com Erros'}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          disabled={deletingId === log.id}
+                        >
+                          {deletingId === log.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirmar Deleção</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza que deseja deletar esta importação?
+                            <br />
+                            <br />
+                            <strong>Arquivo:</strong> {log.nomeArquivo}
+                            <br />
+                            <strong>Data:</strong>{' '}
+                            {format(new Date(log.createdAt), "dd/MM/yyyy 'às' HH:mm", {
+                              locale: ptBR,
+                            })}
+                            <br />
+                            <strong>Total de vendas:</strong> {log.sucessoCount}
+                            <br />
+                            <br />
+                            <span className="text-red-600 font-semibold">
+                              ⚠️ Esta ação irá deletar {log.sucessoCount} vendas e não pode ser desfeita!
+                            </span>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() =>
+                              handleDelete(log.id, log.nomeArquivo, log.sucessoCount)
+                            }
+                            className="bg-red-600 hover:bg-red-700"
+                            disabled={deletingId === log.id}
+                          >
+                            {deletingId === log.id ? 'Deletando...' : 'Deletar'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}

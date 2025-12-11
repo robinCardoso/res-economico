@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   vendasService,
+  analyticsService,
+  analyticsValuesService,
   type CreateVendaDto,
   type UpdateVendaDto,
   type FilterVendasDto,
@@ -10,6 +12,16 @@ import {
   type VendasStats,
   type VendaAnalytics,
   type VendaImportacaoLog,
+  type AnalyticsFilters,
+  type CrescimentoEmpresaResponse,
+  type CrescimentoFilialResponse,
+  type CrescimentoMarcaResponse,
+  type CrescimentoAssociadoResponse,
+  type VendaImportProgress,
+  type VendaColumnMapping,
+  type CreateVendaColumnMappingDto,
+  type VendaAnalyticsFilter,
+  type CreateVendaAnalyticsFilterDto,
 } from '@/services/vendas.service';
 
 export function useVendas(filters?: FilterVendasDto) {
@@ -132,6 +144,76 @@ export function useSubgrupos() {
   });
 }
 
+export function useNomesFantasia() {
+  return useQuery<string[]>({
+    queryKey: ['vendas', 'nomes-fantasia'],
+    queryFn: () => vendasService.getNomesFantasia(),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+// Hooks para Analytics
+export function useCrescimentoEmpresa(filtros?: AnalyticsFilters) {
+  return useQuery<CrescimentoEmpresaResponse>({
+    queryKey: ['vendas', 'analytics', 'crescimento-empresa', filtros],
+    queryFn: () => analyticsService.getCrescimentoEmpresa(filtros),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+export function useCrescimentoFilial(filtros?: AnalyticsFilters) {
+  return useQuery<CrescimentoFilialResponse>({
+    queryKey: ['vendas', 'analytics', 'crescimento-filial', filtros],
+    queryFn: () => analyticsService.getCrescimentoFilial(filtros),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+export function useCrescimentoMarca(filtros?: AnalyticsFilters) {
+  return useQuery<CrescimentoMarcaResponse>({
+    queryKey: ['vendas', 'analytics', 'crescimento-marca', filtros],
+    queryFn: () => analyticsService.getCrescimentoMarca(filtros),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+export function useCrescimentoAssociado(
+  filtros?: AnalyticsFilters,
+  page: number = 1,
+  limit: number = 50
+) {
+  return useQuery<CrescimentoAssociadoResponse>({
+    queryKey: ['vendas', 'analytics', 'crescimento-associado', filtros, page, limit],
+    queryFn: () => analyticsService.getCrescimentoAssociado(filtros, page, limit),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+// Hooks para valores únicos de VendaAnalytics
+export function useAnalyticsUfs() {
+  return useQuery<string[]>({
+    queryKey: ['vendas', 'analytics', 'ufs'],
+    queryFn: () => analyticsValuesService.getUfs(),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+export function useAnalyticsAnos() {
+  return useQuery<number[]>({
+    queryKey: ['vendas', 'analytics', 'anos'],
+    queryFn: () => analyticsValuesService.getAnos(),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+export function useAnalyticsMeses() {
+  return useQuery<number[]>({
+    queryKey: ['vendas', 'analytics', 'meses'],
+    queryFn: () => analyticsValuesService.getMeses(),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
 export function useVendasAnalytics(filters?: {
   ano?: number;
   mes?: number;
@@ -146,5 +228,146 @@ export function useVendasAnalytics(filters?: {
   return useQuery<VendaAnalytics[]>({
     queryKey: ['vendas', 'analytics', filters],
     queryFn: () => vendasService.getAnalytics(filters),
+  });
+}
+
+export function useDeleteImportLog() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (logId: string) => vendasService.deleteImportLog(logId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendas', 'import-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['vendas'] });
+      queryClient.invalidateQueries({ queryKey: ['vendas', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['vendas', 'analytics'] });
+    },
+  });
+}
+
+export function useImportLogProgress(logId: string, enabled: boolean = true) {
+  return useQuery({
+    queryKey: ['vendas', 'import-logs', logId, 'progresso'],
+    queryFn: () => vendasService.getImportLogProgress(logId),
+    enabled: enabled && !!logId,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      // Parar de atualizar quando progresso for 100% ou concluído
+      if (data?.progresso === 100 || data?.concluido) {
+        return false;
+      }
+      // Atualizar a cada 2 segundos enquanto estiver processando
+      return 2000;
+    },
+  });
+}
+
+// =====================================================
+// HOOKS PARA MAPEAMENTO DE COLUNAS
+// =====================================================
+
+export function useVendaColumnMappings() {
+  return useQuery<VendaColumnMapping[]>({
+    queryKey: ['vendas', 'column-mappings'],
+    queryFn: () => vendasService.getColumnMappings(),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+export function useVendaColumnMapping(id: string) {
+  return useQuery<VendaColumnMapping>({
+    queryKey: ['vendas', 'column-mappings', id],
+    queryFn: () => vendasService.getColumnMapping(id),
+    enabled: !!id,
+  });
+}
+
+export function useCreateVendaColumnMapping() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (dto: CreateVendaColumnMappingDto) =>
+      vendasService.createColumnMapping(dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendas', 'column-mappings'] });
+    },
+  });
+}
+
+export function useUpdateVendaColumnMapping() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: Partial<CreateVendaColumnMappingDto> }) =>
+      vendasService.updateColumnMapping(id, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendas', 'column-mappings'] });
+    },
+  });
+}
+
+export function useDeleteVendaColumnMapping() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => vendasService.deleteColumnMapping(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendas', 'column-mappings'] });
+    },
+  });
+}
+
+// =====================================================
+// HOOKS PARA FILTROS DE ANALYTICS
+// =====================================================
+
+export function useVendaAnalyticsFilters() {
+  return useQuery<VendaAnalyticsFilter[]>({
+    queryKey: ['vendas', 'analytics-filters'],
+    queryFn: () => vendasService.getAnalyticsFilters(),
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+export function useVendaAnalyticsFilter(id: string) {
+  return useQuery<VendaAnalyticsFilter>({
+    queryKey: ['vendas', 'analytics-filters', id],
+    queryFn: () => vendasService.getAnalyticsFilter(id),
+    enabled: !!id,
+  });
+}
+
+export function useCreateVendaAnalyticsFilter() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (dto: CreateVendaAnalyticsFilterDto) =>
+      vendasService.createAnalyticsFilter(dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendas', 'analytics-filters'] });
+    },
+  });
+}
+
+export function useUpdateVendaAnalyticsFilter() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: Partial<CreateVendaAnalyticsFilterDto> }) =>
+      vendasService.updateAnalyticsFilter(id, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendas', 'analytics-filters'] });
+    },
+  });
+}
+
+export function useDeleteVendaAnalyticsFilter() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => vendasService.deleteAnalyticsFilter(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendas', 'analytics-filters'] });
+    },
   });
 }

@@ -66,9 +66,74 @@ export interface VendaImportacaoLog {
   produtosNaoEncontrados: number;
   duplicatasCount: number; // Registros que já existiam (foram atualizados)
   novosCount: number; // Registros novos (foram criados)
+  progresso?: number; // Progresso da importação (0-100)
+  linhasProcessadas?: number; // Quantidade de linhas já processadas
   usuarioEmail: string;
   usuarioId?: string;
   createdAt: string;
+}
+
+export interface VendaImportProgress {
+  progresso: number;
+  linhasProcessadas: number;
+  totalLinhas: number;
+  sucessoCount: number;
+  erroCount: number;
+  concluido: boolean;
+}
+
+export interface VendaColumnMapping {
+  id: string;
+  nome: string;
+  columnMapping: Record<string, string>;
+  filters?: Array<{
+    id: string;
+    column: string;
+    condition: string;
+    value?: string;
+  }>;
+  descricao?: string;
+  usuarioId?: string;
+  usuario?: {
+    id: string;
+    nome: string;
+    email: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VendaAnalyticsFilter {
+  id: string;
+  nome: string;
+  filters: AnalyticsFilters;
+  descricao?: string;
+  usuarioId?: string;
+  usuario?: {
+    id: string;
+    nome: string;
+    email: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateVendaAnalyticsFilterDto {
+  nome: string;
+  filters: AnalyticsFilters;
+  descricao?: string;
+}
+
+export interface CreateVendaColumnMappingDto {
+  nome: string;
+  columnMapping: Record<string, string>;
+  filters?: Array<{
+    id: string;
+    column: string;
+    condition: string;
+    value?: string;
+  }>;
+  descricao?: string;
 }
 
 export interface CreateVendaDto {
@@ -241,6 +306,7 @@ export const vendasService = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      timeout: 600_000, // 10 minutos para importações grandes
     });
     return data;
   },
@@ -267,6 +333,11 @@ export const vendasService = {
     return Array.isArray(data) ? data : [];
   },
 
+  async getImportLogProgress(logId: string): Promise<VendaImportProgress> {
+    const { data } = await api.get<VendaImportProgress>(`/vendas/import-logs/${logId}/progresso`);
+    return data;
+  },
+
   async getMappingFields(): Promise<Array<{ value: string; label: string; dataType: string; required: boolean }>> {
     const { data } = await api.get<Array<{ value: string; label: string; dataType: string; required: boolean }>>('/vendas/mapping-fields');
     return Array.isArray(data) ? data : [];
@@ -290,5 +361,303 @@ export const vendasService = {
   async getSubgrupos(): Promise<string[]> {
     const { data } = await api.get<string[]>('/vendas/subgrupos');
     return Array.isArray(data) ? data : [];
+  },
+
+  async getNomesFantasia(): Promise<string[]> {
+    const { data } = await api.get<string[]>('/vendas/nomes-fantasia');
+    return Array.isArray(data) ? data : [];
+  },
+
+  async deleteImportLog(logId: string): Promise<void> {
+    await api.delete(`/vendas/import-logs/${logId}`);
+  },
+
+  // =====================================================
+  // MÉTODOS DE MAPEAMENTO DE COLUNAS
+  // =====================================================
+
+  async getColumnMappings(): Promise<VendaColumnMapping[]> {
+    const { data } = await api.get<VendaColumnMapping[]>('/vendas/column-mappings');
+    return Array.isArray(data) ? data : [];
+  },
+
+  async getColumnMapping(id: string): Promise<VendaColumnMapping> {
+    const { data } = await api.get<VendaColumnMapping>(`/vendas/column-mappings/${id}`);
+    return data;
+  },
+
+  async createColumnMapping(dto: CreateVendaColumnMappingDto): Promise<VendaColumnMapping> {
+    const { data } = await api.post<VendaColumnMapping>('/vendas/column-mappings', dto);
+    return data;
+  },
+
+  async updateColumnMapping(id: string, dto: Partial<CreateVendaColumnMappingDto>): Promise<VendaColumnMapping> {
+    const { data } = await api.put<VendaColumnMapping>(`/vendas/column-mappings/${id}`, dto);
+    return data;
+  },
+
+  async deleteColumnMapping(id: string): Promise<void> {
+    await api.delete(`/vendas/column-mappings/${id}`);
+  },
+
+  // =====================================================
+  // MÉTODOS DE FILTROS DE ANALYTICS
+  // =====================================================
+
+  async getAnalyticsFilters(): Promise<VendaAnalyticsFilter[]> {
+    const { data } = await api.get<VendaAnalyticsFilter[]>('/vendas/analytics-filters');
+    return Array.isArray(data) ? data : [];
+  },
+
+  async getAnalyticsFilter(id: string): Promise<VendaAnalyticsFilter> {
+    const { data } = await api.get<VendaAnalyticsFilter>(`/vendas/analytics-filters/${id}`);
+    return data;
+  },
+
+  async createAnalyticsFilter(dto: CreateVendaAnalyticsFilterDto): Promise<VendaAnalyticsFilter> {
+    const { data } = await api.post<VendaAnalyticsFilter>('/vendas/analytics-filters', dto);
+    return data;
+  },
+
+  async updateAnalyticsFilter(id: string, dto: Partial<CreateVendaAnalyticsFilterDto>): Promise<VendaAnalyticsFilter> {
+    const { data } = await api.put<VendaAnalyticsFilter>(`/vendas/analytics-filters/${id}`, dto);
+    return data;
+  },
+
+  async deleteAnalyticsFilter(id: string): Promise<void> {
+    await api.delete(`/vendas/analytics-filters/${id}`);
+  },
+};
+
+// Métodos para Analytics - valores únicos de VendaAnalytics
+export const analyticsValuesService = {
+  async getUfs(): Promise<string[]> {
+    const { data } = await api.get<string[]>('/vendas/analytics/ufs');
+    return Array.isArray(data) ? data : [];
+  },
+
+  async getAnos(): Promise<number[]> {
+    const { data } = await api.get<number[]>('/vendas/analytics/anos');
+    return Array.isArray(data) ? data : [];
+  },
+
+  async getMeses(): Promise<number[]> {
+    const { data } = await api.get<number[]>('/vendas/analytics/meses');
+    return Array.isArray(data) ? data : [];
+  },
+};
+
+// Interfaces para Analytics
+export interface AnalyticsFilters {
+  tipoOperacao?: string[];
+  filial?: string[];
+  ano?: number[];
+  mes?: number[];
+  marca?: string[];
+  nomeFantasia?: string[];
+  grupo?: string[];
+  subgrupo?: string[];
+}
+
+export interface CrescimentoEmpresaResponse {
+  meses: Array<{
+    mes: number;
+    nomeMes: string;
+    dados: {
+      [ano: number]: { venda: number; evolucao?: number | null };
+    };
+  }>;
+  totalGeral: {
+    [ano: number]: { venda: number; evolucao?: number | null };
+  };
+  anosDisponiveis: number[];
+}
+
+export interface CrescimentoFilialResponse {
+  filiais: Array<{
+    uf: string;
+    dados: {
+      [ano: number]: { vendas: number; evolucao?: number | null };
+    };
+  }>;
+  totalGeral: {
+    [ano: number]: { vendas: number; evolucao?: number | null };
+  };
+  anosDisponiveis: number[];
+}
+
+export interface CrescimentoMarcaResponse {
+  marcas: Array<{
+    marca: string;
+    dados: {
+      [ano: number]: { venda: number; evolucao?: number | null };
+    };
+  }>;
+  totalGeral: {
+    [ano: number]: { venda: number; evolucao?: number | null };
+  };
+  anosDisponiveis: number[];
+}
+
+export interface CrescimentoAssociadoResponse {
+  associados: Array<{
+    nomeFantasia: string;
+    dados: {
+      [ano: number]: { venda: number; evolucao?: number | null };
+    };
+  }>;
+  totalGeral: {
+    [ano: number]: { venda: number; evolucao?: number | null };
+  };
+  anosDisponiveis: number[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+// Métodos para Analytics
+export const analyticsService = {
+  async getCrescimentoEmpresa(filtros?: AnalyticsFilters): Promise<CrescimentoEmpresaResponse> {
+    const params = new URLSearchParams();
+    
+    // Para arrays, enviar como valores separados por vírgula (ParseArrayPipe espera isso)
+    if (filtros?.tipoOperacao?.length) {
+      params.append('tipoOperacao', filtros.tipoOperacao.join(','));
+    }
+    if (filtros?.filial?.length) {
+      params.append('filial', filtros.filial.join(','));
+    }
+    if (filtros?.ano?.length) {
+      params.append('ano', filtros.ano.join(','));
+    }
+    if (filtros?.mes?.length) {
+      params.append('mes', filtros.mes.join(','));
+    }
+    if (filtros?.marca?.length) {
+      params.append('marca', filtros.marca.join(','));
+    }
+    if (filtros?.nomeFantasia?.length) {
+      params.append('nomeFantasia', filtros.nomeFantasia.join(','));
+    }
+    if (filtros?.grupo?.length) {
+      params.append('grupo', filtros.grupo.join(','));
+    }
+    if (filtros?.subgrupo?.length) {
+      params.append('subgrupo', filtros.subgrupo.join(','));
+    }
+
+    const { data } = await api.get<CrescimentoEmpresaResponse>(
+      `/vendas/analytics/crescimento-empresa?${params.toString()}`
+    );
+    return data;
+  },
+
+  async getCrescimentoFilial(filtros?: AnalyticsFilters): Promise<CrescimentoFilialResponse> {
+    const params = new URLSearchParams();
+    
+    if (filtros?.tipoOperacao?.length) {
+      params.append('tipoOperacao', filtros.tipoOperacao.join(','));
+    }
+    if (filtros?.filial?.length) {
+      params.append('filial', filtros.filial.join(','));
+    }
+    if (filtros?.ano?.length) {
+      params.append('ano', filtros.ano.join(','));
+    }
+    if (filtros?.mes?.length) {
+      params.append('mes', filtros.mes.join(','));
+    }
+    if (filtros?.marca?.length) {
+      params.append('marca', filtros.marca.join(','));
+    }
+    if (filtros?.nomeFantasia?.length) {
+      params.append('nomeFantasia', filtros.nomeFantasia.join(','));
+    }
+    if (filtros?.grupo?.length) {
+      params.append('grupo', filtros.grupo.join(','));
+    }
+    if (filtros?.subgrupo?.length) {
+      params.append('subgrupo', filtros.subgrupo.join(','));
+    }
+
+    const { data } = await api.get<CrescimentoFilialResponse>(
+      `/vendas/analytics/crescimento-filial?${params.toString()}`
+    );
+    return data;
+  },
+
+  async getCrescimentoMarca(filtros?: AnalyticsFilters): Promise<CrescimentoMarcaResponse> {
+    const params = new URLSearchParams();
+    
+    if (filtros?.tipoOperacao?.length) {
+      params.append('tipoOperacao', filtros.tipoOperacao.join(','));
+    }
+    if (filtros?.filial?.length) {
+      params.append('filial', filtros.filial.join(','));
+    }
+    if (filtros?.ano?.length) {
+      params.append('ano', filtros.ano.join(','));
+    }
+    if (filtros?.mes?.length) {
+      params.append('mes', filtros.mes.join(','));
+    }
+    if (filtros?.marca?.length) {
+      params.append('marca', filtros.marca.join(','));
+    }
+    if (filtros?.nomeFantasia?.length) {
+      params.append('nomeFantasia', filtros.nomeFantasia.join(','));
+    }
+    if (filtros?.grupo?.length) {
+      params.append('grupo', filtros.grupo.join(','));
+    }
+    if (filtros?.subgrupo?.length) {
+      params.append('subgrupo', filtros.subgrupo.join(','));
+    }
+
+    const { data } = await api.get<CrescimentoMarcaResponse>(
+      `/vendas/analytics/crescimento-marca?${params.toString()}`
+    );
+    return data;
+  },
+
+  async getCrescimentoAssociado(
+    filtros?: AnalyticsFilters,
+    page: number = 1,
+    limit: number = 50
+  ): Promise<CrescimentoAssociadoResponse> {
+    const params = new URLSearchParams();
+    
+    if (filtros?.tipoOperacao?.length) {
+      params.append('tipoOperacao', filtros.tipoOperacao.join(','));
+    }
+    if (filtros?.filial?.length) {
+      params.append('filial', filtros.filial.join(','));
+    }
+    if (filtros?.ano?.length) {
+      params.append('ano', filtros.ano.join(','));
+    }
+    if (filtros?.mes?.length) {
+      params.append('mes', filtros.mes.join(','));
+    }
+    if (filtros?.marca?.length) {
+      params.append('marca', filtros.marca.join(','));
+    }
+    if (filtros?.nomeFantasia?.length) {
+      params.append('nomeFantasia', filtros.nomeFantasia.join(','));
+    }
+    if (filtros?.grupo?.length) {
+      params.append('grupo', filtros.grupo.join(','));
+    }
+    if (filtros?.subgrupo?.length) {
+      params.append('subgrupo', filtros.subgrupo.join(','));
+    }
+
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+
+    const { data } = await api.get<CrescimentoAssociadoResponse>(
+      `/vendas/analytics/crescimento-associado?${params.toString()}`
+    );
+    return data;
   },
 };

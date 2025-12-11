@@ -314,6 +314,40 @@ export class VendasService {
   async getImportLogs() {
     return this.prisma.vendaImportacaoLog.findMany({
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getImportLogProgress(logId: string) {
+    const log = await this.prisma.vendaImportacaoLog.findUnique({
+      where: { id: logId },
+      select: {
+        id: true,
+        progresso: true,
+        linhasProcessadas: true,
+        totalLinhas: true,
+        sucessoCount: true,
+        erroCount: true,
+        createdAt: true,
+      },
+    });
+
+    if (!log) {
+      throw new NotFoundException('Importação não encontrada');
+    }
+
+    return {
+      progresso: log.progresso || 0,
+      linhasProcessadas: log.linhasProcessadas || 0,
+      totalLinhas: log.totalLinhas,
+      sucessoCount: log.sucessoCount,
+      erroCount: log.erroCount,
+      concluido: log.progresso === 100,
+    };
+  }
+
+  async getImportLogs_OLD() {
+    return this.prisma.vendaImportacaoLog.findMany({
+      orderBy: { createdAt: 'desc' },
       take: 100, // Últimos 100 logs
       include: {
         usuario: {
@@ -376,6 +410,18 @@ export class VendasService {
     return result.map((row) => row.subgrupo);
   }
 
+  async getNomesFantasia() {
+    // Buscar valores únicos de nomeFantasia da tabela Venda usando raw SQL para melhor performance
+    const result = await this.prisma.$queryRaw<Array<{ nomeFantasia: string }>>`
+      SELECT DISTINCT "nomeFantasia"
+      FROM "Venda"
+      WHERE "nomeFantasia" IS NOT NULL
+      ORDER BY "nomeFantasia" ASC
+    `;
+
+    return result.map((row) => row.nomeFantasia);
+  }
+
   async getMappingFields() {
     // Retorna os campos do modelo Venda baseado no schema Prisma
     // Campos mapeados para importação (excluindo id, createdAt, updatedAt, relacionamentos)
@@ -421,6 +467,7 @@ export class VendasService {
     marca?: string | null;
     grupo?: string | null;
     subgrupo?: string | null;
+    tipoOperacao?: string | null;
     ufDestino?: string | null;
   }): Promise<void> {
     const data = new Date(venda.dataVenda);
@@ -441,6 +488,7 @@ export class VendasService {
         marca: true,
         grupo: true,
         subgrupo: true,
+        tipoOperacao: true,
         ufDestino: true,
         valorTotal: true,
         quantidade: true,

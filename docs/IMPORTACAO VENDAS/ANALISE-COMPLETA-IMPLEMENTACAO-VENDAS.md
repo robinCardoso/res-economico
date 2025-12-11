@@ -221,6 +221,7 @@ model Venda {
   // Relacionamentos
   empresaId       String?  // Empresa relacionada
   produtoId       String?  // Produto relacionado (se existir na tabela Produto)
+  importacaoLogId String?  // ID da importação que criou esta venda (NOVO - Versão 2.2.0)
   
   // Metadata JSONB para campos dinâmicos
   metadata        Json?    // { origem, tipo_venda, desconto, etc }
@@ -232,6 +233,7 @@ model Venda {
   // Relacionamentos
   empresa         Empresa? @relation(fields: [empresaId], references: [id])
   produto         Produto? @relation(fields: [produtoId], references: [id])
+  importacaoLog   VendaImportacaoLog? @relation(fields: [importacaoLogId], references: [id], onDelete: SetNull) // NOVO
   
   @@index([nfe])
   @@index([dataVenda])
@@ -244,6 +246,7 @@ model Venda {
   @@index([subgrupo])
   @@index([prodCodMestre])
   @@index([tipoOperacao])
+  @@index([importacaoLogId]) // NOVO - Para deleção de importações
   
   // Chave única composta para evitar duplicatas
   // IMPORTANTE: Esta chave garante que não haverá duplicatas mesmo se:
@@ -340,6 +343,10 @@ model VendaImportacaoLog {
   novosCount        Int      @default(0)   // Quantidade de registros novos (inseridos)
   produtosNaoEncontrados Int? // Quantidade de produtos não encontrados na tabela Produto
   
+  // Progresso (NOVO - Versão 2.2.0)
+  progresso         Int      @default(0)   // Percentual de conclusão (0-100)
+  linhasProcessadas Int      @default(0)   // Quantidade de linhas já processadas
+  
   // Usuário
   usuarioEmail      String
   usuarioId         String?
@@ -349,6 +356,7 @@ model VendaImportacaoLog {
   
   // Relacionamentos
   usuario           Usuario? @relation(fields: [usuarioId], references: [id])
+  vendas            Venda[]  // Vendas criadas por esta importação (NOVO)
   
   @@index([createdAt])
   @@index([usuarioId])
@@ -359,6 +367,9 @@ model VendaImportacaoLog {
 - `duplicatasCount`: Quantidade de registros que já existiam no banco (foram atualizados via UPSERT)
 - `novosCount`: Quantidade de registros novos que foram inseridos
 - `produtosNaoEncontrados`: Quantidade de produtos que não foram encontrados na tabela `Produto` (usaram valores padrão)
+- **`progresso`** (Versão 2.2.0): Percentual de conclusão da importação (0-100)
+- **`linhasProcessadas`** (Versão 2.2.0): Quantidade de linhas já processadas durante a importação
+- **`vendas`** (Versão 2.2.0): Relacionamento com vendas criadas por esta importação (para deleção)
 
 ### 2.2. Relacionamentos com Tabelas Existentes
 
@@ -689,17 +700,24 @@ console.log(`📊 Estatísticas: ${produtosNaoEncontradosCount} produtos não en
    - Logar avisos e registrar estatísticas de produtos não encontrados
 9. ✅ Atualizar analytics em tempo real (usando dados denormalizados)
 10. ✅ Salvar logs de importação (incluindo contagem de produtos não encontrados)
+11. ✅ **Processamento assíncrono em background** (Versão 2.2.0) - Retorna `logId` imediatamente
+12. ✅ **Sistema de progresso em tempo real** (Versão 2.2.0) - Campos `progresso` e `linhasProcessadas`
+13. ✅ **Associar vendas à importação via `importacaoLogId`** (Versão 2.2.0) - Para deleção precisa
+14. ✅ **Sistema de deleção de importações** (Versão 2.2.0) - Ver `PLANO-DELECAO-IMPORTACAO.md`
 
 #### Arquivos:
 - `backend/src/vendas/import/vendas-import.service.ts`
 - `backend/src/vendas/import/vendas-import.controller.ts`
 - `backend/src/vendas/import/vendas-analytics.service.ts`
+- `backend/src/vendas/import/vendas-import-delete.service.ts` (NOVO - Versão 2.2.0)
 - `backend/src/vendas/dto/vendas-import-request.dto.ts`
 - `backend/src/vendas/dto/vendas-import-response.dto.ts`
 
 #### Dependências:
 - Reutilizar lógica de processamento em lotes do módulo de uploads
 - Adaptar para estrutura de vendas
+- **Processamento em lotes:** 300 linhas por vez (otimizado na Versão 2.2.0)
+- **Timeout:** 10 minutos (600.000ms) no frontend para importações grandes
 
 ---
 
@@ -821,22 +839,381 @@ const vendasAgregadas = await prisma.$queryRaw`
 3. ✅ Implementar filtros (data, cliente, produto, etc)
 4. ✅ Implementar paginação
 5. ✅ Implementar exportação
+6. ✅ **Converter filtros para Select** (Marca, Grupo, Subgrupo, Tipo de Operação)
+7. ✅ **Implementar filtro padrão "Venda"**
+8. ✅ **Criar endpoints para valores únicos**
+9. ✅ **Implementar modal de detalhes da venda**
+10. ✅ **Implementar debounce para filtros de texto**
 
 #### Arquivos:
-- `frontend/src/app/(app)/admin/vendas/gerenciar/page.tsx`
-- `frontend/src/components/vendas/vendas-list.tsx`
+- `frontend/src/app/(app)/admin/importacoes/vendas/gerenciar/page.tsx`
+- `backend/src/vendas/vendas.controller.ts` (endpoints de valores únicos)
+- `backend/src/vendas/vendas.service.ts` (métodos de busca de valores únicos)
+- `frontend/src/services/vendas.service.ts` (métodos de API)
+- `frontend/src/hooks/use-vendas.ts` (hooks para carregar opções)
+
+#### Melhorias Implementadas:
+- **Filtros Select:** Marca, Grupo, Subgrupo e Tipo de Operação agora são selects com opções do banco
+- **Endpoints Backend:** 
+  - `GET /vendas/tipos-operacao` - Retorna tipos únicos
+  - `GET /vendas/marcas` - Retorna marcas únicas
+  - `GET /vendas/grupos` - Retorna grupos únicos
+  - `GET /vendas/subgrupos` - Retorna subgrupos únicos
+- **Performance:** Queries otimizadas com raw SQL (`SELECT DISTINCT`)
+- **Cache:** 5 minutos no frontend para reduzir requisições
+- **Filtro Padrão:** Página inicia com "Tipo de Operação = Venda" ativo
 
 ---
 
-### FASE 8: Frontend - Analytics e Estatísticas ⏱️ ~2 horas
+### FASE 8: Frontend - Analytics e Estatísticas ⏱️ ~8 horas
 
 #### Tarefas:
 1. ✅ Criar componente de estatísticas
 2. ✅ Implementar gráficos (opcional)
 3. ✅ Implementar filtros de analytics
+4. ⏳ **Página de Analytics** (`/admin/importacoes/vendas/analytics`) - **PRÓXIMA ETAPA**
+5. ⏳ **Análise 1: Crescimento Empresa Mês a Mês e Ano a Ano**
+6. ⏳ **Análise 2: Crescimento por Filial (UF) Ano a Ano**
+7. ⏳ **Análise 3: Crescimento por Marca Ano a Ano**
+8. ⏳ **Análise 4: Crescimento por Associado (nomeFantasia) Ano a Ano**
 
 #### Arquivos:
 - `frontend/src/components/vendas/vendas-stats-card.tsx`
+- `frontend/src/app/(app)/admin/importacoes/vendas/analytics/page.tsx` (PRÓXIMA ETAPA)
+- `backend/src/vendas/analytics/vendas-analytics.controller.ts` (novos endpoints)
+- `backend/src/vendas/analytics/vendas-analytics.service.ts` (métodos de agregação)
+- `frontend/src/services/vendas.service.ts` (métodos de API)
+- `frontend/src/hooks/use-vendas.ts` (hooks para analytics)
+- `frontend/src/components/vendas/analytics/` (componentes de análise)
+
+#### Detalhamento das Análises:
+
+**Análise 1: Crescimento Empresa Mês a Mês e Ano a Ano**
+- **Estrutura:** Tabela compacta com meses (1-12) nas linhas e anos (2022-2025) nas colunas
+- **Colunas por ano:** "Venda" (valor) e "% Evol." (percentual de evolução)
+- **Cálculo:** Comparar cada mês/ano com o mesmo mês do ano anterior
+- **Total Geral:** Soma de todos os meses por ano e evolução anual
+- **Visualização:** Valores negativos destacados em vermelho
+
+**Análise 2: Crescimento por Filial (UF) Ano a Ano**
+- **Estrutura:** Tabela com Filiais (UFs) nas linhas e anos nas colunas
+- **Agregação:** Agrupar por `ufDestino` da tabela `Venda`
+- **Colunas por ano:** "Vendas" (valor) e "% Evol." (percentual)
+- **Cálculo:** Comparar cada filial/ano com o mesmo filial/ano anterior
+- **Total Geral:** Soma de todas as filiais por ano
+
+**Análise 3: Crescimento por Marca Ano a Ano**
+- **Estrutura:** Tabela com Marcas nas linhas e anos nas colunas
+- **Agregação:** Agrupar por `marca` da tabela `VendaAnalytics`
+- **Colunas por ano:** "Venda" (valor) e "%" (percentual)
+- **Cálculo:** Comparar cada marca/ano com o mesmo marca/ano anterior
+- **Total Geral:** Soma de todas as marcas por ano
+
+**Análise 4: Crescimento por Associado (nomeFantasia) Ano a Ano**
+- **Estrutura:** Tabela com Nome Fantasia nas linhas e anos nas colunas
+- **Agregação:** Agrupar por `nomeFantasia` da tabela `VendaAnalytics`
+- **Colunas por ano:** "Venda" (valor) e "%" (percentual)
+- **Cálculo:** Comparar cada associado/ano com o mesmo associado/ano anterior
+- **Filtros:** Permitir busca/filtro por nome fantasia
+
+#### Endpoints Backend Necessários:
+
+```typescript
+// GET /vendas/analytics/crescimento-empresa
+// Query params: 
+//   - tipoOperacao?: string[] (múltiplos valores)
+//   - filial?: string[] (UFs, múltiplos valores)
+//   - ano?: number[] (múltiplos valores)
+//   - mes?: number[] (múltiplos valores, 1-12)
+//   - marca?: string[] (múltiplos valores)
+//   - nomeFantasia?: string[] (múltiplos valores)
+//   - grupo?: string[] (múltiplos valores)
+//   - subgrupo?: string[] (múltiplos valores)
+// Retorna: { meses: [{ mes: 1, 2022: { venda: number, evol?: number }, 2023: {...}, ... }], totalGeral: {...} }
+
+// GET /vendas/analytics/crescimento-filial
+// Query params: (mesmos filtros acima)
+// Retorna: { filiais: [{ uf: string, 2022: { vendas: number, evol?: number }, 2023: {...}, ... }], totalGeral: {...} }
+
+// GET /vendas/analytics/crescimento-marca
+// Query params: (mesmos filtros acima)
+// Retorna: { marcas: [{ marca: string, 2022: { venda: number, evol?: number }, 2023: {...}, ... }], totalGeral: {...} }
+
+// GET /vendas/analytics/crescimento-associado
+// Query params: (mesmos filtros acima)
+// Retorna: { associados: [{ nomeFantasia: string, 2022: { venda: number, evol?: number }, 2023: {...}, ... }], totalGeral: {...} }
+```
+
+**Nota:** Todos os filtros suportam seleção múltipla (arrays). Se nenhum valor for fornecido, retorna todos os dados disponíveis.
+
+#### Layout da Página:
+
+- **Estrutura:** Tabs ou seções separadas para cada análise
+- **Design:** Tabelas compactas, responsivas, com scroll horizontal se necessário
+- **Visualização:**
+  - Valores negativos em vermelho (background + texto)
+  - Valores positivos em preto/verde
+  - Formatação de números: separador de milhares (ponto), 2 casas decimais
+  - Percentuais: 1 casa decimal, sinal de % ou negativo
+- **Filtros (Todos com Seleção Múltipla):**
+  - **Tipo de Operação:** Select múltiplo (checkbox ou multi-select)
+  - **Filial (UF):** Select múltiplo com todas as UFs disponíveis
+  - **Ano:** Select múltiplo (2022, 2023, 2024, 2025, etc.)
+  - **Mês:** Select múltiplo (1-12, com nomes dos meses)
+  - **Marca:** Select múltiplo com todas as marcas disponíveis
+  - **Nome Fantasia (Associado):** Select múltiplo com busca/filtro
+  - **Grupo:** Select múltiplo com todos os grupos disponíveis
+  - **Subgrupo:** Select múltiplo com todos os subgrupos disponíveis
+- **Comportamento dos Filtros:**
+  - Filtros aplicados a todas as análises (compartilhados)
+  - Se nenhum valor selecionado = retorna todos os dados
+  - Múltiplos valores = filtro OR (ex: Marca A OU Marca B)
+  - Combinação de filtros = filtro AND (ex: Marca A E Filial SC)
+- **Exportação:** Botão para exportar cada tabela em CSV/Excel com filtros aplicados
+
+#### Componentes Frontend:
+
+```
+frontend/src/components/vendas/analytics/
+├── CrescimentoEmpresaTable.tsx      # Análise 1
+├── CrescimentoFilialTable.tsx        # Análise 2
+├── CrescimentoMarcaTable.tsx         # Análise 3
+├── CrescimentoAssociadoTable.tsx     # Análise 4
+├── AnalyticsFilters.tsx               # Filtros compartilhados (seleção múltipla)
+├── EvolutionCell.tsx                  # Componente para célula com evolução
+└── MultiSelect.tsx                    # Componente de select múltiplo reutilizável
+```
+
+#### Estrutura de Filtros (Interface TypeScript):
+
+```typescript
+interface AnalyticsFilters {
+  tipoOperacao?: string[];      // Múltiplos tipos de operação
+  filial?: string[];            // Múltiplas UFs
+  ano?: number[];               // Múltiplos anos
+  mes?: number[];               // Múltiplos meses (1-12)
+  marca?: string[];             // Múltiplas marcas
+  nomeFantasia?: string[];      // Múltiplos associados
+  grupo?: string[];             // Múltiplos grupos
+  subgrupo?: string[];          // Múltiplos subgrupos
+}
+
+// Exemplo de uso:
+const filters: AnalyticsFilters = {
+  tipoOperacao: ['Venda', 'Devolução'],
+  filial: ['SC', 'PR', 'SP'],
+  ano: [2023, 2024, 2025],
+  mes: [1, 2, 3], // Janeiro, Fevereiro, Março
+  marca: ['KSPG', 'RIOSULENSE'],
+  grupo: ['ELETRÔNICOS'],
+  subgrupo: ['COMPONENTES']
+};
+```
+
+#### Cálculos de Evolução:
+
+```typescript
+// Fórmula de evolução ano a ano:
+function calcularEvolucao(valorAtual: number, valorAnterior: number): number | null {
+  if (!valorAnterior || valorAnterior === 0) return null;
+  return ((valorAtual - valorAnterior) / valorAnterior) * 100;
+}
+
+// Exemplo:
+// 2023: 1.000.000
+// 2024: 1.100.000
+// Evolução: ((1.100.000 - 1.000.000) / 1.000.000) * 100 = 10.0%
+```
+
+#### Estrutura de Dados e Queries SQL:
+
+**Análise 1: Crescimento Empresa Mês a Mês**
+```sql
+-- Agregação mensal por ano com filtros múltiplos
+-- Nota: Precisa fazer JOIN com Venda para filtrar por tipoOperacao
+SELECT 
+  va.ano,
+  va.mes,
+  SUM(va."totalValor") as total_venda
+FROM "VendaAnalytics" va
+INNER JOIN "Venda" v ON (
+  EXTRACT(YEAR FROM v."dataVenda") = va.ano
+  AND EXTRACT(MONTH FROM v."dataVenda") = va.mes
+  AND v."nomeFantasia" = va."nomeFantasia"
+  AND v."marca" = va."marca"
+  AND v."ufDestino" = va.uf
+)
+WHERE 
+  ($1::int[] IS NULL OR va.ano = ANY($1::int[]))
+  AND ($2::int[] IS NULL OR va.mes = ANY($2::int[]))
+  AND ($3::text[] IS NULL OR va.uf = ANY($3::text[]))
+  AND ($4::text[] IS NULL OR va."marca" = ANY($4::text[]))
+  AND ($5::text[] IS NULL OR va."nomeFantasia" = ANY($5::text[]))
+  AND ($6::text[] IS NULL OR va."grupo" = ANY($6::text[]))
+  AND ($7::text[] IS NULL OR va."subgrupo" = ANY($7::text[]))
+  AND ($8::text[] IS NULL OR v."tipoOperacao" = ANY($8::text[]))
+GROUP BY va.ano, va.mes
+ORDER BY va.ano, va.mes;
+```
+
+**Análise 2: Crescimento por Filial**
+```sql
+-- Agregação por UF e ano com filtros múltiplos
+SELECT 
+  va.uf,
+  va.ano,
+  SUM(va."totalValor") as total_vendas
+FROM "VendaAnalytics" va
+INNER JOIN "Venda" v ON (
+  EXTRACT(YEAR FROM v."dataVenda") = va.ano
+  AND EXTRACT(MONTH FROM v."dataVenda") = va.mes
+  AND v."nomeFantasia" = va."nomeFantasia"
+  AND v."marca" = va."marca"
+  AND v."ufDestino" = va.uf
+)
+WHERE 
+  ($1::int[] IS NULL OR va.ano = ANY($1::int[]))
+  AND ($2::int[] IS NULL OR va.mes = ANY($2::int[]))
+  AND ($3::text[] IS NULL OR va.uf = ANY($3::text[]))
+  AND ($4::text[] IS NULL OR va."marca" = ANY($4::text[]))
+  AND ($5::text[] IS NULL OR va."nomeFantasia" = ANY($5::text[]))
+  AND ($6::text[] IS NULL OR va."grupo" = ANY($6::text[]))
+  AND ($7::text[] IS NULL OR va."subgrupo" = ANY($7::text[]))
+  AND ($8::text[] IS NULL OR v."tipoOperacao" = ANY($8::text[]))
+GROUP BY va.uf, va.ano
+ORDER BY va.uf, va.ano;
+```
+
+**Análise 3: Crescimento por Marca**
+```sql
+-- Agregação por marca e ano com filtros múltiplos
+SELECT 
+  va."marca",
+  va.ano,
+  SUM(va."totalValor") as total_venda
+FROM "VendaAnalytics" va
+INNER JOIN "Venda" v ON (
+  EXTRACT(YEAR FROM v."dataVenda") = va.ano
+  AND EXTRACT(MONTH FROM v."dataVenda") = va.mes
+  AND v."nomeFantasia" = va."nomeFantasia"
+  AND v."marca" = va."marca"
+  AND v."ufDestino" = va.uf
+)
+WHERE 
+  ($1::int[] IS NULL OR va.ano = ANY($1::int[]))
+  AND ($2::int[] IS NULL OR va.mes = ANY($2::int[]))
+  AND ($3::text[] IS NULL OR va.uf = ANY($3::text[]))
+  AND ($4::text[] IS NULL OR va."marca" = ANY($4::text[]))
+  AND ($5::text[] IS NULL OR va."nomeFantasia" = ANY($5::text[]))
+  AND ($6::text[] IS NULL OR va."grupo" = ANY($6::text[]))
+  AND ($7::text[] IS NULL OR va."subgrupo" = ANY($7::text[]))
+  AND ($8::text[] IS NULL OR v."tipoOperacao" = ANY($8::text[]))
+GROUP BY va."marca", va.ano
+ORDER BY va."marca", va.ano;
+```
+
+**Análise 4: Crescimento por Associado**
+```sql
+-- Agregação por nomeFantasia e ano com filtros múltiplos
+SELECT 
+  va."nomeFantasia",
+  va.ano,
+  SUM(va."totalValor") as total_venda
+FROM "VendaAnalytics" va
+INNER JOIN "Venda" v ON (
+  EXTRACT(YEAR FROM v."dataVenda") = va.ano
+  AND EXTRACT(MONTH FROM v."dataVenda") = va.mes
+  AND v."nomeFantasia" = va."nomeFantasia"
+  AND v."marca" = va."marca"
+  AND v."ufDestino" = va.uf
+)
+WHERE 
+  ($1::int[] IS NULL OR va.ano = ANY($1::int[]))
+  AND ($2::int[] IS NULL OR va.mes = ANY($2::int[]))
+  AND ($3::text[] IS NULL OR va.uf = ANY($3::text[]))
+  AND ($4::text[] IS NULL OR va."marca" = ANY($4::text[]))
+  AND ($5::text[] IS NULL OR va."nomeFantasia" = ANY($5::text[]))
+  AND ($6::text[] IS NULL OR va."grupo" = ANY($6::text[]))
+  AND ($7::text[] IS NULL OR va."subgrupo" = ANY($7::text[]))
+  AND ($8::text[] IS NULL OR v."tipoOperacao" = ANY($8::text[]))
+GROUP BY va."nomeFantasia", va.ano
+ORDER BY va."nomeFantasia", va.ano
+LIMIT $9 OFFSET $10;
+```
+
+**Nota Importante sobre Filtros:** 
+- **Todos os filtros suportam seleção múltipla (arrays)**
+- Para filtrar por `tipoOperacao`, é necessário fazer JOIN com a tabela `Venda`, pois `tipoOperacao` não está na tabela `VendaAnalytics`
+- **Alternativa recomendada:** Adicionar `tipoOperacao` à tabela `VendaAnalytics` para melhor performance (denormalização similar a marca/grupo/subgrupo)
+- **Lógica de filtros:**
+  - Múltiplos valores no mesmo filtro = OR (ex: Marca A OU Marca B)
+  - Filtros diferentes = AND (ex: Marca A E Filial SC E Ano 2024)
+- Filtros múltiplos usam `= ANY(array)` no PostgreSQL
+- Se nenhum valor selecionado em um filtro = retorna todos os valores daquele campo
+
+**Exemplo de Filtros Aplicados:**
+```
+tipoOperacao: ['Venda', 'Devolução']  → Venda OU Devolução
+filial: ['SC', 'PR']                   → SC OU PR
+ano: [2023, 2024]                      → 2023 OU 2024
+marca: ['KSPG']                        → Apenas KSPG
+
+Resultado: (Venda OU Devolução) E (SC OU PR) E (2023 OU 2024) E (KSPG)
+```
+
+#### Estrutura de Resposta da API:
+
+```typescript
+// Exemplo de resposta para Análise 1 (Crescimento Empresa)
+interface CrescimentoEmpresaResponse {
+  meses: Array<{
+    mes: number;
+    nomeMes: string; // "Janeiro", "Fevereiro", etc.
+    dados: {
+      [ano: number]: {
+        venda: number;
+        evolucao?: number; // null se não houver ano anterior
+      };
+    };
+  }>;
+  totalGeral: {
+    [ano: number]: {
+      venda: number;
+      evolucao?: number;
+    };
+  };
+  anosDisponiveis: number[]; // [2022, 2023, 2024, 2025]
+}
+
+// Exemplo de resposta para Análise 2 (Crescimento por Filial)
+interface CrescimentoFilialResponse {
+  filiais: Array<{
+    uf: string;
+    dados: {
+      [ano: number]: {
+        vendas: number;
+        evolucao?: number;
+      };
+    };
+  }>;
+  totalGeral: {
+    [ano: number]: {
+      vendas: number;
+      evolucao?: number;
+    };
+  };
+  anosDisponiveis: number[];
+}
+```
+
+#### Performance:
+
+- **Cache:** 5 minutos para dados agregados
+- **Lazy Loading:** Carregar cada análise sob demanda (tabs)
+- **Paginação:** Para análises com muitos registros (ex: associados)
+- **Otimização:** Usar índices do banco (ano, mes, marca, uf, nomeFantasia)
+- **Queries:** Usar raw SQL para melhor performance em agregações complexas
+- **Processamento:** Calcular evoluções no backend para reduzir carga no frontend
 
 ---
 
@@ -910,6 +1287,50 @@ const vendasAgregadas = await prisma.$queryRaw`
 - [ ] Criar lista de vendas
 - [ ] Criar card de estatísticas
 - [ ] Criar tabela de logs
+- [ ] **Criar página de Analytics** (`/admin/importacoes/vendas/analytics`)
+- [ ] **Criar componente CrescimentoEmpresaTable**
+- [ ] **Criar componente CrescimentoFilialTable**
+- [ ] **Criar componente CrescimentoMarcaTable**
+- [ ] **Criar componente CrescimentoAssociadoTable**
+- [ ] **Criar componente AnalyticsFilters**
+- [ ] **Criar componente EvolutionCell**
+
+### Backend - Analytics (FASE 8)
+- [ ] **Criar endpoint GET /vendas/analytics/crescimento-empresa**
+- [ ] **Criar endpoint GET /vendas/analytics/crescimento-filial**
+- [ ] **Criar endpoint GET /vendas/analytics/crescimento-marca**
+- [ ] **Criar endpoint GET /vendas/analytics/crescimento-associado**
+- [ ] **Implementar DTO para filtros múltiplos (arrays)**
+- [ ] **Implementar métodos de agregação mensal com filtros**
+- [ ] **Implementar métodos de agregação por filial com filtros**
+- [ ] **Implementar métodos de agregação por marca com filtros**
+- [ ] **Implementar métodos de agregação por associado com filtros**
+- [ ] **Implementar JOIN com tabela Venda para filtrar por tipoOperacao**
+- [ ] **Implementar lógica de filtros múltiplos (ANY array no PostgreSQL)**
+- [ ] **Implementar cálculo de evolução ano a ano**
+- [ ] **Otimizar queries com índices**
+- [ ] **Considerar denormalizar tipoOperacao em VendaAnalytics para melhor performance**
+
+### Frontend - Analytics (FASE 8)
+- [ ] **Criar hooks para buscar dados de crescimento**
+- [ ] **Implementar layout com tabs/seções**
+- [ ] **Implementar formatação de números e percentuais**
+- [ ] **Implementar destaque visual para valores negativos**
+- [ ] **Implementar filtros com seleção múltipla:**
+  - [ ] Tipo de Operação (multi-select)
+  - [ ] Filial/UF (multi-select)
+  - [ ] Ano (multi-select)
+  - [ ] Mês (multi-select com nomes)
+  - [ ] Marca (multi-select)
+  - [ ] Nome Fantasia (multi-select com busca)
+  - [ ] Grupo (multi-select)
+  - [ ] Subgrupo (multi-select)
+- [ ] **Implementar componente MultiSelect reutilizável**
+- [ ] **Implementar lógica de filtros (AND entre campos, OR dentro de cada campo)**
+- [ ] **Implementar exportação CSV/Excel com filtros aplicados**
+- [ ] **Implementar paginação para associados**
+- [ ] **Implementar busca/filtro por nome fantasia**
+- [ ] **Implementar carregamento de opções dos filtros do backend**
 
 ### Testes
 - [ ] Testar importação de planilha
@@ -918,6 +1339,10 @@ const vendasAgregadas = await prisma.$queryRaw`
 - [ ] Testar relacionamento com produtos
 - [ ] Testar performance
 - [ ] Testar erros
+- [ ] **Testar cálculos de evolução**
+- [ ] **Testar agregações por período**
+- [ ] **Testar performance das análises**
+- [ ] **Testar exportação de dados**
 
 ---
 
@@ -928,7 +1353,14 @@ const vendasAgregadas = await prisma.$queryRaw`
 | Backend (NestJS) | ~11 horas |
 | Frontend (Next.js) | ~11 horas |
 | Testes e Ajustes | ~3 horas |
-| **TOTAL** | **~25 horas** |
+| **FASE 8 - Analytics (Nova)** | **~8 horas** |
+| **TOTAL** | **~33 horas** |
+
+### Detalhamento FASE 8 - Analytics:
+- Backend - Endpoints de agregação: ~3 horas
+- Frontend - Componentes de tabela: ~3 horas
+- Frontend - Layout e filtros: ~1 hora
+- Testes e ajustes: ~1 hora
 
 ---
 
@@ -980,7 +1412,7 @@ Se houver necessidade de migrar dados do painel-completo:
 
 ### 4. Performance
 
-- Processar vendas em lotes (400 registros por vez)
+- Processar vendas em lotes (300 registros por vez - otimizado na Versão 2.2.0)
 - Usar UPSERT para evitar duplicatas e permitir atualizações
 - Atualizar analytics em tempo real (otimizado)
 - **Denormalizar marca, grupo e subgrupo** na tabela `Venda` durante importação para melhor performance em relatórios
@@ -990,6 +1422,8 @@ Se houver necessidade de migrar dados do painel-completo:
   - `grupo`: `'DESCONHECIDO'`
   - `subgrupo`: `'DESCONHECIDO'`
 - Isso evita JOINs complexos em relatórios frequentes e melhora significativamente a performance
+- **Processamento assíncrono:** Importações grandes são processadas em background para evitar timeouts
+- **Timeout:** Aumentado para 10 minutos (600.000ms) no frontend para acomodar importações grandes
 
 ### 5. Validação
 
@@ -1639,6 +2073,200 @@ Permitir que o usuário escolha um "modo seguro" que:
 
 ---
 
-**Última Atualização:** 2025-12-09  
-**Versão:** 2.0.0  
-**Status:** ✅ Implementado e Funcionando
+### ✅ Versão 2.1.0 - Melhorias de UX nos Filtros (2025-12-09)
+
+#### 1. Filtros Convertidos para Select
+- **Campos afetados:** Marca, Grupo, Subgrupo, Tipo de Operação
+- **Antes:** Campos de texto (Input) com busca manual
+- **Depois:** Selects com opções carregadas do banco de dados
+- **Benefícios:**
+  - Melhor UX: usuário seleciona ao invés de digitar
+  - Reduz erros de digitação
+  - Mostra apenas valores que existem no banco
+  - Ordenação alfabética das opções
+
+#### 2. Novos Endpoints para Valores Únicos
+- **GET /vendas/tipos-operacao** - Retorna tipos de operação únicos
+- **GET /vendas/marcas** - Retorna marcas únicas
+- **GET /vendas/grupos** - Retorna grupos únicos
+- **GET /vendas/subgrupos** - Retorna subgrupos únicos
+- **Implementação:** Queries otimizadas com raw SQL (`SELECT DISTINCT`)
+- **Performance:** Cache de 5 minutos no frontend
+
+#### 3. Filtro Padrão "Venda"
+- **Página:** `/admin/importacoes/vendas/gerenciar`
+- **Comportamento:** Inicia sempre com filtro "Tipo de Operação = Venda" ativo
+- **Motivo:** Facilita visualização das vendas mais comuns
+
+#### 4. Melhorias na Página de Gerenciamento
+- **Removido:** Debounce desnecessário para campos Select
+- **Adicionado:** Opção "Todos/Todas" em cada select para limpar filtro
+- **Melhorado:** Interface mais intuitiva e fácil de usar
+
+#### 5. Estrutura de Hooks Frontend
+- **Novos hooks:**
+  - `useTiposOperacao()` - Carrega tipos de operação
+  - `useMarcas()` - Carrega marcas
+  - `useGrupos()` - Carrega grupos
+  - `useSubgrupos()` - Carrega subgrupos
+- **Cache:** 5 minutos para reduzir requisições ao backend
+
+---
+
+### ⏳ Versão 2.2.0 - Página de Analytics com Análises de Crescimento (Planejado)
+
+#### 1. Análise 1: Crescimento Empresa Mês a Mês e Ano a Ano
+- **Estrutura:** Tabela compacta mostrando vendas mensais e evolução ano a ano
+- **Dados:** Agregação mensal de `VendaAnalytics` agrupada por ano e mês
+- **Cálculo:** Comparação mês/ano atual vs mesmo mês/ano anterior
+- **Visualização:** Tabela com scroll horizontal, valores negativos em vermelho
+
+#### 2. Análise 2: Crescimento por Filial (UF) Ano a Ano
+- **Estrutura:** Tabela com filiais (UFs) e vendas por ano
+- **Dados:** Agregação de `VendaAnalytics` agrupada por `uf` e `ano`
+- **Cálculo:** Comparação filial/ano atual vs mesmo filial/ano anterior
+- **Visualização:** Tabela compacta, destaque para filiais com maior/menor crescimento
+
+#### 3. Análise 3: Crescimento por Marca Ano a Ano
+- **Estrutura:** Tabela com marcas e vendas por ano
+- **Dados:** Agregação de `VendaAnalytics` agrupada por `marca` e `ano`
+- **Cálculo:** Comparação marca/ano atual vs mesma marca/ano anterior
+- **Visualização:** Tabela compacta, ordenação por maior crescimento
+
+#### 4. Análise 4: Crescimento por Associado (nomeFantasia) Ano a Ano
+- **Estrutura:** Tabela com associados e vendas por ano
+- **Dados:** Agregação de `VendaAnalytics` agrupada por `nomeFantasia` e `ano`
+- **Cálculo:** Comparação associado/ano atual vs mesmo associado/ano anterior
+- **Visualização:** Tabela com paginação, busca por nome fantasia
+
+#### 5. Endpoints Backend
+- `GET /vendas/analytics/crescimento-empresa` - Dados mensais e anuais
+- `GET /vendas/analytics/crescimento-filial` - Dados por filial/UF
+- `GET /vendas/analytics/crescimento-marca` - Dados por marca
+- `GET /vendas/analytics/crescimento-associado` - Dados por associado
+
+#### 6. Componentes Frontend
+- Componentes de tabela para cada análise
+- Filtros compartilhados (período, ano)
+- Exportação para CSV/Excel
+- Layout responsivo e compacto
+
+#### 7. Filtros com Seleção Múltipla
+- **Todos os filtros suportam múltiplos valores:**
+  - Tipo de Operação (array)
+  - Filial/UF (array)
+  - Ano (array)
+  - Mês (array)
+  - Marca (array)
+  - Nome Fantasia/Associado (array)
+  - Grupo (array)
+  - Subgrupo (array)
+- **Lógica:** OR dentro do mesmo filtro, AND entre filtros diferentes
+- **Componente:** MultiSelect reutilizável com busca e seleção múltipla
+
+#### 8. Melhorias de Performance
+- Cache de 5 minutos para dados agregados
+- Lazy loading por tab/análise
+- Queries otimizadas com índices do banco
+- Paginação para grandes volumes de dados
+- **Consideração:** Denormalizar `tipoOperacao` em `VendaAnalytics` para evitar JOINs
+
+---
+
+### ✅ Versão 2.2.0 - Sistema de Progresso e Processamento Assíncrono (2025-12-10)
+
+#### 1. Processamento Assíncrono em Background
+- **Implementação:** Importação agora retorna `logId` imediatamente e processa vendas em background
+- **Benefício:** Evita timeouts em importações grandes (10+ minutos)
+- **Método:** `processarVendasEmBackground()` executa de forma assíncrona após criar o log
+- **Timeout:** Aumentado para 10 minutos (600.000ms) no frontend
+
+#### 2. Sistema de Progresso em Tempo Real
+- **Campos adicionados em `VendaImportacaoLog`:**
+  - `progresso`: Int (0-100) - Percentual de conclusão
+  - `linhasProcessadas`: Int - Quantidade de linhas já processadas
+- **Atualização:** Progresso atualizado a cada lote de 300 linhas
+- **Endpoint:** `GET /vendas/import-logs/:id/progresso` - Retorna progresso atual
+- **Polling:** Frontend consulta a cada 2 segundos até 100% ou conclusão
+
+#### 3. Barra de Progresso Visual
+- **Componente:** `frontend/src/components/vendas/import-progress-bar.tsx`
+- **Funcionalidades:**
+  - Exibe percentual de progresso
+  - Mostra linhas processadas / total
+  - Exibe contadores de sucesso e erros
+  - Estados visuais: processando, concluído, erro
+- **Integração:** Aparece automaticamente na página de importação quando há importação ativa
+
+#### 4. Processamento em Lotes Otimizado
+- **Tamanho do lote:** Reduzido de 400 para 300 linhas
+- **Motivo:** Melhor performance e menor risco de travamentos
+- **Atualização de progresso:** Após cada lote processado
+
+#### 5. Sistema de Deleção de Importações
+- **Endpoint:** `DELETE /vendas/import-logs/:id`
+- **Funcionalidades:**
+  - Deleta todas as vendas associadas à importação
+  - Recalcula analytics apenas para períodos afetados
+  - Valida permissões (apenas criador pode deletar)
+  - Transação atômica (tudo ou nada)
+- **Frontend:** Botão de deletar na tabela de histórico com dialog de confirmação
+- **Documentação completa:** Ver `PLANO-DELECAO-IMPORTACAO.md`
+
+#### 6. Campo `importacaoLogId` em Venda
+- **Migration:** `20251210000000_add_importacao_log_id_to_venda`
+- **Funcionalidade:** Rastreabilidade completa de vendas por importação
+- **Benefício:** Permite deleção precisa e auditoria
+- **Índice:** Criado para performance em buscas
+
+#### 7. Integração com BRAVO-ERP - Produtos Inativos
+- **Alteração:** Sistema BRAVO-ERP agora importa produtos inativos por padrão
+- **Arquivo:** `backend/src/bravo-erp/sync/sync.service.ts`
+- **Mudança:** `apenas_ativos = false` (era `true`)
+- **Motivo:** Permitir importação de vendas de produtos que não estão mais ativos
+- **Comportamento:** Produtos inativos são importados normalmente, facilitando rastreamento de vendas históricas
+
+#### 8. Melhorias de UX na Importação
+- **Feedback imediato:** Usuário recebe `logId` imediatamente após iniciar importação
+- **Progresso visual:** Barra de progresso mostra status em tempo real
+- **Mensagens claras:** "Importação iniciada. Processando em background..."
+- **Auto-limpeza:** Barra de progresso desaparece após conclusão (com delay)
+
+#### 9. Estrutura de Dados de Progresso
+```typescript
+interface VendaImportProgress {
+  progresso: number;           // 0-100
+  linhasProcessadas: number;
+  totalLinhas: number;
+  sucessoCount: number;
+  erroCount: number;
+  concluido: boolean;
+}
+```
+
+#### 10. Hooks Frontend Adicionados
+- `useImportLogProgress(logId)` - Hook para buscar progresso com polling automático
+- `useDeleteImportLog()` - Hook para deletar importação
+- **Polling:** Configurado para refetch a cada 2 segundos até conclusão
+
+#### 11. Arquivos Criados/Modificados
+- **Backend:**
+  - `backend/src/vendas/import/vendas-import.service.ts` - Processamento assíncrono
+  - `backend/src/vendas/import/vendas-import-delete.service.ts` - Deleção de importações
+  - `backend/src/vendas/vendas.controller.ts` - Endpoints de progresso e deleção
+  - `backend/src/vendas/vendas.service.ts` - Método `getImportLogProgress()`
+  - `backend/prisma/migrations/20251210000000_add_importacao_log_id_to_venda/` - Migration
+  - `backend/prisma/migrations/20251210200000_add_progresso_to_import_log/` - Migration
+- **Frontend:**
+  - `frontend/src/components/vendas/import-progress-bar.tsx` - Componente de progresso
+  - `frontend/src/services/vendas.service.ts` - Métodos de API
+  - `frontend/src/hooks/use-vendas.ts` - Hooks de progresso e deleção
+  - `frontend/src/app/(app)/admin/importacoes/vendas/importar/page.tsx` - Integração
+  - `frontend/src/components/imports/import-history-table.tsx` - Botão de deletar
+
+---
+
+**Última Atualização:** 2025-12-10  
+**Versão:** 2.2.0  
+**Status:** ✅ Implementado e Funcionando  
+**Próxima Versão:** 2.3.0 - Analytics com Análises de Crescimento (Planejado)

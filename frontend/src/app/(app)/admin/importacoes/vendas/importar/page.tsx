@@ -3,9 +3,17 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useEmpresas } from '@/hooks/use-empresas';
-import { useImportVendas, useVendasMappingFields } from '@/hooks/use-vendas';
+import { 
+  useImportVendas, 
+  useVendasMappingFields,
+  useVendaColumnMappings,
+  useCreateVendaColumnMapping,
+  useDeleteVendaColumnMapping,
+} from '@/hooks/use-vendas';
+import { vendasService } from '@/services/vendas.service';
 import { ImportStepper } from '@/components/imports/import-stepper';
 import { ImportHistoryTable } from '@/components/imports/import-history-table';
+import { ImportProgressBar } from '@/components/vendas/import-progress-bar';
 import type { MappingInfo } from '@/lib/imports/import-vendas-utils';
 import {
     formatValueForPreview,
@@ -46,6 +54,12 @@ export default function ImportarVendasPage() {
   const { data: mappingFields, isLoading: isLoadingFields } = useVendasMappingFields();
   const importMutation = useImportVendas();
   const [empresaId, setEmpresaId] = useState<string>('');
+  const [currentImportLogId, setCurrentImportLogId] = useState<string | null>(null);
+  
+  // Hooks para mapeamentos no banco de dados
+  const { data: columnMappings, isLoading: isLoadingMappings } = useVendaColumnMappings();
+  const createMappingMutation = useCreateVendaColumnMapping();
+  const deleteMappingMutation = useDeleteVendaColumnMapping();
 
   // Converter campos do backend para o formato esperado pelo ImportStepper
   const DATABASE_FIELDS = useMemo(() => {
@@ -100,6 +114,10 @@ export default function ImportarVendasPage() {
       throw new Error('Mapeamento de colunas é obrigatório. Por favor, mapeie as colunas antes de importar.');
     }
 
+    // Iniciar importação (a função retorna após concluir, mas o log é criado antes)
+    // Vamos buscar o último log criado recentemente para mostrar progresso
+    const timestampAntes = Date.now();
+    
     const result = await importMutation.mutateAsync({
       file: inputData.file,
       importDto: {
@@ -108,6 +126,23 @@ export default function ImportarVendasPage() {
         columnMapping: inputData.importDto.columnMapping, // Já está no formato correto
       },
     });
+    
+    // Definir o logId para mostrar a barra de progresso
+    // Se a importação ainda está processando (progresso < 100), mostrar progresso
+    if (result.logId) {
+      setCurrentImportLogId(result.logId);
+    } else {
+      // Se não retornou logId, buscar o último log criado recentemente
+      // (fallback caso o backend não retorne o logId)
+      const logs = await vendasService.getImportLogs();
+      const logRecente = logs.find(log => {
+        const logTime = new Date(log.createdAt).getTime();
+        return logTime >= timestampAntes - 5000; // Últimos 5 segundos
+      });
+      if (logRecente && logRecente.progresso !== undefined && logRecente.progresso < 100) {
+        setCurrentImportLogId(logRecente.id);
+      }
+    }
     
     // Transformar o resultado para o formato esperado pelo ImportStepper
     const transformedResult: Record<string, unknown> = {
@@ -200,6 +235,19 @@ export default function ImportarVendasPage() {
         </CardContent>
       </Card>
 
+      {/* Barra de Progresso da Importação */}
+      {currentImportLogId && (
+        <ImportProgressBar
+          logId={currentImportLogId}
+          onComplete={() => {
+            // Quando a importação for concluída, limpar o logId após um delay
+            setTimeout(() => {
+              setCurrentImportLogId(null);
+            }, 3000);
+          }}
+        />
+      )}
+
       {/* ImportStepper com sistema completo de mapeamento */}
       {isLoadingFields ? (
         <Card>
@@ -223,6 +271,61 @@ export default function ImportarVendasPage() {
           processFile={processFile}
           empresaId={empresaId}
           onEmpresaIdChange={setEmpresaId}
+          useDatabaseMappings={true}
+          onLoadMappings={async () => {
+            // Converter mapeamentos do banco para o formato esperado pelo componente
+            if (!columnMappings) return [];
+            return columnMappings.map(mapping => {
+              // Converter columnMapping (Record<string, string>) para MappingInfo
+              const mappings: Record<string, MappingInfo> = {};
+              Object.entries(mapping.columnMapping).forEach(([dbField, fileColumn]) => {
+                // Encontrar o tipo de dados do campo
+                const fieldInfo = mappingFields?.find(f => f.value === dbField);
+                let dataType: MappingInfo['dataType'] = 'text';
+                if (fieldInfo) {
+                  const dataTypeMap: Record<string, MappingInfo['dataType']> = {
+                    'text': 'text',
+                    'integer': 'integer',
+                    'decimal': 'decimal',
+                    'currency': 'currency',
+                    'date': 'date',
+                  };
+                  dataType = dataTypeMap[fieldInfo.dataType] || 'text';
+                }
+                mappings[dbField] = {
+                  fileColumn: fileColumn || null,
+                  dataType,
+                };
+              });
+              
+              return {
+                id: mapping.id,
+                name: mapping.nome,
+                mappings,
+                filters: (mapping.filters as Array<{ id: string; column: string; condition: string; value?: string }>) || [],
+              };
+            });
+          }}
+          onSaveMapping={async (name, mappings, filters) => {
+            // Converter MappingInfo para columnMapping (Record<string, string>)
+            const columnMapping: Record<string, string> = {};
+            Object.entries(mappings).forEach(([dbField, mappingInfo]) => {
+              if (mappingInfo.fileColumn) {
+                columnMapping[dbField] = mappingInfo.fileColumn;
+              }
+            });
+            
+            const result = await createMappingMutation.mutateAsync({
+              nome: name,
+              columnMapping,
+              filters: filters.length > 0 ? filters : undefined,
+            });
+            
+            return { id: result.id };
+          }}
+          onDeleteMapping={async (id: string) => {
+            await deleteMappingMutation.mutateAsync(id);
+          }}
         />
       )}
     </div>
