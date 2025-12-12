@@ -21,22 +21,13 @@ function formatCurrency(value: number): string {
 export function CrescimentoEmpresaTable({ data }: CrescimentoEmpresaTableProps) {
   const { meses, totalGeral, anosDisponiveis } = data;
 
-  // Ordenar meses do maior para o menor valor (soma de todos os anos ou ano mais recente)
+  // Ordenar meses cronologicamente (Janeiro, Fevereiro, Março, etc.)
   const mesesOrdenados = React.useMemo(() => {
     return [...meses].sort((a, b) => {
-      // Calcular soma total de todos os anos para cada mês
-      const somaA = anosDisponiveis.reduce((acc, ano) => acc + (a.dados[ano]?.venda || 0), 0);
-      const somaB = anosDisponiveis.reduce((acc, ano) => acc + (b.dados[ano]?.venda || 0), 0);
-      // Se as somas forem iguais, usar o ano mais recente
-      if (somaA === somaB && anosDisponiveis.length > 0) {
-        const anoMaisRecente = Math.max(...anosDisponiveis);
-        const valorA = a.dados[anoMaisRecente]?.venda || 0;
-        const valorB = b.dados[anoMaisRecente]?.venda || 0;
-        return valorB - valorA;
-      }
-      return somaB - somaA; // Ordem decrescente
+      // Ordenar pelo número do mês (1-12)
+      return a.mes - b.mes;
     });
-  }, [meses, anosDisponiveis]);
+  }, [meses]);
 
   return (
     <div className="overflow-x-auto">

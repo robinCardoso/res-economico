@@ -6,7 +6,16 @@ interface StatsCache {
     success: boolean;
     totalProdutos: number;
     produtosAtivos: number;
-    ultimoSync: Date | null;
+    ultimoSync: {
+      id: string;
+      sync_type: string;
+      status: string;
+      started_at: string;
+      completed_at?: string;
+      total_produtos_bravo?: number;
+      produtos_inseridos?: number;
+      produtos_atualizados?: number;
+    } | null;
     ultimosSyncs: Array<{
       id: string;
       status: string;
@@ -96,13 +105,34 @@ export class StatsService {
       const ultimoSyncFinal = totalProdutosFinal === 0 ? null : ultimoSync;
       const ultimosSyncsFinal = totalProdutosFinal === 0 ? [] : ultimosSyncs;
 
+      // Formatar ultimoSync para incluir todos os campos necessários
+      // Converter null para undefined para compatibilidade com TypeScript
+      const ultimoSyncFormatted = ultimoSyncFinal
+        ? {
+            id: ultimoSyncFinal.id,
+            sync_type: ultimoSyncFinal.sync_type || 'N/A',
+            status: ultimoSyncFinal.status,
+            started_at: ultimoSyncFinal.started_at.toISOString(),
+            completed_at: ultimoSyncFinal.completed_at?.toISOString(),
+            ...(ultimoSyncFinal.total_produtos_bravo !== null && {
+              total_produtos_bravo: ultimoSyncFinal.total_produtos_bravo,
+            }),
+            ...(ultimoSyncFinal.produtos_inseridos !== null && {
+              produtos_inseridos: ultimoSyncFinal.produtos_inseridos,
+            }),
+            ...(ultimoSyncFinal.produtos_atualizados !== null && {
+              produtos_atualizados: ultimoSyncFinal.produtos_atualizados,
+            }),
+          }
+        : null;
+
       const response = {
         success: true,
         totalProdutos: totalProdutosFinal,
         produtosAtivos: produtosAtivos || 0,
         produtosDoBravo: 0, // Não usado no momento
         totalSincronizados: totalProdutosFinal,
-        ultimoSync: ultimoSyncFinal?.started_at || null,
+        ultimoSync: ultimoSyncFormatted,
         ultimaSincronizacao: ultimoSyncFinal?.started_at?.toISOString() || '',
         ultimaSincronizacaoData:
           ultimoSyncFinal?.completed_at?.toISOString() || '',

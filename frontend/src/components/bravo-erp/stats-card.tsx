@@ -23,6 +23,16 @@ export function StatsCard({ stats, loading = false, onRefresh }: StatsCardProps)
     }
   };
 
+  const translateSyncType = (syncType: string | undefined): string => {
+    if (!syncType) return 'N/A';
+    const translations: Record<string, string> = {
+      complete: 'Completa',
+      quick: 'Rápida',
+      automatica: 'Automática',
+    };
+    return translations[syncType.toLowerCase()] || syncType;
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -77,9 +87,7 @@ export function StatsCard({ stats, loading = false, onRefresh }: StatsCardProps)
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Tipo:</span>
                   <span className="font-medium">
-                    {typeof stats.ultimoSync.sync_type === 'string'
-                      ? stats.ultimoSync.sync_type
-                      : 'N/A'}
+                    {translateSyncType(stats.ultimoSync.sync_type)}
                   </span>
                 </div>
                 {(() => {

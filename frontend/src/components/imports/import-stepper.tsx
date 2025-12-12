@@ -12,6 +12,16 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, File, ChevronsRight, ArrowLeft, AlertTriangle, CheckCircle2, PlusCircle, Trash2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import type { RowData } from '@/lib/imports/import-vendas-utils';
 
 interface ImportProgress {
@@ -106,6 +116,8 @@ export function ImportStepper({
     const [importMode, setImportMode] = useState<'import' | 'upsert'>('import');
     const [importResult, setImportResult] = useState<Record<string, unknown> | null>(null);
     const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
+    const [showEmptyFieldsDialog, setShowEmptyFieldsDialog] = useState(false);
+    const [emptyFieldsIssues, setEmptyFieldsIssues] = useState<Array<{ rowIndex: number; fields: string[]; fileColumn: string; isRequired: boolean }>>([]);
 
     // Carregar mapeamentos salvos (do banco de dados ou localStorage)
     useEffect(() => {
@@ -308,6 +320,87 @@ export function ImportStepper({
         }
     };
 
+    // Valida campos vazios nos dados originais do Excel (antes do mapeamento)
+    // Isso é mais eficiente e preciso, pois verifica os dados brutos
+    // Valida APENAS campos obrigatórios (campos opcionais não são reportados)
+    const validateEmptyFields = useMemo(() => {
+        const issues: Array<{ rowIndex: number; fields: string[]; fileColumn: string; isRequired: boolean }> = [];
+        
+        // Só validar se temos mapeamentos e dados
+        if (filteredData.length === 0 || requiredFields.length === 0) {
+            return issues;
+        }
+        
+        // Criar conjunto de campos obrigatórios para verificação rápida
+        const requiredFieldsSet = new Set(requiredFields);
+        
+        filteredData.forEach((row, index) => {
+            const emptyRequiredFields: Array<{ label: string; fileColumn: string }> = [];
+            
+            // Verificar APENAS campos obrigatórios mapeados
+            requiredFields.forEach(field => {
+                const mapping = mappings[field];
+                if (mapping && mapping.fileColumn) {
+                    // Pegar o valor original do Excel (antes da conversão)
+                    // row contém os dados brutos do Excel, onde as chaves são os nomes das colunas do Excel
+                    // mapping.fileColumn é o nome da coluna do Excel que foi mapeada para este campo
+                    const originalValue = row[mapping.fileColumn];
+                    
+                    // Verificar se está vazio: null, undefined, string vazia, apenas espaços, ou NaN para números
+                    let isEmpty = false;
+                    
+                    if (originalValue === null || originalValue === undefined) {
+                        isEmpty = true;
+                    } else if (typeof originalValue === 'string') {
+                        isEmpty = originalValue.trim() === '';
+                    } else if (typeof originalValue === 'number') {
+                        // Para números, considerar vazio apenas se for NaN (0 é um valor válido)
+                        isEmpty = isNaN(originalValue);
+                    } else if (typeof originalValue === 'boolean') {
+                        // Boolean nunca é vazio
+                        isEmpty = false;
+                    } else {
+                        // Para outros tipos, converter para string e verificar
+                        const strValue = String(originalValue).trim();
+                        isEmpty = strValue === '' || strValue === 'null' || strValue === 'undefined';
+                    }
+                    
+                    if (isEmpty) {
+                        const fieldLabel = databaseFields.find(f => f.value === field)?.label || field;
+                        emptyRequiredFields.push({
+                            label: fieldLabel,
+                            fileColumn: mapping.fileColumn
+                        });
+                    }
+                }
+            });
+            
+            // Adicionar apenas se houver campos obrigatórios vazios
+            if (emptyRequiredFields.length > 0) {
+                issues.push({
+                    rowIndex: index + 1, // Linha 1-indexed para o usuário (linha do Excel)
+                    fields: emptyRequiredFields.map(f => f.label),
+                    fileColumn: emptyRequiredFields[0].fileColumn, // Primeira coluna vazia para referência
+                    isRequired: true // Sempre true, pois só validamos obrigatórios
+                });
+            }
+        });
+        
+        return issues;
+    }, [filteredData, requiredFields, mappings, databaseFields]);
+    
+    // Estatísticas de validação para mostrar no Passo 2
+    // Agora só mostra campos obrigatórios, então todas as issues são required
+    const validationStats = useMemo(() => {
+        return {
+            totalIssues: validateEmptyFields.length,
+            requiredIssues: validateEmptyFields.length, // Todas são obrigatórias agora
+            optionalIssues: 0, // Não mostramos mais opcionais
+            affectedRows: new Set(validateEmptyFields.map(i => i.rowIndex)).size,
+            affectedRowsRequired: new Set(validateEmptyFields.map(i => i.rowIndex)).size,
+        };
+    }, [validateEmptyFields]);
+
     const handleNextToReview = () => {
         if (!empresaId) {
             toast({ variant: "destructive", title: "Empresa Obrigatória", description: "Selecione uma empresa antes de continuar." });
@@ -317,7 +410,26 @@ export function ImportStepper({
             toast({ variant: "destructive", title: "Mapeamento Incompleto", description: "Mapeie todos os campos obrigatórios antes de continuar." });
             return;
         }
+        
+        // Validar campos vazios (já calculado em useMemo)
+        if (validateEmptyFields.length > 0) {
+            setEmptyFieldsIssues(validateEmptyFields);
+            setShowEmptyFieldsDialog(true);
+            return;
+        }
+        
+        // Se não houver problemas, avançar para revisão
         setStep(3);
+    };
+    
+    const handleProceedWithEmptyFields = () => {
+        setShowEmptyFieldsDialog(false);
+        setStep(3);
+    };
+    
+    const handleCancelReview = () => {
+        setShowEmptyFieldsDialog(false);
+        setEmptyFieldsIssues([]);
     };
 
     const handleImport = async () => {
@@ -507,6 +619,61 @@ export function ImportStepper({
                         </div>
                         {filters.length > 0 && <div className="text-sm text-center p-2 bg-blue-50 text-blue-800 rounded-lg">{fileData.length} linhas no arquivo. {fileData.length - filteredData.length} removidas. {filteredData.length} serão importadas.</div>}
                         </div>
+                        
+                        {/* Aviso de campos vazios - apenas obrigatórios */}
+                        {isMappingValid && validationStats.totalIssues > 0 && (
+                            <div className="p-4 border border-red-500 bg-red-50 rounded-lg">
+                                <div className="flex items-start gap-2">
+                                    <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0 text-red-600" />
+                                    <div className="flex-1">
+                                        <div className="font-semibold mb-2 text-red-800">
+                                            Atenção: Campos Obrigatórios Vazios
+                                        </div>
+                                        <div className="text-sm space-y-2 text-red-700">
+                                            {/* Resumo */}
+                                            <div>
+                                                <div className="mb-2">
+                                                    <strong>{validationStats.affectedRowsRequired} linha(s)</strong> têm campos <strong>obrigatórios</strong> vazios.
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Detalhes específicos - mostrar primeiras 10 linhas */}
+                                            <div className="mt-3 pt-3 border-t border-red-300">
+                                                <div className="font-medium mb-2">Detalhes por linha:</div>
+                                                <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                                                    {validateEmptyFields.slice(0, 10).map((issue) => (
+                                                        <div 
+                                                            key={`${issue.rowIndex}-${issue.fileColumn}`}
+                                                            className="text-xs bg-white/70 p-2 rounded border border-red-200"
+                                                        >
+                                                            <div className="font-semibold text-red-800">
+                                                                Linha {issue.rowIndex} do Excel:
+                                                            </div>
+                                                            <div className="ml-2 mt-0.5">
+                                                                <span className="font-medium">Campo(s) vazio(s):</span>{' '}
+                                                                <span className="font-mono font-semibold text-red-700">{issue.fields.join(', ')}</span>
+                                                            </div>
+                                                            <div className="ml-2 text-xs text-red-600 mt-0.5">
+                                                                Coluna do Excel: <span className="font-mono">{issue.fileColumn}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {validateEmptyFields.length > 10 && (
+                                                        <div className="text-xs text-red-600 italic pt-1">
+                                                            ... e mais {validateEmptyFields.length - 10} linha(s) com campos obrigatórios vazios
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="mt-2 pt-2 border-t border-red-300 font-medium">
+                                                Você poderá revisar todos os detalhes e decidir se deseja prosseguir antes de importar.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                     <CardFooter className="justify-between">
                          <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft className="mr-2 h-4 w-4"/>Voltar</Button>
@@ -599,5 +766,65 @@ export function ImportStepper({
         }
     };
     
-    return <div>{renderStepContent()}</div>;
+    return (
+        <div>
+            {renderStepContent()}
+            
+            {/* Dialog para campos vazios */}
+            <AlertDialog open={showEmptyFieldsDialog} onOpenChange={setShowEmptyFieldsDialog}>
+                <AlertDialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-red-500" />
+                            Campos Obrigatórios Vazios Encontrados
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Foram encontrados campos <strong>obrigatórios</strong> vazios em {emptyFieldsIssues.length} linha(s).
+                            <br /><br />
+                            Deseja prosseguir mesmo assim ou voltar para corrigir?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="py-4">
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                            {emptyFieldsIssues.slice(0, 50).map((issue) => (
+                                <div 
+                                    key={`${issue.rowIndex}-${issue.fileColumn}`} 
+                                    className="p-3 bg-red-50 rounded-lg border-l-4 border-red-500"
+                                >
+                                    <div className="font-semibold text-sm mb-1 text-red-800">
+                                        Linha {issue.rowIndex} do Excel:
+                                    </div>
+                                    <div className="text-sm text-red-700">
+                                        <span className="font-medium">Campo(s) obrigatório(s) vazio(s):</span>{' '}
+                                        <span className="font-semibold">{issue.fields.join(', ')}</span>
+                                    </div>
+                                    {issue.fileColumn && (
+                                        <div className="text-xs text-red-600 mt-1">
+                                            Coluna do Excel: <span className="font-mono">{issue.fileColumn}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                            {emptyFieldsIssues.length > 50 && (
+                                <div className="text-sm text-muted-foreground text-center p-2 bg-yellow-50 rounded">
+                                    ... e mais {emptyFieldsIssues.length - 50} linha(s) com campos vazios
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={handleCancelReview}>
+                            Voltar e Corrigir
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleProceedWithEmptyFields}
+                            className="bg-yellow-500 hover:bg-yellow-600"
+                        >
+                            Prosseguir Mesmo Assim
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
+    );
 }

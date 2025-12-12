@@ -428,19 +428,19 @@ export class VendasService {
     return [
       // Identificação da Venda
       { value: 'nfe', label: 'Nota Fiscal Eletrônica (NFE)', dataType: 'text', required: true },
-      { value: 'idDoc', label: 'ID do Documento', dataType: 'text', required: false },
+      { value: 'idDoc', label: 'ID do Documento', dataType: 'text', required: true },
       { value: 'data', label: 'Data da Venda', dataType: 'date', required: true }, // dataVenda no banco
       
       // Cliente
       { value: 'razaoSocial', label: 'Razão Social (Cliente)', dataType: 'text', required: true },
-      { value: 'nomeFantasia', label: 'Nome Fantasia (Cliente)', dataType: 'text', required: false },
+      { value: 'nomeFantasia', label: 'Nome Fantasia (Cliente)', dataType: 'text', required: true },
       { value: 'cnpjCliente', label: 'CNPJ do Cliente', dataType: 'text', required: false },
-      { value: 'ufDestino', label: 'UF de Destino', dataType: 'text', required: false },
-      { value: 'ufOrigem', label: 'UF de Origem', dataType: 'text', required: false },
+      { value: 'ufDestino', label: 'UF de Destino', dataType: 'text', required: true },
+      { value: 'ufOrigem', label: 'UF de Origem', dataType: 'text', required: true },
       
       // Produto
-      { value: 'idProd', label: 'ID do Produto', dataType: 'text', required: false },
-      { value: 'referencia', label: 'Referência do Produto', dataType: 'text', required: false },
+      { value: 'idProd', label: 'ID do Produto', dataType: 'text', required: true },
+      { value: 'referencia', label: 'Referência do Produto', dataType: 'text', required: true },
       { value: 'prodCodMestre', label: 'Código Mestre do Produto', dataType: 'text', required: false },
       { value: 'descricaoProduto', label: 'Descrição do Produto', dataType: 'text', required: false },
       { value: 'marca', label: 'Marca do Produto', dataType: 'text', required: false },
@@ -448,12 +448,12 @@ export class VendasService {
       { value: 'subgrupo', label: 'Subgrupo do Produto', dataType: 'text', required: false },
       
       // Operação
-      { value: 'tipoOperacao', label: 'Tipo de Operação', dataType: 'text', required: false },
+      { value: 'tipoOperacao', label: 'Tipo de Operação', dataType: 'text', required: true },
       
       // Valores
-      { value: 'qtd', label: 'Quantidade', dataType: 'integer', required: false }, // quantidade no banco
-      { value: 'valorUnit', label: 'Valor Unitário', dataType: 'currency', required: false }, // valorUnitario no banco
-      { value: 'valorTotal', label: 'Valor Total', dataType: 'currency', required: false }, // valorTotal no banco
+      { value: 'qtd', label: 'Quantidade', dataType: 'integer', required: true }, // quantidade no banco
+      { value: 'valorUnit', label: 'Valor Unitário', dataType: 'currency', required: true }, // valorUnitario no banco
+      { value: 'valorTotal', label: 'Valor Total', dataType: 'currency', required: true }, // valorTotal no banco
     ];
   }
 
