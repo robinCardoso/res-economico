@@ -56,10 +56,7 @@ export class VendasAnalyticsFilterService {
   /**
    * Cria um novo filtro
    */
-  async create(
-    dto: CreateVendaAnalyticsFilterDto,
-    userId?: string,
-  ) {
+  async create(dto: CreateVendaAnalyticsFilterDto, userId?: string) {
     // Validar se já existe filtro com o mesmo nome
     const existing = await this.prisma.vendaAnalyticsFilter.findFirst({
       where: { nome: dto.nome },
@@ -93,10 +90,7 @@ export class VendasAnalyticsFilterService {
   /**
    * Atualiza um filtro existente
    */
-  async update(
-    id: string,
-    dto: Partial<CreateVendaAnalyticsFilterDto>,
-  ) {
+  async update(id: string, dto: Partial<CreateVendaAnalyticsFilterDto>) {
     await this.findOne(id); // Verificar se existe
 
     // Se estiver atualizando o nome, verificar se não existe outro com o mesmo nome
@@ -118,9 +112,9 @@ export class VendasAnalyticsFilterService {
     const updateData: Prisma.VendaAnalyticsFilterUpdateInput = {};
 
     if (dto.nome) updateData.nome = dto.nome;
-    if (dto.filters)
-      updateData.filters = dto.filters as Prisma.InputJsonValue;
-    if (dto.descricao !== undefined) updateData.descricao = dto.descricao || null;
+    if (dto.filters) updateData.filters = dto.filters as Prisma.InputJsonValue;
+    if (dto.descricao !== undefined)
+      updateData.descricao = dto.descricao || null;
 
     return this.prisma.vendaAnalyticsFilter.update({
       where: { id },

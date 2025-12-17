@@ -60,13 +60,8 @@ export class VendasImportService {
       `Iniciando importação de vendas do arquivo: ${file.originalname}`,
     );
 
-    const startTime = Date.now();
     let totalLinhas = 0;
-    let sucessoCount = 0;
-    let erroCount = 0;
     let produtosNaoEncontrados = 0;
-    let duplicatasCount = 0;
-    let novosCount = 0;
 
     try {
       // 1. Ler arquivo Excel
@@ -85,14 +80,19 @@ export class VendasImportService {
         rawData as unknown[][],
       );
       const headersRow = rawData[headerRowIndex];
-      const headers = (
-        Array.isArray(headersRow) ? headersRow : []
-      ).map((h) => (typeof h === 'string' ? h : String(h ?? '')));
+      const headers = (Array.isArray(headersRow) ? headersRow : []).map((h) =>
+        typeof h === 'string' ? h : String(h ?? ''),
+      );
 
-      this.logger.log(`Cabeçalhos encontrados no arquivo: ${JSON.stringify(headers)}`);
+      this.logger.log(
+        `Cabeçalhos encontrados no arquivo: ${JSON.stringify(headers)}`,
+      );
 
       // 3. Mapear colunas - APENAS mapeamento manual do frontend
-      if (!importDto.columnMapping || Object.keys(importDto.columnMapping).length === 0) {
+      if (
+        !importDto.columnMapping ||
+        Object.keys(importDto.columnMapping).length === 0
+      ) {
         throw new BadRequestException(
           'Mapeamento de colunas é obrigatório. Por favor, mapeie as colunas no frontend antes de importar.',
         );
@@ -100,26 +100,30 @@ export class VendasImportService {
 
       // Converter nomes dos campos do frontend para os nomes usados internamente
       const fieldNameMap: Record<string, string> = {
-        'data': 'data',
-        'qtd': 'qtd',
-        'valorUnit': 'valorUnit',
-        'valorTotal': 'valorTotal',
+        data: 'data',
+        qtd: 'qtd',
+        valorUnit: 'valorUnit',
+        valorTotal: 'valorTotal',
       };
-      
+
       const columnMapping: Record<string, string | undefined> = {};
-      for (const [frontendField, fileColumn] of Object.entries(importDto.columnMapping)) {
+      for (const [frontendField, fileColumn] of Object.entries(
+        importDto.columnMapping,
+      )) {
         // Manter o nome original do campo (frontend usa 'data', backend usa 'data' no mapping mas 'dataVenda' no banco)
         const internalField = fieldNameMap[frontendField] || frontendField;
         columnMapping[internalField] = fileColumn;
       }
-      
+
       this.logger.log(
         `Usando mapeamento manual do frontend: ${JSON.stringify(columnMapping)}`,
       );
-      
+
       // Validar se os campos obrigatórios estão mapeados
       const camposObrigatorios = ['nfe', 'data', 'razaoSocial'];
-      const camposFaltando = camposObrigatorios.filter(campo => !columnMapping[campo]);
+      const camposFaltando = camposObrigatorios.filter(
+        (campo) => !columnMapping[campo],
+      );
       if (camposFaltando.length > 0) {
         throw new BadRequestException(
           `Campos obrigatórios não mapeados: ${camposFaltando.join(', ')}. Por favor, mapeie todos os campos obrigatórios no frontend.`,
@@ -158,17 +162,17 @@ export class VendasImportService {
 
           const vendaRaw = this.validator.validateAndTransform(
             rowObj,
-            columnMapping as Record<string, string | undefined>,
+            columnMapping,
             headerRowIndex + 2 + i,
           );
           vendasRaw.push(vendaRaw);
         } catch (error) {
-          erroCount++;
           const errorMessage =
             error instanceof Error ? error.message : 'Erro desconhecido';
           this.logger.warn(
             `Erro na linha ${headerRowIndex + 2 + i}: ${errorMessage}`,
           );
+          // erroCount será atualizado durante o processamento em background
         }
       }
 
@@ -187,14 +191,9 @@ export class VendasImportService {
         await this.denormalizarDadosProduto(vendasNormalizadas);
       produtosNaoEncontrados = produtosNaoEncontradosCount;
 
-      // 7. Verificar duplicatas pré-importação
-      const { duplicatas, novos } = await this.verificarDuplicatas(
-        vendasComDadosProduto,
-      );
-      duplicatasCount = duplicatas;
-      novosCount = novos;
-
-      // 8. Criar log de importação ANTES de processar vendas
+      // 7. Criar log de importação ANTES de processar vendas
+      // NOTA: Verificação de duplicatas será feita durante o processamento em background
+      // para não bloquear a resposta HTTP
       // IMPORTANTE: Criar o log primeiro para ter o ID disponível para associar às vendas
       // Garantir que as colunas existem antes de criar o log
       try {
@@ -225,7 +224,7 @@ export class VendasImportService {
           linhasProcessadas: 0, // Iniciar linhas processadas em 0
           usuarioEmail: userEmail,
           usuarioId: userId,
-        } as any, // Type assertion temporária até o Prisma Client ser atualizado
+        },
       });
 
       const importacaoLogId = log.id;
@@ -233,26 +232,39 @@ export class VendasImportService {
 
       // IMPORTANTE: Processar vendas em background para não bloquear a resposta
       // Retornar o logId imediatamente para o frontend poder mostrar progresso
+      // A verificação de duplicatas será feita durante o processamento em background
       this.processarVendasEmBackground(
         vendasComDadosProduto,
         importDto.empresaId,
         importacaoLogId,
         totalLinhas,
         produtosNaoEncontrados,
-        duplicatasCount,
-        novosCount,
-      ).catch((error) => {
-        this.logger.error(`Erro ao processar vendas em background: ${error.message}`, error.stack);
+      ).catch((error: unknown) => {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Erro desconhecido';
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        this.logger.error(
+          `Erro ao processar vendas em background: ${errorMessage}`,
+          errorStack,
+        );
         // Atualizar log com erro
-        this.prisma.vendaImportacaoLog.update({
-          where: { id: importacaoLogId },
-          data: {
-            erroCount: totalLinhas,
-            progresso: 100,
-          },
-        }).catch((updateError) => {
-          this.logger.error(`Erro ao atualizar log após falha: ${updateError.message}`);
-        });
+        this.prisma.vendaImportacaoLog
+          .update({
+            where: { id: importacaoLogId },
+            data: {
+              erroCount: totalLinhas,
+              progresso: 100,
+            },
+          })
+          .catch((updateError: unknown) => {
+            const updateErrorMessage =
+              updateError instanceof Error
+                ? updateError.message
+                : 'Erro desconhecido';
+            this.logger.error(
+              `Erro ao atualizar log após falha: ${updateErrorMessage}`,
+            );
+          });
       });
 
       // Retornar imediatamente com o logId
@@ -265,8 +277,8 @@ export class VendasImportService {
           sucessoCount: 0, // Será atualizado durante o processamento
           erroCount: 0,
           produtosNaoEncontrados,
-          duplicatas: duplicatasCount,
-          novos: novosCount,
+          duplicatas: 0, // Será calculado durante o processamento
+          novos: 0, // Será calculado durante o processamento
         },
       };
     } catch (error) {
@@ -303,7 +315,7 @@ export class VendasImportService {
           linhasProcessadas: totalLinhas,
           usuarioEmail: userEmail,
           usuarioId: userId,
-        } as any,
+        },
       });
 
       throw new BadRequestException(`Erro ao importar vendas: ${errorMessage}`);
@@ -319,12 +331,37 @@ export class VendasImportService {
     importacaoLogId: string,
     totalLinhas: number,
     produtosNaoEncontrados: number,
-    duplicatasCount: number,
-    novosCount: number,
   ): Promise<void> {
     const startTime = Date.now();
     let sucessoCount = 0;
     let erroCount = 0;
+    let duplicatasCount = 0;
+    let novosCount = 0;
+
+    // Verificar duplicatas em chunks durante o processamento (não bloqueia resposta HTTP)
+    // Passar importacaoLogId para atualizar progresso durante a verificação
+    const { duplicatas, novos } = await this.verificarDuplicatas(
+      vendasComDadosProduto,
+      importacaoLogId,
+    );
+    duplicatasCount = duplicatas;
+    novosCount = novos;
+
+    // Atualizar log com contagem de duplicatas
+    try {
+      await this.prisma.vendaImportacaoLog.update({
+        where: { id: importacaoLogId },
+        data: {
+          duplicatasCount,
+          novosCount,
+          progresso: 5, // 5% após verificação de duplicatas
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Erro ao atualizar log após verificação de duplicatas: ${error}`,
+      );
+    }
 
     // 10. Processar vendas em lotes (agora com importacaoLogId)
     const totalLinhasParaProcessar = vendasComDadosProduto.length;
@@ -337,29 +374,29 @@ export class VendasImportService {
         ...v,
         empresaId: v.empresaId || empresaId,
       })) as Array<{
-          nfe: string;
-          idDoc: string;
-          referencia: string;
-          dataVenda: Date;
-          razaoSocial: string;
-          nomeFantasia?: string;
-          cnpjCliente?: string;
-          ufDestino?: string;
-          ufOrigem?: string;
-          idProd?: string;
-          prodCodMestre?: string;
-          descricaoProduto?: string;
-          marca: string;
-          grupo: string;
-          subgrupo: string;
-          tipoOperacao?: string;
-          quantidade: Decimal;
-          valorUnitario: Decimal;
-          valorTotal: Decimal;
-          empresaId: string;
-          produtoId?: string;
-          metadata?: unknown;
-        }>;
+        nfe: string;
+        idDoc: string;
+        referencia: string;
+        dataVenda: Date;
+        razaoSocial: string;
+        nomeFantasia?: string;
+        cnpjCliente?: string;
+        ufDestino?: string;
+        ufOrigem?: string;
+        idProd?: string;
+        prodCodMestre?: string;
+        descricaoProduto?: string;
+        marca: string;
+        grupo: string;
+        subgrupo: string;
+        tipoOperacao?: string;
+        quantidade: Decimal;
+        valorUnitario: Decimal;
+        valorTotal: Decimal;
+        empresaId: string;
+        produtoId?: string;
+        metadata?: unknown;
+      }>;
       const { sucesso, erros } = await this.processarLote(
         chunkComEmpresaId,
         empresaId,
@@ -370,7 +407,9 @@ export class VendasImportService {
       linhasProcessadas += chunk.length;
 
       // Atualizar progresso em tempo real
-      const progresso = Math.round((linhasProcessadas / totalLinhasParaProcessar) * 100);
+      const progresso = Math.round(
+        (linhasProcessadas / totalLinhasParaProcessar) * 100,
+      );
       await this.prisma.vendaImportacaoLog.update({
         where: { id: importacaoLogId },
         data: {
@@ -437,20 +476,80 @@ export class VendasImportService {
       .map((v) => v.idProd)
       .filter((id): id is string => Boolean(id && id !== ''));
 
-    // Buscar produtos
-    const produtos = await this.prisma.produto.findMany({
-      where: {
-        OR: [{ referencia: { in: referencias } }, { id_prod: { in: idProds } }],
-      },
-      select: {
-        id: true,
-        referencia: true,
-        id_prod: true,
-        marca: true,
-        grupo: true,
-        subgrupo: true,
-      },
+    // PostgreSQL tem limite de 32767 parâmetros em prepared statements
+    // Dividir em chunks de 10000 para garantir margem de segurança
+    const CHUNK_SIZE = 10000;
+    const produtos: Array<{
+      id: string;
+      referencia: string | null;
+      id_prod: string | null;
+      marca: string | null;
+      grupo: string | null;
+      subgrupo: string | null;
+    }> = [];
+
+    this.logger.log(
+      `🔍 Buscando produtos: ${referencias.length} referências, ${idProds.length} IDs`,
+    );
+
+    // Buscar produtos por referências em chunks
+    const totalChunksRefs = Math.ceil(referencias.length / CHUNK_SIZE);
+    for (let i = 0; i < referencias.length; i += CHUNK_SIZE) {
+      const chunkRefs = referencias.slice(i, i + CHUNK_SIZE);
+      const chunkNumber = Math.floor(i / CHUNK_SIZE) + 1;
+      this.logger.log(
+        `📦 Buscando produtos por referência: chunk ${chunkNumber}/${totalChunksRefs} (${chunkRefs.length} referências)`,
+      );
+
+      const produtosChunk = await this.prisma.produto.findMany({
+        where: {
+          referencia: { in: chunkRefs },
+        },
+        select: {
+          id: true,
+          referencia: true,
+          id_prod: true,
+          marca: true,
+          grupo: true,
+          subgrupo: true,
+        },
+      });
+      produtos.push(...produtosChunk);
+    }
+
+    // Buscar produtos por id_prod em chunks
+    const totalChunksIds = Math.ceil(idProds.length / CHUNK_SIZE);
+    for (let i = 0; i < idProds.length; i += CHUNK_SIZE) {
+      const chunkIds = idProds.slice(i, i + CHUNK_SIZE);
+      const chunkNumber = Math.floor(i / CHUNK_SIZE) + 1;
+      this.logger.log(
+        `📦 Buscando produtos por ID: chunk ${chunkNumber}/${totalChunksIds} (${chunkIds.length} IDs)`,
+      );
+
+      const produtosChunk = await this.prisma.produto.findMany({
+        where: {
+          id_prod: { in: chunkIds },
+        },
+        select: {
+          id: true,
+          referencia: true,
+          id_prod: true,
+          marca: true,
+          grupo: true,
+          subgrupo: true,
+        },
+      });
+      produtos.push(...produtosChunk);
+    }
+
+    // Remover duplicatas (mesmo produto pode aparecer em ambos os chunks)
+    const produtosUnicos = new Map<string, (typeof produtos)[0]>();
+    produtos.forEach((p) => {
+      if (!produtosUnicos.has(p.id)) {
+        produtosUnicos.set(p.id, p);
+      }
     });
+    const produtosFinal = Array.from(produtosUnicos.values());
 
     // Criar mapas
     const marcaMap = new Map<string, string>();
@@ -458,7 +557,7 @@ export class VendasImportService {
     const subgrupoMap = new Map<string, string>();
     const produtoIdMap = new Map<string, string>(); // Para relacionamento
 
-    produtos.forEach((p) => {
+    produtosFinal.forEach((p) => {
       const keyRef = p.referencia || '';
       const keyId = p.id_prod || '';
 
@@ -534,39 +633,108 @@ export class VendasImportService {
 
   /**
    * Verifica duplicatas pré-importação
+   * Processa em chunks para evitar exceder limite de parâmetros do PostgreSQL (32767)
+   * Atualiza o log de importação com progresso durante a verificação
    */
   private async verificarDuplicatas(
     vendas: VendaProcessada[],
+    importacaoLogId?: string,
   ): Promise<{ duplicatas: number; novos: number }> {
+    const totalVendas = vendas.length;
+    this.logger.log(
+      `🔍 Iniciando verificação de duplicatas para ${totalVendas.toLocaleString('pt-BR')} vendas...`,
+    );
+
     const chaves = vendas.map((v) => ({
       nfe: v.nfe,
       idDoc: v.idDoc || '',
       referencia: v.referencia || '',
     }));
 
-    // Buscar registros existentes
-    const existentes = await this.prisma.venda.findMany({
-      where: {
-        OR: chaves.map((chave) => ({
-          nfe: chave.nfe,
-          idDoc: chave.idDoc,
-          referencia: chave.referencia,
-        })),
-      },
-      select: {
-        nfe: true,
-        idDoc: true,
-        referencia: true,
-      },
-    });
+    // PostgreSQL tem limite de 32767 parâmetros em prepared statements
+    // Dividir em chunks menores (3000) para melhor performance e evitar timeout
+    // Cada chave usa 3 parâmetros (nfe, idDoc, referencia), então 3000 chaves = 9000 parâmetros
+    const CHUNK_SIZE = 3000;
+    const chavesExistentes = new Set<string>();
+    const totalChunks = Math.ceil(chaves.length / CHUNK_SIZE);
+    const startTime = Date.now();
 
-    const chavesExistentes = new Set(
-      existentes.map((e) => `${e.nfe}|${e.idDoc || ''}|${e.referencia || ''}`),
+    this.logger.log(
+      `🔍 Processando ${totalChunks} chunks de até ${CHUNK_SIZE} chaves cada...`,
     );
+
+    // Buscar registros existentes em chunks
+    for (let i = 0; i < chaves.length; i += CHUNK_SIZE) {
+      const chunk = chaves.slice(i, i + CHUNK_SIZE);
+      const chunkNumber = Math.floor(i / CHUNK_SIZE) + 1;
+      const chunkStartTime = Date.now();
+
+      this.logger.log(
+        `🔍 Verificando duplicatas: chunk ${chunkNumber}/${totalChunks} (${chunk.length.toLocaleString('pt-BR')} chaves)`,
+      );
+
+      // Atualizar progresso no log se tiver importacaoLogId
+      if (importacaoLogId) {
+        const progressoVerificacao = Math.floor(
+          (chunkNumber / totalChunks) * 5,
+        ); // 0-5% do progresso total
+        try {
+          await this.prisma.vendaImportacaoLog.update({
+            where: { id: importacaoLogId },
+            data: {
+              progresso: progressoVerificacao,
+            },
+          });
+        } catch (error) {
+          // Ignorar erros de atualização de progresso (não crítico)
+          this.logger.debug(`Erro ao atualizar progresso: ${error}`);
+        }
+      }
+
+      // Usar query otimizada: buscar apenas os campos necessários
+      const existentes = await this.prisma.venda.findMany({
+        where: {
+          OR: chunk.map((chave) => ({
+            nfe: chave.nfe,
+            idDoc: chave.idDoc,
+            referencia: chave.referencia,
+          })),
+        },
+        select: {
+          nfe: true,
+          idDoc: true,
+          referencia: true,
+        },
+        // Limitar resultados (não deve ser necessário, mas ajuda em caso de muitos matches)
+        take: chunk.length * 2, // Máximo teórico: cada chave pode ter 1 match
+      });
+
+      // Adicionar chaves existentes ao Set
+      existentes.forEach((e) => {
+        const key = `${e.nfe}|${e.idDoc || ''}|${e.referencia || ''}`;
+        chavesExistentes.add(key);
+      });
+
+      const chunkTime = ((Date.now() - chunkStartTime) / 1000).toFixed(2);
+      const tempoTotal = ((Date.now() - startTime) / 1000).toFixed(2);
+      const tempoEstimado =
+        totalChunks > chunkNumber
+          ? (
+              (((Date.now() - startTime) / chunkNumber) *
+                (totalChunks - chunkNumber)) /
+              1000
+            ).toFixed(0)
+          : '0';
+
+      this.logger.log(
+        `✅ Chunk ${chunkNumber}/${totalChunks} processado em ${chunkTime}s: ${existentes.length} duplicatas encontradas. Tempo total: ${tempoTotal}s. Tempo estimado restante: ~${tempoEstimado}s`,
+      );
+    }
 
     let duplicatas = 0;
     let novos = 0;
 
+    // Contar duplicatas e novos
     chaves.forEach((chave) => {
       const key = `${chave.nfe}|${chave.idDoc}|${chave.referencia}`;
       if (chavesExistentes.has(key)) {
@@ -577,7 +745,7 @@ export class VendasImportService {
     });
 
     this.logger.log(
-      `Verificação de duplicatas: ${novos} novos, ${duplicatas} duplicatas (serão atualizados)`,
+      `✅ Verificação de duplicatas concluída: ${novos.toLocaleString('pt-BR')} novos, ${duplicatas.toLocaleString('pt-BR')} duplicatas (serão atualizados)`,
     );
 
     return { duplicatas, novos };

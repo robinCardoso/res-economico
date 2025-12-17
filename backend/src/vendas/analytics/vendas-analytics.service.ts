@@ -144,33 +144,39 @@ export class VendasAnalyticsService {
             "totalQuantidade" = "VendaAnalytics"."totalQuantidade" + ${analytics.totalQuantidade}::decimal,
             "updatedAt" = NOW()
         `;
-      } catch (conflictError: any) {
+      } catch (error: unknown) {
         // Se falhar por constraint antigo (sem grupo/subgrupo), buscar e consolidar registros
+        const conflictError = error as { code?: string; message?: string };
         if (
           conflictError?.code === '23505' &&
-          conflictError?.message?.includes('already exists') &&
-          conflictError?.message?.includes('ano, mes, "nomeFantasia", marca, uf')
+          typeof conflictError?.message === 'string' &&
+          conflictError.message.includes('already exists') &&
+          conflictError.message.includes('ano, mes, "nomeFantasia", marca, uf')
         ) {
           // Constraint antigo detectado - buscar TODOS os registros existentes (pode haver múltiplos)
-          const registrosExistentes = await this.prisma.vendaAnalytics.findMany({
-            where: {
-              ano: analytics.ano,
-              mes: analytics.mes,
-              nomeFantasia: analytics.nomeFantasia,
-              marca: analytics.marca,
-              uf: analytics.uf,
-              // Não filtrar por grupo/subgrupo (constraint antigo)
+          const registrosExistentes = await this.prisma.vendaAnalytics.findMany(
+            {
+              where: {
+                ano: analytics.ano,
+                mes: analytics.mes,
+                nomeFantasia: analytics.nomeFantasia,
+                marca: analytics.marca,
+                uf: analytics.uf,
+                // Não filtrar por grupo/subgrupo (constraint antigo)
+              },
             },
-          });
+          );
 
           if (registrosExistentes.length > 0) {
             // Consolidar todos os registros existentes + novo valor
             let totalValorConsolidado = analytics.totalValor;
             let totalQuantidadeConsolidado = analytics.totalQuantidade;
-            
+
             for (const reg of registrosExistentes) {
               totalValorConsolidado += parseFloat(reg.totalValor.toString());
-              totalQuantidadeConsolidado += parseFloat(reg.totalQuantidade.toString());
+              totalQuantidadeConsolidado += parseFloat(
+                reg.totalQuantidade.toString(),
+              );
             }
 
             // Usar o primeiro registro como base e atualizar
@@ -185,7 +191,9 @@ export class VendasAnalyticsService {
                 subgrupo: analytics.subgrupo,
                 tipoOperacao: analytics.tipoOperacao,
                 totalValor: new Decimal(totalValorConsolidado.toString()),
-                totalQuantidade: new Decimal(totalQuantidadeConsolidado.toString()),
+                totalQuantidade: new Decimal(
+                  totalQuantidadeConsolidado.toString(),
+                ),
               },
             });
 
@@ -203,11 +211,17 @@ export class VendasAnalyticsService {
             );
           } else {
             // Se não encontrou, pode ser outro tipo de conflito - relançar erro
-            throw conflictError;
+            throw new Error(
+              conflictError?.message ||
+                'Erro desconhecido ao fazer upsert de analytics',
+            );
           }
         } else {
           // Outro tipo de erro - relançar
-          throw conflictError;
+          throw new Error(
+            conflictError?.message ||
+              'Erro desconhecido ao fazer upsert de analytics',
+          );
         }
       }
     } catch (error: any) {
@@ -442,8 +456,10 @@ export class VendasAnalyticsService {
   /**
    * Construir cláusula WHERE para filtros múltiplos usando Prisma
    */
-  private construirWherePrisma(filtros: FilterAnalyticsDto): any {
-    const where: any = {};
+  private construirWherePrisma(
+    filtros: FilterAnalyticsDto,
+  ): Record<string, unknown> {
+    const where: Record<string, unknown> = {};
 
     if (filtros.ano && Array.isArray(filtros.ano) && filtros.ano.length > 0) {
       where.ano = { in: filtros.ano };
@@ -453,27 +469,51 @@ export class VendasAnalyticsService {
       where.mes = { in: filtros.mes };
     }
 
-    if (filtros.filial && Array.isArray(filtros.filial) && filtros.filial.length > 0) {
+    if (
+      filtros.filial &&
+      Array.isArray(filtros.filial) &&
+      filtros.filial.length > 0
+    ) {
       where.uf = { in: filtros.filial };
     }
 
-    if (filtros.marca && Array.isArray(filtros.marca) && filtros.marca.length > 0) {
+    if (
+      filtros.marca &&
+      Array.isArray(filtros.marca) &&
+      filtros.marca.length > 0
+    ) {
       where.marca = { in: filtros.marca };
     }
 
-    if (filtros.nomeFantasia && Array.isArray(filtros.nomeFantasia) && filtros.nomeFantasia.length > 0) {
+    if (
+      filtros.nomeFantasia &&
+      Array.isArray(filtros.nomeFantasia) &&
+      filtros.nomeFantasia.length > 0
+    ) {
       where.nomeFantasia = { in: filtros.nomeFantasia };
     }
 
-    if (filtros.grupo && Array.isArray(filtros.grupo) && filtros.grupo.length > 0) {
+    if (
+      filtros.grupo &&
+      Array.isArray(filtros.grupo) &&
+      filtros.grupo.length > 0
+    ) {
       where.grupo = { in: filtros.grupo };
     }
 
-    if (filtros.subgrupo && Array.isArray(filtros.subgrupo) && filtros.subgrupo.length > 0) {
+    if (
+      filtros.subgrupo &&
+      Array.isArray(filtros.subgrupo) &&
+      filtros.subgrupo.length > 0
+    ) {
       where.subgrupo = { in: filtros.subgrupo };
     }
 
-    if (filtros.tipoOperacao && Array.isArray(filtros.tipoOperacao) && filtros.tipoOperacao.length > 0) {
+    if (
+      filtros.tipoOperacao &&
+      Array.isArray(filtros.tipoOperacao) &&
+      filtros.tipoOperacao.length > 0
+    ) {
       where.tipoOperacao = { in: filtros.tipoOperacao };
     }
 
@@ -483,9 +523,7 @@ export class VendasAnalyticsService {
   /**
    * Análise 1: Crescimento Empresa Mês a Mês e Ano a Ano
    */
-  async getCrescimentoEmpresa(
-    filtros: FilterAnalyticsDto,
-  ): Promise<{
+  async getCrescimentoEmpresa(filtros: FilterAnalyticsDto): Promise<{
     meses: Array<{
       mes: number;
       nomeMes: string;
@@ -609,9 +647,7 @@ export class VendasAnalyticsService {
   /**
    * Análise 2: Crescimento por Filial (UF) Ano a Ano
    */
-  async getCrescimentoFilial(
-    filtros: FilterAnalyticsDto,
-  ): Promise<{
+  async getCrescimentoFilial(filtros: FilterAnalyticsDto): Promise<{
     filiais: Array<{
       uf: string;
       dados: {
@@ -717,9 +753,7 @@ export class VendasAnalyticsService {
   /**
    * Análise 3: Crescimento por Marca Ano a Ano
    */
-  async getCrescimentoMarca(
-    filtros: FilterAnalyticsDto,
-  ): Promise<{
+  async getCrescimentoMarca(filtros: FilterAnalyticsDto): Promise<{
     marcas: Array<{
       marca: string;
       dados: {
@@ -886,8 +920,8 @@ export class VendasAnalyticsService {
     const anosDisponiveis = Array.from(anosSet).sort();
 
     // Aplicar paginação
-    const associadosArray = Array.from(associadosMap.entries()).sort(([a], [b]) =>
-      a.localeCompare(b),
+    const associadosArray = Array.from(associadosMap.entries()).sort(
+      ([a], [b]) => a.localeCompare(b),
     );
     const associadosPaginados = associadosArray.slice(
       (page - 1) * limit,

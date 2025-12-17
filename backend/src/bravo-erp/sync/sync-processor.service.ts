@@ -156,13 +156,18 @@ export class SyncProcessorService {
               if (dataBravo && dataAtual) {
                 const dataBravoStr =
                   typeof dataBravo === 'string' ? dataBravo : String(dataBravo);
-                const dataAtualStr =
+                let dataAtualStr: string | Date | null = null;
+                if (
                   typeof dataAtual === 'string' ||
                   dataAtual instanceof Date
-                    ? dataAtual
-                    : typeof dataAtual === 'object' && dataAtual !== null
-                      ? null
-                      : String(dataAtual);
+                ) {
+                  dataAtualStr = dataAtual;
+                } else if (
+                  typeof dataAtual === 'number' ||
+                  typeof dataAtual === 'boolean'
+                ) {
+                  dataAtualStr = String(dataAtual);
+                }
                 if (!dataAtualStr) continue;
                 const dataBravoDate = new Date(dataBravoStr);
                 const dataAtualDate =
@@ -562,16 +567,15 @@ export class SyncProcessorService {
           }
 
           // Se algum campo relevante foi atualizado, recalcular vendas e analytics
-          if (
-            Object.keys(dadosAtualizados).length > 0
-          ) {
+          if (Object.keys(dadosAtualizados).length > 0) {
             // Chamar de forma assíncrona para não bloquear o sync
             this.vendasUpdateService
               .onProdutoUpdated(id as string, dadosAtualizados)
-              .catch((error) => {
+              .catch((error: unknown) => {
+                const errorMessage =
+                  error instanceof Error ? error.message : String(error);
                 this.logger.error(
-                  `Erro ao atualizar vendas após atualização de produto ${id}:`,
-                  error,
+                  `Erro ao atualizar vendas após atualização de produto ${String(id)}: ${errorMessage}`,
                 );
               });
           }

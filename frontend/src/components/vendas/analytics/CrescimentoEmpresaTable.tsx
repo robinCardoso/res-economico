@@ -33,16 +33,16 @@ export function CrescimentoEmpresaTable({ data }: CrescimentoEmpresaTableProps) 
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
-          <TableRow className="h-9">
-            <TableHead className="sticky left-0 bg-background z-10 min-w-[120px] py-2">
+          <TableRow className="h-7">
+            <TableHead className="sticky left-0 bg-background z-10 min-w-[120px] py-1 text-xs">
               Mês
             </TableHead>
             {anosDisponiveis.map((ano) => (
               <React.Fragment key={ano}>
-                <TableHead className="text-center min-w-[150px] py-2">
+                <TableHead className="text-center min-w-[150px] py-1 text-xs">
                   {ano} - Venda
                 </TableHead>
-                <TableHead className="text-center min-w-[120px] py-2">
+                <TableHead className="text-center min-w-[120px] py-1 text-xs">
                   {ano} - % Evol.
                 </TableHead>
               </React.Fragment>
@@ -51,32 +51,32 @@ export function CrescimentoEmpresaTable({ data }: CrescimentoEmpresaTableProps) 
         </TableHeader>
         <TableBody>
           {mesesOrdenados.map((mes) => (
-            <TableRow key={mes.mes} className="h-9">
-              <TableCell className="sticky left-0 bg-background z-10 font-medium py-2">
+            <TableRow key={mes.mes} className="h-7">
+              <TableCell className="sticky left-0 bg-background z-10 font-medium py-1 text-xs">
                 {mes.nomeMes}
               </TableCell>
               {anosDisponiveis.map((ano) => (
                 <React.Fragment key={ano}>
-                  <TableCell className="text-right py-2">
+                  <TableCell className="text-right py-1 text-xs">
                     {formatCurrency(mes.dados[ano]?.venda || 0)}
                   </TableCell>
-                  <TableCell className="text-center py-2">
+                  <TableCell className="text-center py-1 text-xs">
                     <EvolutionCell value={mes.dados[ano]?.evolucao} />
                   </TableCell>
                 </React.Fragment>
               ))}
             </TableRow>
           ))}
-          <TableRow className="font-bold bg-muted/50 h-9">
-            <TableCell className="sticky left-0 bg-muted/50 z-10 py-2">
+          <TableRow className="font-bold bg-muted/50 h-7">
+            <TableCell className="sticky left-0 bg-muted/50 z-10 py-1 text-xs">
               Total Geral
             </TableCell>
             {anosDisponiveis.map((ano) => (
               <React.Fragment key={ano}>
-                <TableCell className="text-right py-2">
+                <TableCell className="text-right py-1 text-xs">
                   {formatCurrency(totalGeral[ano]?.venda || 0)}
                 </TableCell>
-                <TableCell className="text-center py-2">
+                <TableCell className="text-center py-1 text-xs">
                   <EvolutionCell value={totalGeral[ano]?.evolucao} />
                 </TableCell>
               </React.Fragment>

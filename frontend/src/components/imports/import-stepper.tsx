@@ -24,17 +24,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { RowData } from '@/lib/imports/import-vendas-utils';
 
-interface ImportProgress {
-    currentBatch: number;
-    totalBatches: number;
-    processedRecords: number;
-    totalRecords: number;
-    successCount: number;
-    errorCount: number;
-    isComplete: boolean;
-    errors: string[];
-}
-
 type ImportStepperProps = {
     pageTitle: string;
     pageDescription: string;
@@ -50,7 +39,6 @@ type ImportStepperProps = {
     processFile: (file: File, onProgress: (p: number) => void) => Promise<{ headers: string[], data: RowData[], headerRowIndex: number }>;
     supportsUpsert?: boolean;
     empresaId?: string;
-    onEmpresaIdChange?: (empresaId: string) => void;
     // Props opcionais para usar banco de dados ao invés de localStorage
     useDatabaseMappings?: boolean;
     onLoadMappings?: () => Promise<Array<{ id: string; name: string; mappings: Record<string, MappingInfo>; filters: Filter[] }>>;
@@ -90,7 +78,6 @@ export function ImportStepper({
     processFile,
     supportsUpsert = false,
     empresaId,
-    onEmpresaIdChange,
     useDatabaseMappings = false,
     onLoadMappings,
     onSaveMapping,
@@ -103,6 +90,8 @@ export function ImportStepper({
     const [processingProgress, setProcessingProgress] = useState(0);
     const [fileHeaders, setFileHeaders] = useState<string[]>([]);
     const [fileData, setFileData] = useState<RowData[]>([]);
+    const [isLargeFile, setIsLargeFile] = useState(false);
+    const [totalFileRows, setTotalFileRows] = useState<number | null>(null);
     
     const [mappings, setMappings] = useState<Record<string, MappingInfo>>(createInitialMappings);
     const [savedMappings, setSavedMappings] = useState<Array<{id: string; name: string; mappings: Record<string, MappingInfo>; filters: Filter[]}>>([]);
@@ -115,7 +104,6 @@ export function ImportStepper({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [importMode, setImportMode] = useState<'import' | 'upsert'>('import');
     const [importResult, setImportResult] = useState<Record<string, unknown> | null>(null);
-    const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
     const [showEmptyFieldsDialog, setShowEmptyFieldsDialog] = useState(false);
     const [emptyFieldsIssues, setEmptyFieldsIssues] = useState<Array<{ rowIndex: number; fields: string[]; fileColumn: string; isRequired: boolean }>>([]);
 
@@ -205,7 +193,15 @@ export function ImportStepper({
                 const mappingInfo = mappings[dbField];
                 if (mappingInfo.fileColumn) {
                     const originalValue = row[mappingInfo.fileColumn];
-                    newRow[dbField] = convertValue(originalValue, dbField, mappingInfo.dataType);
+                    const convertedValue = convertValue(originalValue, dbField, mappingInfo.dataType);
+                    // Garantir que o valor convertido seja do tipo esperado por RowData
+                    if (typeof convertedValue === 'string' || typeof convertedValue === 'number' || typeof convertedValue === 'boolean') {
+                        newRow[dbField] = convertedValue;
+                    } else if (convertedValue === null || convertedValue === undefined) {
+                        newRow[dbField] = '';
+                    } else {
+                        newRow[dbField] = String(convertedValue);
+                    }
                 }
             }
             return newRow;
@@ -217,10 +213,28 @@ export function ImportStepper({
         setFile(selectedFile);
         setIsProcessing(true);
         setProcessingProgress(0);
+        setIsLargeFile(false);
+        setTotalFileRows(null);
         try {
             const { headers, data } = await processFile(selectedFile, setProcessingProgress);
             setFileHeaders(headers);
             setFileData(data);
+            
+            // Verificar se o arquivo é grande (mais de 2k linhas processadas indica arquivo grande)
+            // A função processFile já limita a 2k linhas, então se processou 2k, provavelmente há mais
+            const fileSizeMB = selectedFile.size / (1024 * 1024);
+            const estimatedRows = Math.ceil((data.length / processingProgress) * 100) || data.length;
+            
+            if (data.length >= 2000 || fileSizeMB > 5) {
+                setIsLargeFile(true);
+                setTotalFileRows(estimatedRows);
+                toast({
+                    title: "Arquivo grande detectado",
+                    description: `Arquivo com aproximadamente ${estimatedRows.toLocaleString('pt-BR')} linhas. Apenas uma amostra será processada no preview. O backend processará todas as linhas durante a importação.`,
+                    duration: 8000,
+                });
+            }
+            
             setStep(2);
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao processar arquivo';
@@ -331,9 +345,6 @@ export function ImportStepper({
             return issues;
         }
         
-        // Criar conjunto de campos obrigatórios para verificação rápida
-        const requiredFieldsSet = new Set(requiredFields);
-        
         filteredData.forEach((row, index) => {
             const emptyRequiredFields: Array<{ label: string; fileColumn: string }> = [];
             
@@ -436,7 +447,6 @@ export function ImportStepper({
         if (!file || !empresaId) return;
         setIsSubmitting(true);
         setImportResult(null);
-        setImportProgress(null);
         
         try {
             // Converter mapeamento do formato do frontend para o formato do backend
@@ -492,7 +502,6 @@ export function ImportStepper({
         setSelectedMapping('');
         setImportResult(null); 
         setFilters([]);
-        setImportProgress(null);
     }
 
     const addFilter = () => setFilters([...filters, { id: Date.now().toString(), column: '', condition: 'is_not_empty', value: '' }]);
@@ -618,6 +627,14 @@ export function ImportStepper({
                             })}
                         </div>
                         {filters.length > 0 && <div className="text-sm text-center p-2 bg-blue-50 text-blue-800 rounded-lg">{fileData.length} linhas no arquivo. {fileData.length - filteredData.length} removidas. {filteredData.length} serão importadas.</div>}
+                        {isLargeFile && totalFileRows && (
+                            <div className="text-sm text-center p-3 bg-amber-50 text-amber-900 rounded-lg border border-amber-200">
+                                <p className="font-semibold mb-1">⚠️ Arquivo grande detectado</p>
+                                <p>Este arquivo contém aproximadamente <strong>{totalFileRows.toLocaleString('pt-BR')} linhas</strong>.</p>
+                                <p className="mt-1">Apenas uma amostra de {fileData.length.toLocaleString('pt-BR')} linhas está sendo exibida para preview.</p>
+                                <p className="mt-1 text-xs">O backend processará <strong>todas as {totalFileRows.toLocaleString('pt-BR')} linhas</strong> durante a importação.</p>
+                            </div>
+                        )}
                         </div>
                         
                         {/* Aviso de campos vazios - apenas obrigatórios */}

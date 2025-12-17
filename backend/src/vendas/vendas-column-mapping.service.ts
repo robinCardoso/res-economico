@@ -56,10 +56,7 @@ export class VendasColumnMappingService {
   /**
    * Cria um novo mapeamento
    */
-  async create(
-    dto: CreateVendaColumnMappingDto,
-    userId?: string,
-  ) {
+  async create(dto: CreateVendaColumnMappingDto, userId?: string) {
     // Validar se já existe mapeamento com o mesmo nome
     const existing = await this.prisma.vendaColumnMapping.findFirst({
       where: { nome: dto.nome },
@@ -96,10 +93,7 @@ export class VendasColumnMappingService {
   /**
    * Atualiza um mapeamento existente
    */
-  async update(
-    id: string,
-    dto: Partial<CreateVendaColumnMappingDto>,
-  ) {
+  async update(id: string, dto: Partial<CreateVendaColumnMappingDto>) {
     await this.findOne(id); // Verificar se existe
 
     // Se estiver atualizando o nome, verificar se não existe outro com o mesmo nome
@@ -127,7 +121,8 @@ export class VendasColumnMappingService {
       updateData.filters = dto.filters
         ? (dto.filters as Prisma.InputJsonValue)
         : undefined;
-    if (dto.descricao !== undefined) updateData.descricao = dto.descricao || null;
+    if (dto.descricao !== undefined)
+      updateData.descricao = dto.descricao || null;
 
     return this.prisma.vendaColumnMapping.update({
       where: { id },

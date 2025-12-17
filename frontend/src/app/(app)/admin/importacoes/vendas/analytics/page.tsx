@@ -78,11 +78,6 @@ export default function AnalyticsVendasPage() {
     50
   );
 
-  const handleExport = (data: any, filename: string) => {
-    // Implementar exportação CSV
-    // Por enquanto, apenas placeholder
-    console.log('Exportar:', filename, data);
-  };
 
   const handleSaveFilter = async () => {
     if (!newFilterName.trim()) {
@@ -170,21 +165,21 @@ export default function AnalyticsVendasPage() {
   };
 
   return (
-    <div className="container mx-auto py-4 space-y-4">
+    <div className="container mx-auto py-2 space-y-2">
       <div>
-        <h1 className="text-3xl font-bold">Analytics de Vendas</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-xl font-bold">Analytics de Vendas</h1>
+        <p className="text-xs text-muted-foreground">
           Análises de crescimento mês a mês, ano a ano, por filial, marca e associado
         </p>
       </div>
 
       {/* Filtros */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-2">
           <div className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-lg">Filtros</CardTitle>
-              <CardDescription className="text-sm">
+              <CardTitle className="text-sm font-semibold">Filtros</CardTitle>
+              <CardDescription className="text-xs">
                 Selecione os filtros desejados. Múltiplos valores no mesmo filtro = OR, filtros diferentes = AND
               </CardDescription>
             </div>
@@ -250,7 +245,7 @@ export default function AnalyticsVendasPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="pt-3">
+        <CardContent className="pt-2">
           <AnalyticsFilters filters={filters} onChange={setFilters} />
         </CardContent>
       </Card>
@@ -351,10 +346,10 @@ export default function AnalyticsVendasPage() {
         {/* Análise 1: Crescimento Empresa */}
         <TabsContent value="empresa" className="space-y-2">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div>
-                <CardTitle className="text-lg">Crescimento Empresa - Mês a Mês e Ano a Ano</CardTitle>
-                <CardDescription className="text-sm">
+                <CardTitle className="text-sm font-semibold">Crescimento Empresa - Mês a Mês e Ano a Ano</CardTitle>
+                <CardDescription className="text-xs">
                   Comparação de vendas mensais e evolução percentual ano a ano
                 </CardDescription>
               </div>
@@ -365,10 +360,10 @@ export default function AnalyticsVendasPage() {
                 />
               )}
             </CardHeader>
-            <CardContent className="pt-3">
+            <CardContent className="pt-2">
               {loadingEmpresa ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
               ) : errorEmpresa ? (
                 <Alert variant="destructive">
@@ -386,10 +381,10 @@ export default function AnalyticsVendasPage() {
         {/* Análise 2: Crescimento por Filial */}
         <TabsContent value="filial" className="space-y-2">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div>
-                <CardTitle className="text-lg">Crescimento por Filial (UF) - Ano a Ano</CardTitle>
-                <CardDescription className="text-sm">
+                <CardTitle className="text-sm font-semibold">Crescimento por Filial (UF) - Ano a Ano</CardTitle>
+                <CardDescription className="text-xs">
                   Comparação de vendas por filial e evolução percentual ano a ano
                 </CardDescription>
               </div>
@@ -400,10 +395,10 @@ export default function AnalyticsVendasPage() {
                 />
               )}
             </CardHeader>
-            <CardContent className="pt-3">
+            <CardContent className="pt-2">
               {loadingFilial ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
               ) : errorFilial ? (
                 <Alert variant="destructive">
@@ -421,10 +416,10 @@ export default function AnalyticsVendasPage() {
         {/* Análise 3: Crescimento por Marca */}
         <TabsContent value="marca" className="space-y-2">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div>
-                <CardTitle className="text-lg">Crescimento por Marca - Ano a Ano</CardTitle>
-                <CardDescription className="text-sm">
+                <CardTitle className="text-sm font-semibold">Crescimento por Marca - Ano a Ano</CardTitle>
+                <CardDescription className="text-xs">
                   Comparação de vendas por marca e evolução percentual ano a ano
                 </CardDescription>
               </div>
@@ -435,10 +430,10 @@ export default function AnalyticsVendasPage() {
                 />
               )}
             </CardHeader>
-            <CardContent className="pt-3">
+            <CardContent className="pt-2">
               {loadingMarca ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
               ) : errorMarca ? (
                 <Alert variant="destructive">
@@ -456,10 +451,10 @@ export default function AnalyticsVendasPage() {
         {/* Análise 4: Crescimento por Associado */}
         <TabsContent value="associado" className="space-y-2">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div>
-                <CardTitle className="text-lg">Crescimento por Associado (Nome Fantasia) - Ano a Ano</CardTitle>
-                <CardDescription className="text-sm">
+                <CardTitle className="text-sm font-semibold">Crescimento por Associado (Nome Fantasia) - Ano a Ano</CardTitle>
+                <CardDescription className="text-xs">
                   Comparação de vendas por associado e evolução percentual ano a ano
                 </CardDescription>
               </div>
@@ -470,10 +465,10 @@ export default function AnalyticsVendasPage() {
                 />
               )}
             </CardHeader>
-            <CardContent className="pt-3">
+            <CardContent className="pt-2">
               {loadingAssociado ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
               ) : errorAssociado ? (
                 <Alert variant="destructive">

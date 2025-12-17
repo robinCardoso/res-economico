@@ -67,9 +67,7 @@ export class VendasAnalyticsController {
   }
 
   @Post('corrigir-sincronizacao')
-  async corrigirSincronizacao(
-    @Body() body: { ano?: number; mes?: number },
-  ) {
+  async corrigirSincronizacao(@Body() body: { ano?: number; mes?: number }) {
     return this.syncService.corrigirSincronizacao(body);
   }
 
@@ -90,14 +88,46 @@ export class VendasAnalyticsController {
 
   @Get('crescimento-empresa')
   async getCrescimentoEmpresa(
-    @Query('tipoOperacao', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) tipoOperacao?: string[],
-    @Query('filial', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) filial?: string[],
-    @Query('ano', new ParseArrayPipe({ items: Number, optional: true, separator: ',' })) ano?: number[],
-    @Query('mes', new ParseArrayPipe({ items: Number, optional: true, separator: ',' })) mes?: number[],
-    @Query('marca', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) marca?: string[],
-    @Query('nomeFantasia', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) nomeFantasia?: string[],
-    @Query('grupo', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) grupo?: string[],
-    @Query('subgrupo', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) subgrupo?: string[],
+    @Query(
+      'tipoOperacao',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    tipoOperacao?: string[],
+    @Query(
+      'filial',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    filial?: string[],
+    @Query(
+      'ano',
+      new ParseArrayPipe({ items: Number, optional: true, separator: ',' }),
+    )
+    ano?: number[],
+    @Query(
+      'mes',
+      new ParseArrayPipe({ items: Number, optional: true, separator: ',' }),
+    )
+    mes?: number[],
+    @Query(
+      'marca',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    marca?: string[],
+    @Query(
+      'nomeFantasia',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    nomeFantasia?: string[],
+    @Query(
+      'grupo',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    grupo?: string[],
+    @Query(
+      'subgrupo',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    subgrupo?: string[],
   ) {
     const filtros: FilterAnalyticsDto = {
       tipoOperacao,
@@ -114,14 +144,46 @@ export class VendasAnalyticsController {
 
   @Get('crescimento-filial')
   async getCrescimentoFilial(
-    @Query('tipoOperacao', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) tipoOperacao?: string[],
-    @Query('filial', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) filial?: string[],
-    @Query('ano', new ParseArrayPipe({ items: Number, optional: true, separator: ',' })) ano?: number[],
-    @Query('mes', new ParseArrayPipe({ items: Number, optional: true, separator: ',' })) mes?: number[],
-    @Query('marca', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) marca?: string[],
-    @Query('nomeFantasia', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) nomeFantasia?: string[],
-    @Query('grupo', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) grupo?: string[],
-    @Query('subgrupo', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) subgrupo?: string[],
+    @Query(
+      'tipoOperacao',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    tipoOperacao?: string[],
+    @Query(
+      'filial',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    filial?: string[],
+    @Query(
+      'ano',
+      new ParseArrayPipe({ items: Number, optional: true, separator: ',' }),
+    )
+    ano?: number[],
+    @Query(
+      'mes',
+      new ParseArrayPipe({ items: Number, optional: true, separator: ',' }),
+    )
+    mes?: number[],
+    @Query(
+      'marca',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    marca?: string[],
+    @Query(
+      'nomeFantasia',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    nomeFantasia?: string[],
+    @Query(
+      'grupo',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    grupo?: string[],
+    @Query(
+      'subgrupo',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    subgrupo?: string[],
   ) {
     const filtros: FilterAnalyticsDto = {
       tipoOperacao,
@@ -138,14 +200,46 @@ export class VendasAnalyticsController {
 
   @Get('crescimento-marca')
   async getCrescimentoMarca(
-    @Query('tipoOperacao', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) tipoOperacao?: string[],
-    @Query('filial', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) filial?: string[],
-    @Query('ano', new ParseArrayPipe({ items: Number, optional: true, separator: ',' })) ano?: number[],
-    @Query('mes', new ParseArrayPipe({ items: Number, optional: true, separator: ',' })) mes?: number[],
-    @Query('marca', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) marca?: string[],
-    @Query('nomeFantasia', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) nomeFantasia?: string[],
-    @Query('grupo', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) grupo?: string[],
-    @Query('subgrupo', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) subgrupo?: string[],
+    @Query(
+      'tipoOperacao',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    tipoOperacao?: string[],
+    @Query(
+      'filial',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    filial?: string[],
+    @Query(
+      'ano',
+      new ParseArrayPipe({ items: Number, optional: true, separator: ',' }),
+    )
+    ano?: number[],
+    @Query(
+      'mes',
+      new ParseArrayPipe({ items: Number, optional: true, separator: ',' }),
+    )
+    mes?: number[],
+    @Query(
+      'marca',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    marca?: string[],
+    @Query(
+      'nomeFantasia',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    nomeFantasia?: string[],
+    @Query(
+      'grupo',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    grupo?: string[],
+    @Query(
+      'subgrupo',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    subgrupo?: string[],
   ) {
     const filtros: FilterAnalyticsDto = {
       tipoOperacao,
@@ -162,16 +256,58 @@ export class VendasAnalyticsController {
 
   @Get('crescimento-associado')
   async getCrescimentoAssociado(
-    @Query('tipoOperacao', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) tipoOperacao?: string[],
-    @Query('filial', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) filial?: string[],
-    @Query('ano', new ParseArrayPipe({ items: Number, optional: true, separator: ',' })) ano?: number[],
-    @Query('mes', new ParseArrayPipe({ items: Number, optional: true, separator: ',' })) mes?: number[],
-    @Query('marca', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) marca?: string[],
-    @Query('nomeFantasia', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) nomeFantasia?: string[],
-    @Query('grupo', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) grupo?: string[],
-    @Query('subgrupo', new ParseArrayPipe({ items: String, optional: true, separator: ',' })) subgrupo?: string[],
-    @Query('page', new DefaultValuePipe(1), new ParseIntPipe({ optional: true })) page?: number,
-    @Query('limit', new DefaultValuePipe(50), new ParseIntPipe({ optional: true })) limit?: number,
+    @Query(
+      'tipoOperacao',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    tipoOperacao?: string[],
+    @Query(
+      'filial',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    filial?: string[],
+    @Query(
+      'ano',
+      new ParseArrayPipe({ items: Number, optional: true, separator: ',' }),
+    )
+    ano?: number[],
+    @Query(
+      'mes',
+      new ParseArrayPipe({ items: Number, optional: true, separator: ',' }),
+    )
+    mes?: number[],
+    @Query(
+      'marca',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    marca?: string[],
+    @Query(
+      'nomeFantasia',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    nomeFantasia?: string[],
+    @Query(
+      'grupo',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    grupo?: string[],
+    @Query(
+      'subgrupo',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    subgrupo?: string[],
+    @Query(
+      'page',
+      new DefaultValuePipe(1),
+      new ParseIntPipe({ optional: true }),
+    )
+    page?: number,
+    @Query(
+      'limit',
+      new DefaultValuePipe(50),
+      new ParseIntPipe({ optional: true }),
+    )
+    limit?: number,
   ) {
     const filtros: FilterAnalyticsDto = {
       tipoOperacao,

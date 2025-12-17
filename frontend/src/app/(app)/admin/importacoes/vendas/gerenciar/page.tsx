@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useVendas, useVendasStats, useDeleteVenda, useVenda, useTiposOperacao, useMarcas, useGrupos, useSubgrupos } from '@/hooks/use-vendas';
 import { useEmpresas } from '@/hooks/use-empresas';
 import { useDebounce } from '@/hooks/use-debounce';
-import type { FilterVendasDto, Venda } from '@/services/vendas.service';
+import type { FilterVendasDto } from '@/services/vendas.service';
 import { 
   Calendar, 
   Building2, 
@@ -181,7 +181,7 @@ export default function GerenciarVendasPage() {
         title: 'Exportação concluída',
         description: `Arquivo CSV com ${vendas.length} vendas foi baixado.`,
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'Erro na exportação',
         description: 'Não foi possível exportar os dados.',

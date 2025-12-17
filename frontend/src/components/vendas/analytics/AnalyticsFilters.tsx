@@ -54,9 +54,9 @@ export function AnalyticsFilters({ filters, onChange }: AnalyticsFiltersProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div className="space-y-2">
-        <Label>Tipo de Operação</Label>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+      <div className="space-y-1">
+        <Label className="text-xs">Tipo de Operação</Label>
         <MultiSelect
           options={tiposOperacao}
           value={filters.tipoOperacao}
@@ -65,8 +65,8 @@ export function AnalyticsFilters({ filters, onChange }: AnalyticsFiltersProps) {
         />
       </div>
 
-      <div className="space-y-2">
-        <Label>Filial (UF)</Label>
+      <div className="space-y-1">
+        <Label className="text-xs">Filial (UF)</Label>
         <MultiSelect
           options={ufs}
           value={filters.filial}
@@ -75,8 +75,8 @@ export function AnalyticsFilters({ filters, onChange }: AnalyticsFiltersProps) {
         />
       </div>
 
-      <div className="space-y-2">
-        <Label>Ano</Label>
+      <div className="space-y-1">
+        <Label className="text-xs">Ano</Label>
         <MultiSelect
           options={anos.map(String)}
           value={filters.ano?.map(String)}
@@ -85,8 +85,8 @@ export function AnalyticsFilters({ filters, onChange }: AnalyticsFiltersProps) {
         />
       </div>
 
-      <div className="space-y-2">
-        <Label>Mês</Label>
+      <div className="space-y-1">
+        <Label className="text-xs">Mês</Label>
         <MultiSelect
           options={mesesOptions}
           value={filters.mes?.map(m => {
@@ -104,8 +104,8 @@ export function AnalyticsFilters({ filters, onChange }: AnalyticsFiltersProps) {
         />
       </div>
 
-      <div className="space-y-2">
-        <Label>Marca</Label>
+      <div className="space-y-1">
+        <Label className="text-xs">Marca</Label>
         <MultiSelect
           options={marcas}
           value={filters.marca}
@@ -114,8 +114,8 @@ export function AnalyticsFilters({ filters, onChange }: AnalyticsFiltersProps) {
         />
       </div>
 
-      <div className="space-y-2">
-        <Label>Nome Fantasia (Associado)</Label>
+      <div className="space-y-1">
+        <Label className="text-xs">Nome Fantasia (Associado)</Label>
         <MultiSelect
           options={nomesFantasia}
           value={filters.nomeFantasia}
@@ -124,8 +124,8 @@ export function AnalyticsFilters({ filters, onChange }: AnalyticsFiltersProps) {
         />
       </div>
 
-      <div className="space-y-2">
-        <Label>Grupo</Label>
+      <div className="space-y-1">
+        <Label className="text-xs">Grupo</Label>
         <MultiSelect
           options={grupos}
           value={filters.grupo}
@@ -134,8 +134,8 @@ export function AnalyticsFilters({ filters, onChange }: AnalyticsFiltersProps) {
         />
       </div>
 
-      <div className="space-y-2">
-        <Label>Subgrupo</Label>
+      <div className="space-y-1">
+        <Label className="text-xs">Subgrupo</Label>
         <MultiSelect
           options={subgrupos}
           value={filters.subgrupo}

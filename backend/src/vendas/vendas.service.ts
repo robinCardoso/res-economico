@@ -84,6 +84,10 @@ export class VendasService {
       where.subgrupo = { contains: subgrupo, mode: 'insensitive' };
     }
 
+    if (tipoOperacao) {
+      where.tipoOperacao = { contains: tipoOperacao, mode: 'insensitive' };
+    }
+
     if (empresaId) {
       where.empresaId = empresaId;
     }
@@ -157,7 +161,7 @@ export class VendasService {
   }
 
   async update(id: string, updateVendaDto: UpdateVendaDto) {
-    const vendaAntes = await this.findOne(id); // Verifica se existe
+    await this.findOne(id); // Verifica se existe
 
     const vendaAtualizada = await this.prisma.venda.update({
       where: { id },
@@ -295,7 +299,7 @@ export class VendasService {
     const totalValor = totalValorResult._sum.valorTotal
       ? parseFloat(totalValorResult._sum.valorTotal.toString())
       : 0;
-    
+
     const totalQuantidade = totalQuantidadeResult._sum.quantidade
       ? parseFloat(totalQuantidadeResult._sum.quantidade.toString())
       : 0;
@@ -422,38 +426,133 @@ export class VendasService {
     return result.map((row) => row.nomeFantasia);
   }
 
-  async getMappingFields() {
+  getMappingFields() {
     // Retorna os campos do modelo Venda baseado no schema Prisma
     // Campos mapeados para importação (excluindo id, createdAt, updatedAt, relacionamentos)
     return [
       // Identificação da Venda
-      { value: 'nfe', label: 'Nota Fiscal Eletrônica (NFE)', dataType: 'text', required: true },
-      { value: 'idDoc', label: 'ID do Documento', dataType: 'text', required: true },
-      { value: 'data', label: 'Data da Venda', dataType: 'date', required: true }, // dataVenda no banco
-      
+      {
+        value: 'nfe',
+        label: 'Nota Fiscal Eletrônica (NFE)',
+        dataType: 'text',
+        required: true,
+      },
+      {
+        value: 'idDoc',
+        label: 'ID do Documento',
+        dataType: 'text',
+        required: true,
+      },
+      {
+        value: 'data',
+        label: 'Data da Venda',
+        dataType: 'date',
+        required: true,
+      }, // dataVenda no banco
+
       // Cliente
-      { value: 'razaoSocial', label: 'Razão Social (Cliente)', dataType: 'text', required: true },
-      { value: 'nomeFantasia', label: 'Nome Fantasia (Cliente)', dataType: 'text', required: true },
-      { value: 'cnpjCliente', label: 'CNPJ do Cliente', dataType: 'text', required: false },
-      { value: 'ufDestino', label: 'UF de Destino', dataType: 'text', required: true },
-      { value: 'ufOrigem', label: 'UF de Origem', dataType: 'text', required: true },
-      
+      {
+        value: 'razaoSocial',
+        label: 'Razão Social (Cliente)',
+        dataType: 'text',
+        required: true,
+      },
+      {
+        value: 'nomeFantasia',
+        label: 'Nome Fantasia (Cliente)',
+        dataType: 'text',
+        required: true,
+      },
+      {
+        value: 'cnpjCliente',
+        label: 'CNPJ do Cliente',
+        dataType: 'text',
+        required: false,
+      },
+      {
+        value: 'ufDestino',
+        label: 'UF de Destino',
+        dataType: 'text',
+        required: true,
+      },
+      {
+        value: 'ufOrigem',
+        label: 'UF de Origem',
+        dataType: 'text',
+        required: true,
+      },
+
       // Produto
-      { value: 'idProd', label: 'ID do Produto', dataType: 'text', required: true },
-      { value: 'referencia', label: 'Referência do Produto', dataType: 'text', required: true },
-      { value: 'prodCodMestre', label: 'Código Mestre do Produto', dataType: 'text', required: false },
-      { value: 'descricaoProduto', label: 'Descrição do Produto', dataType: 'text', required: false },
-      { value: 'marca', label: 'Marca do Produto', dataType: 'text', required: false },
-      { value: 'grupo', label: 'Grupo do Produto', dataType: 'text', required: false },
-      { value: 'subgrupo', label: 'Subgrupo do Produto', dataType: 'text', required: false },
-      
+      {
+        value: 'idProd',
+        label: 'ID do Produto',
+        dataType: 'text',
+        required: true,
+      },
+      {
+        value: 'referencia',
+        label: 'Referência do Produto',
+        dataType: 'text',
+        required: true,
+      },
+      {
+        value: 'prodCodMestre',
+        label: 'Código Mestre do Produto',
+        dataType: 'text',
+        required: false,
+      },
+      {
+        value: 'descricaoProduto',
+        label: 'Descrição do Produto',
+        dataType: 'text',
+        required: false,
+      },
+      {
+        value: 'marca',
+        label: 'Marca do Produto',
+        dataType: 'text',
+        required: false,
+      },
+      {
+        value: 'grupo',
+        label: 'Grupo do Produto',
+        dataType: 'text',
+        required: false,
+      },
+      {
+        value: 'subgrupo',
+        label: 'Subgrupo do Produto',
+        dataType: 'text',
+        required: false,
+      },
+
       // Operação
-      { value: 'tipoOperacao', label: 'Tipo de Operação', dataType: 'text', required: true },
-      
+      {
+        value: 'tipoOperacao',
+        label: 'Tipo de Operação',
+        dataType: 'text',
+        required: true,
+      },
+
       // Valores
-      { value: 'qtd', label: 'Quantidade', dataType: 'integer', required: true }, // quantidade no banco
-      { value: 'valorUnit', label: 'Valor Unitário', dataType: 'currency', required: true }, // valorUnitario no banco
-      { value: 'valorTotal', label: 'Valor Total', dataType: 'currency', required: true }, // valorTotal no banco
+      {
+        value: 'qtd',
+        label: 'Quantidade',
+        dataType: 'integer',
+        required: true,
+      }, // quantidade no banco
+      {
+        value: 'valorUnit',
+        label: 'Valor Unitário',
+        dataType: 'currency',
+        required: true,
+      }, // valorUnitario no banco
+      {
+        value: 'valorTotal',
+        label: 'Valor Total',
+        dataType: 'currency',
+        required: true,
+      }, // valorTotal no banco
     ];
   }
 
@@ -473,27 +572,6 @@ export class VendasService {
     const data = new Date(venda.dataVenda);
     const ano = data.getFullYear();
     const mes = data.getMonth() + 1;
-
-    // Buscar todas as vendas do mesmo período (ano/mês) que possam afetar o analytics
-    const vendasDoPeriodo = await this.prisma.venda.findMany({
-      where: {
-        dataVenda: {
-          gte: new Date(ano, mes - 1, 1),
-          lt: new Date(ano, mes, 1),
-        },
-      },
-      select: {
-        dataVenda: true,
-        nomeFantasia: true,
-        marca: true,
-        grupo: true,
-        subgrupo: true,
-        tipoOperacao: true,
-        ufDestino: true,
-        valorTotal: true,
-        quantidade: true,
-      },
-    });
 
     // Recalcular analytics para o período
     await this.analyticsService.recalculcarAnalytics(

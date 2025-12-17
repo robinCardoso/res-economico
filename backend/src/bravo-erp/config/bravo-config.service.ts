@@ -46,12 +46,16 @@ export class BravoConfigService {
           typeof configObj['bravo_pdv'] === 'string'
             ? configObj['bravo_pdv']
             : '1',
-        ambiente:
-          typeof configObj['bravo_ambiente'] === 'string' &&
-          (configObj['bravo_ambiente'] === 'p' ||
-            configObj['bravo_ambiente'] === 'h')
-            ? (configObj['bravo_ambiente'] as 'p' | 'h')
-            : ('p' as const),
+        ambiente: ((): 'p' | 'h' => {
+          const ambienteValue = configObj['bravo_ambiente'];
+          if (
+            typeof ambienteValue === 'string' &&
+            (ambienteValue === 'p' || ambienteValue === 'h')
+          ) {
+            return ambienteValue;
+          }
+          return 'p';
+        })(),
         server:
           typeof configObj['bravo_server'] === 'string'
             ? configObj['bravo_server']

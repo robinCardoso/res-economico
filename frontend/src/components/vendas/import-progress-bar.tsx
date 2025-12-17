@@ -11,7 +11,7 @@ interface ImportProgressBarProps {
 }
 
 export function ImportProgressBar({ logId, onComplete }: ImportProgressBarProps) {
-  const { data: progress, isLoading, error } = useImportLogProgress(
+  const { data: progress, error } = useImportLogProgress(
     logId || '',
     !!logId
   );

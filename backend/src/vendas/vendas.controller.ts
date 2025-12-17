@@ -70,7 +70,7 @@ export class VendasController {
   @Delete('import-logs/:id')
   async deletarImportacao(
     @Param('id') id: string,
-    @Request() req: any,
+    @Request() req: { user?: { id?: string } },
   ) {
     const userId = req.user?.id;
     if (!userId) {
@@ -81,7 +81,7 @@ export class VendasController {
   }
 
   @Get('mapping-fields')
-  async getMappingFields() {
+  getMappingFields() {
     return this.vendasService.getMappingFields();
   }
 
@@ -158,7 +158,7 @@ export class VendasController {
   @Post('column-mappings')
   async createColumnMapping(
     @Body() dto: CreateVendaColumnMappingDto,
-    @Request() req: any,
+    @Request() req: { user?: { id?: string } },
   ) {
     const userId = req.user?.id;
     return this.vendasColumnMappingService.create(dto, userId);
@@ -195,7 +195,7 @@ export class VendasController {
   @Post('analytics-filters')
   async createAnalyticsFilter(
     @Body() dto: CreateVendaAnalyticsFilterDto,
-    @Request() req: any,
+    @Request() req: { user?: { id?: string } },
   ) {
     const userId = req.user?.id;
     return this.vendasAnalyticsFilterService.create(dto, userId);

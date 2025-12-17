@@ -15,12 +15,19 @@ export class ImportVendasDto {
     // Se vier como string JSON (do FormData), fazer parse
     if (typeof value === 'string') {
       try {
-        return JSON.parse(value);
+        const parsed: unknown = JSON.parse(value);
+        return typeof parsed === 'object' &&
+          parsed !== null &&
+          !Array.isArray(parsed)
+          ? (parsed as Record<string, string>)
+          : undefined;
       } catch {
         return undefined;
       }
     }
-    return value;
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? (value as Record<string, string>)
+      : undefined;
   })
   columnMapping?: Record<string, string>; // Mapeamento customizado do frontend (formato: { campo: nomeColuna })
 }

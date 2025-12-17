@@ -111,9 +111,7 @@ export class VendasAnalyticsSyncService {
         entry.totalQuantidade.toString(),
       );
 
-      const diferencaValor = Math.abs(
-        totalValorVendas - totalValorAnalytics,
-      );
+      const diferencaValor = Math.abs(totalValorVendas - totalValorAnalytics);
       const diferencaQuantidade = Math.abs(
         totalQuantidadeVendas - totalQuantidadeAnalytics,
       );
@@ -121,10 +119,7 @@ export class VendasAnalyticsSyncService {
       // Tolerância de 0.01 para diferenças de arredondamento
       const tolerancia = 0.01;
 
-      if (
-        diferencaValor > tolerancia ||
-        diferencaQuantidade > tolerancia
-      ) {
+      if (diferencaValor > tolerancia || diferencaQuantidade > tolerancia) {
         erros.push({
           ano: entry.ano,
           mes: entry.mes,

@@ -180,7 +180,7 @@ export class VendasUpdateService {
   /**
    * Recalcula dados de produto em todas as vendas relacionadas a um produto
    * quando o produto é atualizado (chamado opcionalmente)
-   * 
+   *
    * ATUALIZADO: Agora atualiza automaticamente vendas e analytics quando subgrupo é atualizado
    */
   async onProdutoUpdated(

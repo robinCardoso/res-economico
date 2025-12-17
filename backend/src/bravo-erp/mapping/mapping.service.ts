@@ -290,7 +290,11 @@ export class MappingService {
             }
           } else {
             // Objeto normal - recursão padrão
-            this.flattenObject(value as Record<string, unknown>, caminho, result);
+            this.flattenObject(
+              value as Record<string, unknown>,
+              caminho,
+              result,
+            );
           }
         } else {
           // Valor primitivo

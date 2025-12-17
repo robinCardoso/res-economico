@@ -77,9 +77,7 @@ export class VendasImportDeleteService {
 
     const totalVendas = vendas.length;
 
-    this.logger.log(
-      `Importação possui ${totalVendas} vendas associadas`,
-    );
+    this.logger.log(`Importação possui ${totalVendas} vendas associadas`);
 
     if (totalVendas === 0) {
       // Se não há vendas, apenas deletar o log

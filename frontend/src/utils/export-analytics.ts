@@ -6,6 +6,10 @@ import type {
   CrescimentoAssociadoResponse,
 } from '@/services/vendas.service';
 
+// Tipo para células de dados do Excel (pode ser string, número ou null)
+type ExcelCellValue = string | number | null;
+type ExcelRow = ExcelCellValue[];
+
 /**
  * Formata valor monetário para exibição
  */
@@ -35,7 +39,7 @@ export function exportCrescimentoEmpresaExcel(
   filename?: string
 ): void {
   const workbook = XLSX.utils.book_new();
-  const dados: any[][] = [];
+  const dados: ExcelRow[] = [];
 
   // Cabeçalho
   const header = ['Mês'];
@@ -47,7 +51,7 @@ export function exportCrescimentoEmpresaExcel(
 
   // Dados dos meses
   data.meses.forEach((mes) => {
-    const linha: any[] = [mes.nomeMes];
+    const linha: ExcelRow = [mes.nomeMes];
     data.anosDisponiveis.forEach((ano) => {
       const dadosAno = mes.dados[ano];
       linha.push(dadosAno?.venda || 0);
@@ -57,7 +61,7 @@ export function exportCrescimentoEmpresaExcel(
   });
 
   // Linha de total geral
-  const linhaTotal: any[] = ['TOTAL GERAL'];
+  const linhaTotal: ExcelRow = ['TOTAL GERAL'];
   data.anosDisponiveis.forEach((ano) => {
     const totalAno = data.totalGeral[ano];
     linhaTotal.push(totalAno?.venda || 0);
@@ -167,7 +171,7 @@ export function exportCrescimentoFilialExcel(
   filename?: string
 ): void {
   const workbook = XLSX.utils.book_new();
-  const dados: any[][] = [];
+  const dados: ExcelRow[] = [];
 
   // Cabeçalho
   const header = ['Filial (UF)'];
@@ -179,7 +183,7 @@ export function exportCrescimentoFilialExcel(
 
   // Dados das filiais
   data.filiais.forEach((filial) => {
-    const linha: any[] = [filial.uf];
+    const linha: ExcelRow = [filial.uf];
     data.anosDisponiveis.forEach((ano) => {
       const dadosAno = filial.dados[ano];
       linha.push(dadosAno?.vendas || 0);
@@ -189,7 +193,7 @@ export function exportCrescimentoFilialExcel(
   });
 
   // Linha de total geral
-  const linhaTotal: any[] = ['TOTAL GERAL'];
+  const linhaTotal: ExcelRow = ['TOTAL GERAL'];
   data.anosDisponiveis.forEach((ano) => {
     const totalAno = data.totalGeral[ano];
     linhaTotal.push(totalAno?.vendas || 0);
@@ -291,7 +295,7 @@ export function exportCrescimentoMarcaExcel(
   filename?: string
 ): void {
   const workbook = XLSX.utils.book_new();
-  const dados: any[][] = [];
+  const dados: ExcelRow[] = [];
 
   const header = ['Marca'];
   data.anosDisponiveis.forEach((ano) => {
@@ -301,7 +305,7 @@ export function exportCrescimentoMarcaExcel(
   dados.push(header);
 
   data.marcas.forEach((marca) => {
-    const linha: any[] = [marca.marca];
+    const linha: ExcelRow = [marca.marca];
     data.anosDisponiveis.forEach((ano) => {
       const dadosAno = marca.dados[ano];
       linha.push(dadosAno?.venda || 0);
@@ -310,7 +314,7 @@ export function exportCrescimentoMarcaExcel(
     dados.push(linha);
   });
 
-  const linhaTotal: any[] = ['TOTAL GERAL'];
+  const linhaTotal: ExcelRow = ['TOTAL GERAL'];
   data.anosDisponiveis.forEach((ano) => {
     const totalAno = data.totalGeral[ano];
     linhaTotal.push(totalAno?.venda || 0);
@@ -409,7 +413,7 @@ export function exportCrescimentoAssociadoExcel(
   filename?: string
 ): void {
   const workbook = XLSX.utils.book_new();
-  const dados: any[][] = [];
+  const dados: ExcelRow[] = [];
 
   const header = ['Nome Fantasia (Associado)'];
   data.anosDisponiveis.forEach((ano) => {
@@ -419,7 +423,7 @@ export function exportCrescimentoAssociadoExcel(
   dados.push(header);
 
   data.associados.forEach((associado) => {
-    const linha: any[] = [associado.nomeFantasia];
+    const linha: ExcelRow = [associado.nomeFantasia];
     data.anosDisponiveis.forEach((ano) => {
       const dadosAno = associado.dados[ano];
       linha.push(dadosAno?.venda || 0);
@@ -428,7 +432,7 @@ export function exportCrescimentoAssociadoExcel(
     dados.push(linha);
   });
 
-  const linhaTotal: any[] = ['TOTAL GERAL'];
+  const linhaTotal: ExcelRow = ['TOTAL GERAL'];
   data.anosDisponiveis.forEach((ano) => {
     const totalAno = data.totalGeral[ano];
     linhaTotal.push(totalAno?.venda || 0);

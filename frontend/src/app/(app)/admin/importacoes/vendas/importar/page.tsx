@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useEmpresas } from '@/hooks/use-empresas';
 import { 
   useImportVendas, 
@@ -9,6 +8,7 @@ import {
   useVendaColumnMappings,
   useCreateVendaColumnMapping,
   useDeleteVendaColumnMapping,
+  useVendasImportLogs,
 } from '@/hooks/use-vendas';
 import { vendasService } from '@/services/vendas.service';
 import { ImportStepper } from '@/components/imports/import-stepper';
@@ -32,24 +32,7 @@ const DATA_TYPES = [
     { value: 'date', label: 'Data' },
 ];
 
-interface ImportResult extends Record<string, unknown> {
-    message: string;
-    success: boolean;
-    totalRows: number;
-    successCount: number;
-    errorCount: number;
-    results?: { status: 'success' | 'error'; message: string; lineNumber: number; docId: string }[];
-    historyId: string | null;
-    details?: {
-        successCount: number;
-        errorCount: number;
-        existingCount: number;
-        errors: string[];
-    };
-}
-
 export default function ImportarVendasPage() {
-  const router = useRouter();
   const { data: empresas, isLoading: isLoadingEmpresas } = useEmpresas();
   const { data: mappingFields, isLoading: isLoadingFields } = useVendasMappingFields();
   const importMutation = useImportVendas();
@@ -57,9 +40,52 @@ export default function ImportarVendasPage() {
   const [currentImportLogId, setCurrentImportLogId] = useState<string | null>(null);
   
   // Hooks para mapeamentos no banco de dados
-  const { data: columnMappings, isLoading: isLoadingMappings } = useVendaColumnMappings();
+  const { data: columnMappings } = useVendaColumnMappings();
   const createMappingMutation = useCreateVendaColumnMapping();
   const deleteMappingMutation = useDeleteVendaColumnMapping();
+  
+  // Buscar logs de importação para verificar se há importações em andamento
+  const { data: importLogs, refetch: refetchLogs } = useVendasImportLogs();
+  
+  // Verificar se há importações em andamento ao carregar a página
+  useEffect(() => {
+    if (importLogs && importLogs.length > 0) {
+      // Buscar a importação mais recente que ainda está em andamento (progresso < 100)
+      // Ordenar por data de criação (mais recente primeiro) e pegar a primeira em andamento
+      const importacaoEmAndamento = importLogs
+        .filter((log) => log.progresso !== undefined && log.progresso < 100)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      
+      if (importacaoEmAndamento && !currentImportLogId) {
+        // Se encontrou uma importação em andamento e não há logId atual, definir
+        // Usar setTimeout para evitar setState síncrono em effect
+        setTimeout(() => {
+          setCurrentImportLogId(importacaoEmAndamento.id);
+          console.log(
+            `🔄 Importação em andamento detectada: ${importacaoEmAndamento.id} (${importacaoEmAndamento.progresso}%)`
+          );
+        }, 0);
+      } else if (!importacaoEmAndamento && currentImportLogId) {
+        // Se não há importação em andamento mas há um logId, limpar
+        // (importação foi concluída)
+        setTimeout(() => {
+          setCurrentImportLogId(null);
+        }, 0);
+      }
+    }
+  }, [importLogs, currentImportLogId]);
+  
+  // Atualizar logs periodicamente se houver importação em andamento
+  useEffect(() => {
+    if (currentImportLogId) {
+      // Atualizar logs a cada 5 segundos enquanto houver importação em andamento
+      const interval = setInterval(() => {
+        refetchLogs();
+      }, 5000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [currentImportLogId, refetchLogs]);
 
   // Converter campos do backend para o formato esperado pelo ImportStepper
   const DATABASE_FIELDS = useMemo(() => {
@@ -270,7 +296,6 @@ export default function ImportarVendasPage() {
           convertValue={convertValue}
           processFile={processFile}
           empresaId={empresaId}
-          onEmpresaIdChange={setEmpresaId}
           useDatabaseMappings={true}
           onLoadMappings={async () => {
             // Converter mapeamentos do banco para o formato esperado pelo componente
@@ -298,11 +323,29 @@ export default function ImportarVendasPage() {
                 };
               });
               
+              // Converter filters do banco para o formato esperado (Filter[])
+              type FilterCondition = 'is_empty' | 'is_not_empty' | 'equals' | 'not_equals' | 'contains';
+              type Filter = {
+                id: string;
+                column: string;
+                condition: FilterCondition;
+                value: string;
+              };
+              
+              const filters: Filter[] = ((mapping.filters as Array<{ id: string; column: string; condition: string; value?: string }>) || []).map(filter => ({
+                id: filter.id,
+                column: filter.column,
+                condition: (['is_empty', 'is_not_empty', 'equals', 'not_equals', 'contains'].includes(filter.condition) 
+                  ? filter.condition 
+                  : 'equals') as FilterCondition,
+                value: filter.value || '',
+              }));
+              
               return {
                 id: mapping.id,
                 name: mapping.nome,
                 mappings,
-                filters: (mapping.filters as Array<{ id: string; column: string; condition: string; value?: string }>) || [],
+                filters,
               };
             });
           }}

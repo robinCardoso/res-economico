@@ -17,7 +17,6 @@ import {
   type CrescimentoFilialResponse,
   type CrescimentoMarcaResponse,
   type CrescimentoAssociadoResponse,
-  type VendaImportProgress,
   type VendaColumnMapping,
   type CreateVendaColumnMappingDto,
   type VendaAnalyticsFilter,

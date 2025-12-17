@@ -47,16 +47,16 @@ export function CrescimentoAssociadoTable({ data, onPageChange }: CrescimentoAss
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="h-9">
-              <TableHead className="sticky left-0 bg-background z-10 min-w-[200px] py-2">
+            <TableRow className="h-7">
+              <TableHead className="sticky left-0 bg-background z-10 min-w-[200px] py-1 text-xs">
                 Nome Fantasia (Associado)
               </TableHead>
               {anosDisponiveis.map((ano) => (
                 <React.Fragment key={ano}>
-                  <TableHead className="text-center min-w-[150px] py-2">
+                  <TableHead className="text-center min-w-[150px] py-1 text-xs">
                     {ano} - Venda
                   </TableHead>
-                  <TableHead className="text-center min-w-[120px] py-2">
+                  <TableHead className="text-center min-w-[120px] py-1 text-xs">
                     {ano} - %
                   </TableHead>
                 </React.Fragment>
@@ -65,32 +65,32 @@ export function CrescimentoAssociadoTable({ data, onPageChange }: CrescimentoAss
           </TableHeader>
           <TableBody>
             {associadosOrdenados.map((associado) => (
-              <TableRow key={associado.nomeFantasia} className="h-9">
-                <TableCell className="sticky left-0 bg-background z-10 font-medium py-2">
+              <TableRow key={associado.nomeFantasia} className="h-7">
+                <TableCell className="sticky left-0 bg-background z-10 font-medium py-1 text-xs">
                   {associado.nomeFantasia}
                 </TableCell>
                 {anosDisponiveis.map((ano) => (
                   <React.Fragment key={ano}>
-                    <TableCell className="text-right py-2">
+                    <TableCell className="text-right py-1 text-xs">
                       {formatCurrency(associado.dados[ano]?.venda || 0)}
                     </TableCell>
-                    <TableCell className="text-center py-2">
+                    <TableCell className="text-center py-1 text-xs">
                       <EvolutionCell value={associado.dados[ano]?.evolucao} />
                     </TableCell>
                   </React.Fragment>
                 ))}
               </TableRow>
             ))}
-            <TableRow className="font-bold bg-muted/50 h-9">
-              <TableCell className="sticky left-0 bg-muted/50 z-10 py-2">
+            <TableRow className="font-bold bg-muted/50 h-7">
+              <TableCell className="sticky left-0 bg-muted/50 z-10 py-1 text-xs">
                 Total Geral
               </TableCell>
               {anosDisponiveis.map((ano) => (
                 <React.Fragment key={ano}>
-                  <TableCell className="text-right py-2">
+                  <TableCell className="text-right py-1 text-xs">
                     {formatCurrency(totalGeral[ano]?.venda || 0)}
                   </TableCell>
-                  <TableCell className="text-center py-2">
+                  <TableCell className="text-center py-1 text-xs">
                     <EvolutionCell value={totalGeral[ano]?.evolucao} />
                   </TableCell>
                 </React.Fragment>
@@ -101,31 +101,33 @@ export function CrescimentoAssociadoTable({ data, onPageChange }: CrescimentoAss
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
+        <div className="flex items-center justify-between py-1">
+          <div className="text-xs text-muted-foreground">
             Mostrando {((page - 1) * limit) + 1} a {Math.min(page * limit, total)} de {total} associados
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
+              className="h-7 text-xs"
               onClick={() => onPageChange(page - 1)}
               disabled={page === 1}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-3 w-3" />
               Anterior
             </Button>
-            <div className="text-sm">
+            <div className="text-xs">
               Página {page} de {totalPages}
             </div>
             <Button
               variant="outline"
               size="sm"
+              className="h-7 text-xs"
               onClick={() => onPageChange(page + 1)}
               disabled={page >= totalPages}
             >
               Próxima
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3 w-3" />
             </Button>
           </div>
         </div>
