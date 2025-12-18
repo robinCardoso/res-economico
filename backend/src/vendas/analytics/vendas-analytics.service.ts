@@ -2,6 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { FilterAnalyticsDto } from './dto/filter-analytics.dto';
+import { FilialAssociadoAnalyticsDto } from './dto/filial-associado-analytics.dto';
+import {
+  FilialAssociadoResponse,
+  UFData,
+  AssociadoData,
+} from './dto/filial-associado-response.dto';
 
 interface VendaParaAnalytics {
   dataVenda: Date;
@@ -11,6 +17,7 @@ interface VendaParaAnalytics {
   subgrupo?: string;
   tipoOperacao?: string;
   ufDestino?: string;
+  empresaId?: string;
   valorTotal: Decimal;
   quantidade: Decimal;
 }
@@ -45,6 +52,7 @@ export class VendasAnalyticsService {
         subgrupo: string;
         tipoOperacao: string | null;
         uf: string;
+        empresaId: string | null;
         totalValor: number;
         totalQuantidade: number;
       }
@@ -60,10 +68,11 @@ export class VendasAnalyticsService {
       const subgrupo = venda.subgrupo || 'DESCONHECIDO';
       const tipoOperacao = venda.tipoOperacao || null;
       const uf = venda.ufDestino || 'DESCONHECIDO';
+      const empresaId = venda.empresaId || null;
 
       // Criar chave única para agrupamento
-      // Incluindo grupo, subgrupo e tipoOperacao para evitar agrupamento incorreto
-      const key = `${ano}_${mes}_${nomeFantasia}_${marca}_${grupo}_${subgrupo}_${tipoOperacao || 'NULL'}_${uf}`;
+      // Incluindo grupo, subgrupo, tipoOperacao e empresaId para evitar agrupamento incorreto
+      const key = `${ano}_${mes}_${nomeFantasia}_${marca}_${grupo}_${subgrupo}_${tipoOperacao || 'NULL'}_${uf}_${empresaId || 'NULL'}`;
 
       if (!analyticsMap.has(key)) {
         analyticsMap.set(key, {
@@ -75,6 +84,7 @@ export class VendasAnalyticsService {
           subgrupo,
           tipoOperacao,
           uf,
+          empresaId,
           totalValor: 0,
           totalQuantidade: 0,
         });
@@ -87,18 +97,45 @@ export class VendasAnalyticsService {
 
     this.logger.log(`Agrupadas ${analyticsMap.size} entradas de analytics`);
 
-    // Processar cada entrada de analytics
-    const promises = Array.from(analyticsMap.values()).map((analytics) =>
-      this.upsertAnalytics(analytics),
-    );
+    // Processar cada entrada de analytics em lotes para evitar esgotar o pool de conexões
+    // Aumentado para 200 para melhor performance com grandes volumes
+    const analyticsArray = Array.from(analyticsMap.values());
+    const BATCH_SIZE = 200; // Processar 200 por vez (otimizado para grandes volumes)
+    
+    // Processar em lotes com tratamento de erro individual para não perder dados
+    for (let i = 0; i < analyticsArray.length; i += BATCH_SIZE) {
+      const batch = analyticsArray.slice(i, i + BATCH_SIZE);
+      
+      // Usar Promise.allSettled para garantir que erros em um item não parem o processamento
+      const results = await Promise.allSettled(
+        batch.map((analytics) => this.upsertAnalytics(analytics))
+      );
+      
+      // Contar sucessos e erros para logging
+      const sucessos = results.filter((r) => r.status === 'fulfilled').length;
+      const erros = results.filter((r) => r.status === 'rejected').length;
+      
+      if (erros > 0) {
+        this.logger.warn(
+          `Lote de analytics: ${sucessos} sucessos, ${erros} erros (lote ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(analyticsArray.length / BATCH_SIZE)})`,
+        );
+        // Logar detalhes dos erros
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            this.logger.error(
+              `Erro ao processar analytics ${i + index}: ${result.reason}`,
+            );
+          }
+        });
+      }
+    }
 
-    await Promise.all(promises);
-
-    this.logger.log(`Analytics atualizado com sucesso`);
+    this.logger.log(`Analytics atualizado com sucesso: ${analyticsArray.length} entradas processadas`);
   }
 
   /**
    * Faz UPSERT de uma entrada de analytics usando SQL ON CONFLICT para evitar race conditions
+   * Inclui retry logic para casos de timeout ou problemas temporários de conexão
    */
   private async upsertAnalytics(analytics: {
     ano: number;
@@ -109,133 +146,161 @@ export class VendasAnalyticsService {
     subgrupo: string;
     tipoOperacao: string | null;
     uf: string;
+    empresaId: string | null;
     totalValor: number;
     totalQuantidade: number;
   }): Promise<void> {
-    try {
-      // Usar SQL raw com ON CONFLICT para fazer upsert atômico
-      // Isso evita race conditions quando múltiplas requisições processam em paralelo
-      // O id é gerado usando gen_random_uuid() (PostgreSQL 13+)
-      // IMPORTANTE: Se houver constraint antigo (sem grupo/subgrupo), ele será tratado no catch
+    const MAX_RETRIES = 3;
+    let lastError: unknown;
+    
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        await this.prisma.$executeRaw`
-          INSERT INTO "VendaAnalytics" (
-            "id", "ano", "mes", "nomeFantasia", "marca", "grupo", "subgrupo", "tipoOperacao", "uf", 
-            "totalValor", "totalQuantidade", "createdAt", "updatedAt"
-          )
-          VALUES (
-            gen_random_uuid(),
-            ${analytics.ano}::integer,
-            ${analytics.mes}::integer,
-            ${analytics.nomeFantasia}::text,
-            ${analytics.marca}::text,
-            ${analytics.grupo}::text,
-            ${analytics.subgrupo}::text,
-            ${analytics.tipoOperacao}::text,
-            ${analytics.uf}::text,
-            ${analytics.totalValor}::decimal,
-            ${analytics.totalQuantidade}::decimal,
-            NOW(),
-            NOW()
-          )
-          ON CONFLICT ("ano", "mes", "nomeFantasia", "marca", "grupo", "subgrupo", "tipoOperacao", "uf")
-          DO UPDATE SET
-            "totalValor" = "VendaAnalytics"."totalValor" + ${analytics.totalValor}::decimal,
-            "totalQuantidade" = "VendaAnalytics"."totalQuantidade" + ${analytics.totalQuantidade}::decimal,
-            "updatedAt" = NOW()
-        `;
-      } catch (error: unknown) {
-        // Se falhar por constraint antigo (sem grupo/subgrupo), buscar e consolidar registros
-        const conflictError = error as { code?: string; message?: string };
-        if (
-          conflictError?.code === '23505' &&
-          typeof conflictError?.message === 'string' &&
-          conflictError.message.includes('already exists') &&
-          conflictError.message.includes('ano, mes, "nomeFantasia", marca, uf')
-        ) {
-          // Constraint antigo detectado - buscar TODOS os registros existentes (pode haver múltiplos)
-          const registrosExistentes = await this.prisma.vendaAnalytics.findMany(
-            {
-              where: {
-                ano: analytics.ano,
-                mes: analytics.mes,
-                nomeFantasia: analytics.nomeFantasia,
-                marca: analytics.marca,
-                uf: analytics.uf,
-                // Não filtrar por grupo/subgrupo (constraint antigo)
-              },
-            },
-          );
-
-          if (registrosExistentes.length > 0) {
-            // Consolidar todos os registros existentes + novo valor
-            let totalValorConsolidado = analytics.totalValor;
-            let totalQuantidadeConsolidado = analytics.totalQuantidade;
-
-            for (const reg of registrosExistentes) {
-              totalValorConsolidado += parseFloat(reg.totalValor.toString());
-              totalQuantidadeConsolidado += parseFloat(
-                reg.totalQuantidade.toString(),
-              );
-            }
-
-            // Usar o primeiro registro como base e atualizar
-            const primeiroRegistro = registrosExistentes[0];
-            const outrosRegistros = registrosExistentes.slice(1);
-
-            // Atualizar o primeiro registro com valores consolidados e novo grupo/subgrupo/tipoOperacao
-            await this.prisma.vendaAnalytics.update({
-              where: { id: primeiroRegistro.id },
-              data: {
-                grupo: analytics.grupo,
-                subgrupo: analytics.subgrupo,
-                tipoOperacao: analytics.tipoOperacao,
-                totalValor: new Decimal(totalValorConsolidado.toString()),
-                totalQuantidade: new Decimal(
-                  totalQuantidadeConsolidado.toString(),
-                ),
-              },
-            });
-
-            // Deletar outros registros duplicados se houver
-            if (outrosRegistros.length > 0) {
-              await this.prisma.vendaAnalytics.deleteMany({
+        // Usar SQL raw com ON CONFLICT para fazer upsert atômico
+        // Isso evita race conditions quando múltiplas requisições processam em paralelo
+        // O id é gerado usando gen_random_uuid() (PostgreSQL 13+)
+        // IMPORTANTE: Se houver constraint antigo (sem grupo/subgrupo), ele será tratado no catch
+        try {
+          await this.prisma.$executeRaw`
+            INSERT INTO "VendaAnalytics" (
+              "id", "ano", "mes", "nomeFantasia", "marca", "grupo", "subgrupo", "tipoOperacao", "uf", "empresaId",
+              "totalValor", "totalQuantidade", "createdAt", "updatedAt"
+            )
+            VALUES (
+              gen_random_uuid(),
+              ${analytics.ano}::integer,
+              ${analytics.mes}::integer,
+              ${analytics.nomeFantasia}::text,
+              ${analytics.marca}::text,
+              ${analytics.grupo}::text,
+              ${analytics.subgrupo}::text,
+              ${analytics.tipoOperacao}::text,
+              ${analytics.uf}::text,
+              ${analytics.empresaId}::text,
+              ${analytics.totalValor}::decimal,
+              ${analytics.totalQuantidade}::decimal,
+              NOW(),
+              NOW()
+            )
+            ON CONFLICT ("ano", "mes", "nomeFantasia", "marca", "grupo", "subgrupo", "tipoOperacao", "uf", "empresaId")
+            DO UPDATE SET
+              "totalValor" = "VendaAnalytics"."totalValor" + ${analytics.totalValor}::decimal,
+              "totalQuantidade" = "VendaAnalytics"."totalQuantidade" + ${analytics.totalQuantidade}::decimal,
+              "updatedAt" = NOW()
+          `;
+          // Sucesso - sair do loop de retry
+          return;
+        } catch (error: unknown) {
+          // Se falhar por constraint antigo (sem grupo/subgrupo), buscar e consolidar registros
+          const conflictError = error as { code?: string; message?: string };
+          if (
+            conflictError?.code === '23505' &&
+            typeof conflictError?.message === 'string' &&
+            conflictError.message.includes('already exists') &&
+            conflictError.message.includes('ano, mes, "nomeFantasia", marca, uf')
+          ) {
+            // Constraint antigo detectado - buscar TODOS os registros existentes (pode haver múltiplos)
+            const registrosExistentes = await this.prisma.vendaAnalytics.findMany(
+              {
                 where: {
-                  id: { in: outrosRegistros.map((r) => r.id) },
+                  ano: analytics.ano,
+                  mes: analytics.mes,
+                  nomeFantasia: analytics.nomeFantasia,
+                  marca: analytics.marca,
+                  uf: analytics.uf,
+                  // Não filtrar por grupo/subgrupo (constraint antigo)
+                },
+              },
+            );
+
+            if (registrosExistentes.length > 0) {
+              // Consolidar todos os registros existentes + novo valor
+              let totalValorConsolidado = analytics.totalValor;
+              let totalQuantidadeConsolidado = analytics.totalQuantidade;
+
+              for (const reg of registrosExistentes) {
+                totalValorConsolidado += parseFloat(reg.totalValor.toString());
+                totalQuantidadeConsolidado += parseFloat(
+                  reg.totalQuantidade.toString(),
+                );
+              }
+
+              // Usar o primeiro registro como base e atualizar
+              const primeiroRegistro = registrosExistentes[0];
+              const outrosRegistros = registrosExistentes.slice(1);
+
+              // Atualizar o primeiro registro com valores consolidados e novo grupo/subgrupo/tipoOperacao
+              await this.prisma.vendaAnalytics.update({
+                where: { id: primeiroRegistro.id },
+                data: {
+                  grupo: analytics.grupo,
+                  subgrupo: analytics.subgrupo,
+                  tipoOperacao: analytics.tipoOperacao,
+                  totalValor: new Decimal(totalValorConsolidado.toString()),
+                  totalQuantidade: new Decimal(
+                    totalQuantidadeConsolidado.toString(),
+                  ),
                 },
               });
-            }
 
-            this.logger.warn(
-              `Constraint antigo detectado. Consolidados ${registrosExistentes.length} registro(s) existente(s) com novo grupo/subgrupo: ${analytics.grupo}/${analytics.subgrupo}`,
-            );
+              // Deletar outros registros duplicados se houver
+              if (outrosRegistros.length > 0) {
+                await this.prisma.vendaAnalytics.deleteMany({
+                  where: {
+                    id: { in: outrosRegistros.map((r) => r.id) },
+                  },
+                });
+              }
+
+              this.logger.warn(
+                `Constraint antigo detectado. Consolidados ${registrosExistentes.length} registro(s) existente(s) com novo grupo/subgrupo: ${analytics.grupo}/${analytics.subgrupo}`,
+              );
+              return; // Sucesso após consolidação
+            } else {
+              // Se não encontrou, pode ser outro tipo de conflito - relançar erro
+              throw error;
+            }
           } else {
-            // Se não encontrou, pode ser outro tipo de conflito - relançar erro
-            throw new Error(
-              conflictError?.message ||
-                'Erro desconhecido ao fazer upsert de analytics',
-            );
+            // Outro tipo de erro - relançar para tratamento no catch externo
+            throw error;
           }
-        } else {
-          // Outro tipo de erro - relançar
-          throw new Error(
-            conflictError?.message ||
-              'Erro desconhecido ao fazer upsert de analytics',
+        }
+      } catch (innerError: unknown) {
+        // Tratar erros do SQL ou do tratamento de constraint antigo
+        lastError = innerError;
+        const errorMessage =
+          innerError instanceof Error ? innerError.message : 'Erro desconhecido';
+        const errorCode = (innerError as { code?: string })?.code;
+        
+        // Verificar se é um erro recuperável (timeout, conexão, etc)
+        const isRetryableError =
+          errorCode === 'P1001' || // Connection timeout
+          errorCode === 'P1008' || // Operations timed out
+          errorMessage.includes('timeout') ||
+          errorMessage.includes('connection') ||
+          errorMessage.includes('pool');
+        
+        if (isRetryableError && attempt < MAX_RETRIES) {
+          // Aguardar antes de tentar novamente (backoff exponencial)
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          this.logger.warn(
+            `Erro recuperável ao fazer upsert de analytics (tentativa ${attempt}/${MAX_RETRIES}): ${errorMessage}. Tentando novamente em ${delay}ms...`,
           );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        // Se não for erro recuperável ou esgotou tentativas, lançar erro
+        if (attempt === MAX_RETRIES) {
+          const errorStack =
+            innerError instanceof Error ? innerError.stack : undefined;
+          this.logger.error(
+            `Erro ao fazer upsert de analytics após ${MAX_RETRIES} tentativas: ${errorMessage}. Dados: ${JSON.stringify(analytics)}`,
+            errorStack,
+          );
+          // Lançar erro para que o Promise.allSettled capture
+          throw innerError;
         }
       }
-    } catch (error: any) {
-      // Se falhar, logar o erro mas não interromper a importação
-      // O SQL ON CONFLICT deve resolver a maioria dos casos de race condition
-      const errorMessage =
-        error instanceof Error ? error.message : 'Erro desconhecido';
-      const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(
-        `Erro ao fazer upsert de analytics: ${errorMessage}. Dados: ${JSON.stringify(analytics)}`,
-        errorStack,
-      );
-      // Não lançar erro para não interromper a importação
-      // O analytics pode ser recalculado depois se necessário
     }
   }
 
@@ -325,80 +390,186 @@ export class VendasAnalyticsService {
     });
   }
 
+  // Status do recálculo em memória (pode ser melhorado com Redis ou banco de dados)
+  private recalculoStatus: {
+    emAndamento: boolean;
+    progresso: number;
+    totalVendas: number;
+    vendasProcessadas: number;
+    inicio?: Date;
+    fim?: Date;
+    erro?: string;
+  } = {
+    emAndamento: false,
+    progresso: 0,
+    totalVendas: 0,
+    vendasProcessadas: 0,
+  };
+
+  /**
+   * Retorna o status atual do recálculo
+   */
+  getRecalculoStatus() {
+    return {
+      emAndamento: this.recalculoStatus.emAndamento,
+      progresso: this.recalculoStatus.progresso,
+      totalVendas: this.recalculoStatus.totalVendas,
+      vendasProcessadas: this.recalculoStatus.vendasProcessadas,
+      inicio: this.recalculoStatus.inicio,
+      fim: this.recalculoStatus.fim,
+      erro: this.recalculoStatus.erro,
+    };
+  }
+
   /**
    * Recalcula analytics a partir das vendas (útil para correção)
+   * Processa de forma assíncrona em lotes para melhor performance
    */
   async recalculcarAnalytics(dataInicio?: Date, dataFim?: Date): Promise<void> {
-    this.logger.log('Iniciando recálculo de analytics');
-
-    const where: {
-      dataVenda?: { gte?: Date; lte?: Date };
-    } = {};
-    if (dataInicio || dataFim) {
-      where.dataVenda = {};
-      if (dataInicio) {
-        where.dataVenda.gte = dataInicio;
-      }
-      if (dataFim) {
-        where.dataVenda.lte = dataFim;
-      }
+    // Se já está em andamento, não iniciar outro
+    if (this.recalculoStatus.emAndamento) {
+      throw new Error('Recálculo já está em andamento');
     }
 
-    // Buscar todas as vendas
-    const vendas = await this.prisma.venda.findMany({
-      where,
-      select: {
-        dataVenda: true,
-        nomeFantasia: true,
-        marca: true,
-        grupo: true,
-        subgrupo: true,
-        tipoOperacao: true,
-        ufDestino: true,
-        valorTotal: true,
-        quantidade: true,
-      },
+    // Iniciar processamento assíncrono (não bloquear)
+    this.processarRecalculoAsync(dataInicio, dataFim).catch((error) => {
+      this.logger.error(`Erro no recálculo assíncrono: ${error}`, error.stack);
+      this.recalculoStatus.erro = error.message;
+      this.recalculoStatus.emAndamento = false;
     });
 
-    this.logger.log(`Recalculando analytics para ${vendas.length} vendas`);
+    // Retornar imediatamente
+    return;
+  }
 
-    // Limpar analytics existentes no período
-    if (dataInicio || dataFim) {
-      // Se há filtro de data, limpar apenas o período
-      const anos = new Set(
-        vendas.map((v) => new Date(v.dataVenda).getFullYear()),
-      );
-      const meses = new Set(
-        vendas.map((v) => new Date(v.dataVenda).getMonth() + 1),
-      );
+  /**
+   * Processa o recálculo de forma assíncrona em lotes
+   */
+  private async processarRecalculoAsync(
+    dataInicio?: Date,
+    dataFim?: Date,
+  ): Promise<void> {
+    this.recalculoStatus = {
+      emAndamento: true,
+      progresso: 0,
+      totalVendas: 0,
+      vendasProcessadas: 0,
+      inicio: new Date(),
+      erro: undefined,
+    };
 
-      await this.prisma.vendaAnalytics.deleteMany({
-        where: {
-          ano: { in: Array.from(anos) },
-          mes: { in: Array.from(meses) },
-        },
-      });
-    } else {
-      // Limpar tudo
-      await this.prisma.vendaAnalytics.deleteMany({});
+    try {
+      this.logger.log('Iniciando recálculo de analytics');
+
+      const where: {
+        dataVenda?: { gte?: Date; lte?: Date };
+      } = {};
+      if (dataInicio || dataFim) {
+        where.dataVenda = {};
+        if (dataInicio) {
+          where.dataVenda.gte = dataInicio;
+        }
+        if (dataFim) {
+          where.dataVenda.lte = dataFim;
+        }
+      }
+
+      // Contar total de vendas primeiro
+      const totalVendas = await this.prisma.venda.count({ where });
+      this.recalculoStatus.totalVendas = totalVendas;
+      this.logger.log(`Total de vendas para recalcular: ${totalVendas}`);
+
+      // Limpar analytics existentes no período
+      if (dataInicio || dataFim) {
+        // Se há filtro de data, buscar anos e meses primeiro
+        const vendasParaAnosMeses = await this.prisma.venda.findMany({
+          where,
+          select: { dataVenda: true },
+          take: 1000, // Amostra para determinar período
+        });
+        const anos = new Set(
+          vendasParaAnosMeses.map((v) => new Date(v.dataVenda).getFullYear()),
+        );
+        const meses = new Set(
+          vendasParaAnosMeses.map((v) => new Date(v.dataVenda).getMonth() + 1),
+        );
+
+        await this.prisma.vendaAnalytics.deleteMany({
+          where: {
+            ano: { in: Array.from(anos) },
+            mes: { in: Array.from(meses) },
+          },
+        });
+      } else {
+        // Limpar tudo
+        await this.prisma.vendaAnalytics.deleteMany({});
+      }
+
+      // Processar vendas em lotes para melhor performance e controle de progresso
+      const BATCH_SIZE = 5000; // Processar 5000 vendas por vez
+      let vendasProcessadas = 0;
+
+      for (let skip = 0; skip < totalVendas; skip += BATCH_SIZE) {
+        // Buscar lote de vendas
+        const vendas = await this.prisma.venda.findMany({
+          where,
+          select: {
+            dataVenda: true,
+            nomeFantasia: true,
+            marca: true,
+            grupo: true,
+            subgrupo: true,
+            tipoOperacao: true,
+            ufDestino: true,
+            empresaId: true,
+            valorTotal: true,
+            quantidade: true,
+          },
+          skip,
+          take: BATCH_SIZE,
+        });
+
+        // Converter para formato de analytics
+        const vendasParaAnalytics: VendaParaAnalytics[] = vendas.map((v) => ({
+          dataVenda: v.dataVenda,
+          nomeFantasia: v.nomeFantasia ?? undefined,
+          marca: v.marca ?? undefined,
+          grupo: v.grupo ?? undefined,
+          subgrupo: v.subgrupo ?? undefined,
+          tipoOperacao: v.tipoOperacao ?? undefined,
+          ufDestino: v.ufDestino ?? undefined,
+          empresaId: v.empresaId ?? undefined,
+          valorTotal: v.valorTotal,
+          quantidade: v.quantidade,
+        }));
+
+        // Atualizar analytics para este lote
+        await this.atualizarAnalytics(vendasParaAnalytics);
+
+        // Atualizar progresso
+        vendasProcessadas += vendas.length;
+        this.recalculoStatus.vendasProcessadas = vendasProcessadas;
+        this.recalculoStatus.progresso = Math.round(
+          (vendasProcessadas / totalVendas) * 100,
+        );
+
+        this.logger.log(
+          `Progresso do recálculo: ${this.recalculoStatus.progresso}% (${vendasProcessadas}/${totalVendas})`,
+        );
+      }
+
+      this.recalculoStatus.emAndamento = false;
+      this.recalculoStatus.fim = new Date();
+      this.recalculoStatus.progresso = 100;
+
+      this.logger.log('Recálculo de analytics concluído');
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro desconhecido';
+      this.recalculoStatus.erro = errorMessage;
+      this.recalculoStatus.emAndamento = false;
+      throw error;
     }
-
-    // Recalcular - converter null para undefined para compatibilidade com a interface
-    // Nota: marca é tratado como opcional na interface mas sempre terá valor padrão no processamento
-    const vendasParaAnalytics: VendaParaAnalytics[] = vendas.map((v) => ({
-      dataVenda: v.dataVenda,
-      nomeFantasia: v.nomeFantasia ?? undefined,
-      marca: v.marca ?? undefined, // Será tratado como 'DESCONHECIDA' no processamento
-      grupo: v.grupo ?? undefined,
-      subgrupo: v.subgrupo ?? undefined,
-      ufDestino: v.ufDestino ?? undefined,
-      valorTotal: v.valorTotal,
-      quantidade: v.quantidade,
-    }));
-
-    await this.atualizarAnalytics(vendasParaAnalytics);
-
-    this.logger.log('Recálculo de analytics concluído');
   }
 
   /**
@@ -516,6 +687,15 @@ export class VendasAnalyticsService {
     ) {
       where.tipoOperacao = { in: filtros.tipoOperacao };
     }
+
+    if (
+      filtros.empresaId &&
+      Array.isArray(filtros.empresaId) &&
+      filtros.empresaId.length > 0
+    ) {
+      where.empresaId = { in: filtros.empresaId };
+    }
+    // Se não há filtro de empresaId, não adicionar ao where (busca todas, incluindo null)
 
     return where;
   }
@@ -985,6 +1165,323 @@ export class VendasAnalyticsService {
       total,
       page,
       limit,
+    };
+  }
+
+  /**
+   * Análise 5: Estatística por Filial e Associado (agrupado por UF e Nome Fantasia, com meses)
+   */
+  async getFilialAssociadoAnalytics(
+    filtros: FilialAssociadoAnalyticsDto,
+  ): Promise<FilialAssociadoResponse> {
+    // Construir cláusula WHERE
+    const where: Record<string, unknown> = {};
+
+    if (filtros.ano) {
+      where.ano = filtros.ano;
+    }
+
+    if (filtros.marca && filtros.marca.length > 0) {
+      where.marca = { in: filtros.marca };
+    }
+
+    if (filtros.tipoOperacao && filtros.tipoOperacao.length > 0) {
+      where.tipoOperacao = { in: filtros.tipoOperacao };
+    }
+
+    if (filtros.ufDestino && filtros.ufDestino.length > 0) {
+      where.uf = { in: filtros.ufDestino };
+    }
+
+    if (filtros.nomeFantasia && filtros.nomeFantasia.length > 0) {
+      where.nomeFantasia = { in: filtros.nomeFantasia };
+    }
+
+    // Buscar dados agregados por UF, NomeFantasia e Mês
+    const resultados = await this.prisma.vendaAnalytics.groupBy({
+      by: ['uf', 'nomeFantasia', 'mes'],
+      where,
+      _sum: {
+        totalValor: true,
+      },
+      orderBy: [{ uf: 'asc' }, { nomeFantasia: 'asc' }, { mes: 'asc' }],
+    });
+
+    // Processar e agrupar dados
+    const ufMap = new Map<string, UFData>();
+    const mesesSet = new Set<number>();
+
+    resultados.forEach((row) => {
+      const uf = row.uf || 'DESCONHECIDO';
+      const nomeFantasia = row.nomeFantasia || 'DESCONHECIDO';
+      const mes = row.mes;
+      const valor = parseFloat(
+        (row._sum.totalValor || new Decimal(0)).toString(),
+      );
+
+      mesesSet.add(mes);
+
+      // Inicializar UF se não existir
+      if (!ufMap.has(uf)) {
+        ufMap.set(uf, {
+          uf,
+          totalGeral: 0,
+          monthlyTotals: {},
+          associados: [],
+        });
+      }
+
+      const ufData = ufMap.get(uf)!;
+
+      // Inicializar ou atualizar total mensal da UF
+      ufData.monthlyTotals[mes] = (ufData.monthlyTotals[mes] || 0) + valor;
+      ufData.totalGeral += valor;
+
+      // Encontrar ou criar associado
+      let associado = ufData.associados.find(
+        (a) => a.nomeFantasia === nomeFantasia,
+      );
+      if (!associado) {
+        associado = {
+          nomeFantasia,
+          totalGeral: 0,
+          monthlySales: {},
+        };
+        ufData.associados.push(associado);
+      }
+
+      // Atualizar vendas mensais do associado
+      associado.monthlySales[mes] =
+        (associado.monthlySales[mes] || 0) + valor;
+      associado.totalGeral += valor;
+    });
+
+    // Calcular total geral
+    const totalGeral: { [mes: number]: number; total: number } = {
+      total: 0,
+    };
+
+    ufMap.forEach((ufData) => {
+      Object.keys(ufData.monthlyTotals).forEach((mesStr) => {
+        const mes = parseInt(mesStr);
+        totalGeral[mes] = (totalGeral[mes] || 0) + ufData.monthlyTotals[mes];
+        totalGeral.total += ufData.monthlyTotals[mes];
+      });
+    });
+
+    // Ordenar UFs e Associados
+    const ufs = Array.from(ufMap.values()).sort((a, b) =>
+      a.uf.localeCompare(b.uf),
+    );
+
+    ufs.forEach((ufData) => {
+      ufData.associados.sort((a, b) =>
+        a.nomeFantasia.localeCompare(b.nomeFantasia),
+      );
+    });
+
+    // Identificar meses disponíveis (ordenados)
+    const mesesDisponiveis = Array.from(mesesSet).sort((a, b) => a - b);
+
+    return {
+      ufs,
+      totalGeral,
+      mesesDisponiveis,
+    };
+  }
+
+  /**
+   * Método de diagnóstico: Compara valores entre Venda e VendaAnalytics
+   */
+  async diagnosticarDiscrepancia(filtros: {
+    ano?: number;
+    mes?: number;
+    tipoOperacao?: string;
+    empresaId?: string;
+  }): Promise<{
+    totalVenda: number;
+    totalAnalytics: number;
+    diferenca: number;
+    vendasSemEmpresaId: number;
+    analyticsComEmpresaIdNull: number;
+    detalhes: {
+      totalVendas: number;
+      totalAnalytics: number;
+      vendasComEmpresaId: number;
+      vendasSemEmpresaId: number;
+      analyticsComEmpresaId: number;
+      analyticsSemEmpresaId: number;
+    };
+  }> {
+    // Construir where para Venda
+    const whereVenda: Record<string, unknown> = {};
+    if (filtros.ano) {
+      whereVenda.dataVenda = {
+        gte: new Date(filtros.ano, filtros.mes ? filtros.mes - 1 : 0, 1),
+        lt: new Date(filtros.ano, filtros.mes ? filtros.mes : 12, 1),
+      };
+    }
+    if (filtros.tipoOperacao) {
+      // Usar match exato para tipoOperacao - "Venda" não deve pegar "Venda Imobilizado"
+      whereVenda.tipoOperacao = filtros.tipoOperacao;
+    }
+    if (filtros.empresaId) {
+      whereVenda.empresaId = filtros.empresaId;
+    }
+
+    // Construir where para VendaAnalytics
+    const whereAnalytics: Record<string, unknown> = {};
+    if (filtros.ano) {
+      whereAnalytics.ano = filtros.ano;
+    }
+    if (filtros.mes) {
+      whereAnalytics.mes = filtros.mes;
+    }
+    if (filtros.tipoOperacao) {
+      whereAnalytics.tipoOperacao = filtros.tipoOperacao;
+    }
+    if (filtros.empresaId) {
+      whereAnalytics.empresaId = filtros.empresaId;
+    }
+
+    // Buscar totais
+    const [totalVendaResult, totalAnalyticsResult, vendasSemEmpresaId, analyticsComEmpresaIdNull] = await Promise.all([
+      this.prisma.venda.aggregate({
+        where: whereVenda,
+        _sum: { valorTotal: true },
+      }),
+      this.prisma.vendaAnalytics.aggregate({
+        where: whereAnalytics,
+        _sum: { totalValor: true },
+      }),
+      this.prisma.venda.count({
+        where: {
+          ...whereVenda,
+          empresaId: null,
+        },
+      }),
+      this.prisma.vendaAnalytics.count({
+        where: {
+          ...whereAnalytics,
+          empresaId: null,
+        },
+      }),
+    ]);
+
+    const totalVenda = parseFloat((totalVendaResult._sum.valorTotal || new Decimal(0)).toString());
+    const totalAnalytics = parseFloat((totalAnalyticsResult._sum.totalValor || new Decimal(0)).toString());
+    const diferenca = totalVenda - totalAnalytics;
+
+    // Detalhes adicionais
+    const [totalVendas, totalAnalyticsCount, vendasComEmpresaId] = await Promise.all([
+      this.prisma.venda.count({ where: whereVenda }),
+      this.prisma.vendaAnalytics.count({ where: whereAnalytics }),
+      this.prisma.venda.count({
+        where: {
+          ...whereVenda,
+          empresaId: { not: null },
+        },
+      }),
+    ]);
+
+    const analyticsComEmpresaId = await this.prisma.vendaAnalytics.count({
+      where: {
+        ...whereAnalytics,
+        empresaId: { not: null },
+      },
+    });
+
+    return {
+      totalVenda,
+      totalAnalytics,
+      diferenca,
+      vendasSemEmpresaId,
+      analyticsComEmpresaIdNull,
+      detalhes: {
+        totalVendas,
+        totalAnalytics: totalAnalyticsCount,
+        vendasComEmpresaId,
+        vendasSemEmpresaId,
+        analyticsComEmpresaId,
+        analyticsSemEmpresaId: analyticsComEmpresaIdNull,
+      },
+    };
+  }
+
+  /**
+   * Consulta direta na tabela VendaAnalytics com filtros específicos
+   */
+  async consultarTotalAnalytics(filtros: {
+    ano?: number;
+    mes?: number;
+    tipoOperacao?: string;
+    empresaId?: string;
+  }): Promise<{
+    totalRegistros: number;
+    totalValor: number;
+    totalQuantidade: number;
+    detalhes: Array<{
+      ano: number;
+      mes: number;
+      tipoOperacao: string | null;
+      empresaId: string | null;
+      totalValor: number;
+      totalQuantidade: number;
+    }>;
+  }> {
+    const where: Record<string, unknown> = {};
+
+    if (filtros.ano) {
+      where.ano = filtros.ano;
+    }
+
+    if (filtros.mes) {
+      where.mes = filtros.mes;
+    }
+
+    if (filtros.tipoOperacao) {
+      where.tipoOperacao = filtros.tipoOperacao;
+    }
+
+    if (filtros.empresaId) {
+      where.empresaId = filtros.empresaId;
+    }
+
+    // Buscar registros
+    const registros = await this.prisma.vendaAnalytics.findMany({
+      where,
+      select: {
+        ano: true,
+        mes: true,
+        tipoOperacao: true,
+        empresaId: true,
+        totalValor: true,
+        totalQuantidade: true,
+      },
+    });
+
+    // Calcular totais
+    const totalValor = registros.reduce(
+      (sum, r) => sum + parseFloat(r.totalValor.toString()),
+      0,
+    );
+    const totalQuantidade = registros.reduce(
+      (sum, r) => sum + parseFloat(r.totalQuantidade.toString()),
+      0,
+    );
+
+    return {
+      totalRegistros: registros.length,
+      totalValor,
+      totalQuantidade,
+      detalhes: registros.map((r) => ({
+        ano: r.ano,
+        mes: r.mes,
+        tipoOperacao: r.tipoOperacao,
+        empresaId: r.empresaId,
+        totalValor: parseFloat(r.totalValor.toString()),
+        totalQuantidade: parseFloat(r.totalQuantidade.toString()),
+      })),
     };
   }
 }

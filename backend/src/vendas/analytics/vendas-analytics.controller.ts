@@ -8,11 +8,14 @@ import {
   ParseIntPipe,
   ParseArrayPipe,
   DefaultValuePipe,
+  Optional,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { VendasAnalyticsService } from './vendas-analytics.service';
 import { VendasAnalyticsSyncService } from './vendas-analytics-sync.service';
 import { FilterAnalyticsDto } from './dto/filter-analytics.dto';
+import { FilialAssociadoAnalyticsDto } from './dto/filial-associado-analytics.dto';
 
 @Controller('vendas/analytics')
 @UseGuards(JwtAuthGuard)
@@ -51,11 +54,19 @@ export class VendasAnalyticsController {
   async recalcularAnalytics(
     @Body() body: { dataInicio?: string; dataFim?: string },
   ) {
+    // Iniciar recálculo assíncrono (não bloqueia)
     await this.analyticsService.recalculcarAnalytics(
       body.dataInicio ? new Date(body.dataInicio) : undefined,
       body.dataFim ? new Date(body.dataFim) : undefined,
     );
-    return { message: 'Analytics recalculado com sucesso' };
+    return {
+      message: 'Recálculo de analytics iniciado. Use o endpoint /status para acompanhar o progresso.',
+    };
+  }
+
+  @Get('recalcular/status')
+  async getRecalculoStatus() {
+    return this.analyticsService.getRecalculoStatus();
   }
 
   @Get('validar-sincronizacao')
@@ -128,6 +139,11 @@ export class VendasAnalyticsController {
       new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
     )
     subgrupo?: string[],
+    @Query(
+      'empresaId',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    empresaId?: string[],
   ) {
     const filtros: FilterAnalyticsDto = {
       tipoOperacao,
@@ -138,6 +154,7 @@ export class VendasAnalyticsController {
       nomeFantasia,
       grupo,
       subgrupo,
+      empresaId,
     };
     return this.analyticsService.getCrescimentoEmpresa(filtros);
   }
@@ -184,6 +201,11 @@ export class VendasAnalyticsController {
       new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
     )
     subgrupo?: string[],
+    @Query(
+      'empresaId',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    empresaId?: string[],
   ) {
     const filtros: FilterAnalyticsDto = {
       tipoOperacao,
@@ -194,6 +216,7 @@ export class VendasAnalyticsController {
       nomeFantasia,
       grupo,
       subgrupo,
+      empresaId,
     };
     return this.analyticsService.getCrescimentoFilial(filtros);
   }
@@ -240,6 +263,11 @@ export class VendasAnalyticsController {
       new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
     )
     subgrupo?: string[],
+    @Query(
+      'empresaId',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    empresaId?: string[],
   ) {
     const filtros: FilterAnalyticsDto = {
       tipoOperacao,
@@ -250,6 +278,7 @@ export class VendasAnalyticsController {
       nomeFantasia,
       grupo,
       subgrupo,
+      empresaId,
     };
     return this.analyticsService.getCrescimentoMarca(filtros);
   }
@@ -297,6 +326,11 @@ export class VendasAnalyticsController {
     )
     subgrupo?: string[],
     @Query(
+      'empresaId',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    empresaId?: string[],
+    @Query(
       'page',
       new DefaultValuePipe(1),
       new ParseIntPipe({ optional: true }),
@@ -318,7 +352,92 @@ export class VendasAnalyticsController {
       nomeFantasia,
       grupo,
       subgrupo,
+      empresaId,
     };
     return this.analyticsService.getCrescimentoAssociado(filtros, page, limit);
+  }
+
+  @Get('diagnostico')
+  async diagnosticarDiscrepancia(
+    @Query('ano', new ParseIntPipe({ optional: true })) ano?: number,
+    @Query('mes', new ParseIntPipe({ optional: true })) mes?: number,
+    @Query('tipoOperacao') tipoOperacao?: string,
+    @Query('empresaId') empresaId?: string,
+  ) {
+    return this.analyticsService.diagnosticarDiscrepancia({
+      ano,
+      mes,
+      tipoOperacao,
+      empresaId,
+    });
+  }
+
+  @Get('consultar-total')
+  async consultarTotalAnalytics(
+    @Query('ano') anoStr?: string,
+    @Query('mes') mesStr?: string,
+    @Query('tipoOperacao') tipoOperacao?: string,
+    @Query('empresaId') empresaId?: string,
+  ) {
+    // Converter strings para números apenas se forem válidas
+    let ano: number | undefined;
+    let mes: number | undefined;
+
+    if (anoStr && anoStr.trim() !== '') {
+      const anoParsed = parseInt(anoStr, 10);
+      if (isNaN(anoParsed) || anoParsed <= 0) {
+        throw new BadRequestException('ano deve ser um número válido');
+      }
+      ano = anoParsed;
+    }
+
+    if (mesStr && mesStr.trim() !== '') {
+      const mesParsed = parseInt(mesStr, 10);
+      if (isNaN(mesParsed) || mesParsed < 1 || mesParsed > 12) {
+        throw new BadRequestException('mes deve ser um número entre 1 e 12');
+      }
+      mes = mesParsed;
+    }
+
+    return this.analyticsService.consultarTotalAnalytics({
+      ano,
+      mes,
+      tipoOperacao,
+      empresaId,
+    });
+  }
+
+  @Get('filial-associado')
+  async getFilialAssociadoAnalytics(
+    @Query('ano', new ParseIntPipe({ optional: true })) ano?: number,
+    @Query(
+      'marca',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    marca?: string[],
+    @Query(
+      'tipoOperacao',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    tipoOperacao?: string[],
+    @Query(
+      'ufDestino',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    ufDestino?: string[],
+    @Query(
+      'nomeFantasia',
+      new ParseArrayPipe({ items: String, optional: true, separator: ',' }),
+    )
+    nomeFantasia?: string[],
+  ) {
+    const filtros: FilialAssociadoAnalyticsDto = {
+      ano,
+      marca,
+      tipoOperacao,
+      ufDestino,
+      nomeFantasia,
+    };
+    return this.analyticsService.getFilialAssociadoAnalytics(filtros);
   }
 }

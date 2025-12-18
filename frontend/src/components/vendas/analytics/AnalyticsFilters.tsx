@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { Label } from '@/components/ui/label';
 import { MultiSelect } from './MultiSelect';
 import { useTiposOperacao, useMarcas, useGrupos, useSubgrupos, useNomesFantasia, useAnalyticsUfs, useAnalyticsAnos, useAnalyticsMeses } from '@/hooks/use-vendas';
+import { useEmpresas } from '@/hooks/use-empresas';
 import type { AnalyticsFilters as AnalyticsFiltersType } from '@/services/vendas.service';
 
 interface AnalyticsFiltersProps {
@@ -33,6 +34,7 @@ export function AnalyticsFilters({ filters, onChange }: AnalyticsFiltersProps) {
   const { data: grupos = [] } = useGrupos();
   const { data: subgrupos = [] } = useSubgrupos();
   const { data: nomesFantasia = [] } = useNomesFantasia();
+  const { data: empresas = [] } = useEmpresas();
   
   // Valores reais de VendaAnalytics
   const { data: ufs = [] } = useAnalyticsUfs();
@@ -46,6 +48,25 @@ export function AnalyticsFilters({ filters, onChange }: AnalyticsFiltersProps) {
       .map((mes) => `${mes} - ${MESES_NOMES[mes] || `Mês ${mes}`}`);
   }, [meses]);
 
+  // Preparar opções de empresas (id: razaoSocial)
+  const empresasOptions = useMemo(() => {
+    return empresas
+      .sort((a, b) => a.razaoSocial.localeCompare(b.razaoSocial))
+      .map((empresa) => empresa.id);
+  }, [empresas]);
+
+  // Mapear empresaId para exibição (mesmo formato da página de gerenciar)
+  const empresasMap = useMemo(() => {
+    const map = new Map<string, string>();
+    empresas.forEach((empresa) => {
+      const displayText = empresa.razaoSocial && empresa.filial
+        ? `${empresa.razaoSocial} - ${empresa.filial}`
+        : empresa.razaoSocial || empresa.filial || 'Empresa sem nome';
+      map.set(empresa.id, displayText);
+    });
+    return map;
+  }, [empresas]);
+
   const handleFilterChange = (key: keyof AnalyticsFiltersType, value: string[] | number[]) => {
     onChange({
       ...filters,
@@ -55,6 +76,17 @@ export function AnalyticsFilters({ filters, onChange }: AnalyticsFiltersProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+      <div className="space-y-1">
+        <Label className="text-xs">Empresa</Label>
+        <MultiSelect
+          options={empresasOptions}
+          value={filters.empresaId}
+          onChange={(value) => handleFilterChange('empresaId', value)}
+          placeholder="Selecione empresas..."
+          getDisplayValue={(id) => empresasMap.get(id) || id}
+        />
+      </div>
+
       <div className="space-y-1">
         <Label className="text-xs">Tipo de Operação</Label>
         <MultiSelect

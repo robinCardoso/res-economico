@@ -149,6 +149,7 @@ export class VendasImportDeleteService {
           subgrupo: true,
           tipoOperacao: true,
           ufDestino: true,
+          empresaId: true,
           valorTotal: true,
           quantidade: true,
         },
@@ -172,6 +173,7 @@ export class VendasImportDeleteService {
           subgrupo: v.subgrupo || 'DESCONHECIDO',
           tipoOperacao: v.tipoOperacao || undefined,
           ufDestino: v.ufDestino || undefined,
+          empresaId: v.empresaId || undefined,
           valorTotal: v.valorTotal,
           quantidade: v.quantidade,
         }));

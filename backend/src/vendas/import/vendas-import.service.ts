@@ -364,8 +364,10 @@ export class VendasImportService {
     }
 
     // 10. Processar vendas em lotes (agora com importacaoLogId)
+    // IMPORTANTE: Analytics será atualizado em lotes durante a importação para melhor performance
     const totalLinhasParaProcessar = vendasComDadosProduto.length;
     let linhasProcessadas = 0;
+    const ANALYTICS_BATCH_SIZE = 1000; // Processar analytics a cada 1000 vendas para evitar sobrecarga
 
     for (let i = 0; i < vendasComDadosProduto.length; i += BATCH_SIZE) {
       const chunk = vendasComDadosProduto.slice(i, i + BATCH_SIZE);
@@ -406,6 +408,39 @@ export class VendasImportService {
       erroCount += erros;
       linhasProcessadas += chunk.length;
 
+      // Atualizar analytics em lotes durante a importação (não apenas no final)
+      // Isso evita problemas de memória e timeout com grandes volumes de dados
+      if (linhasProcessadas % ANALYTICS_BATCH_SIZE === 0 || linhasProcessadas === totalLinhasParaProcessar) {
+        try {
+          const vendasParaAnalytics = chunkComEmpresaId.map((v) => ({
+            dataVenda: v.dataVenda,
+            nomeFantasia: v.nomeFantasia,
+            marca: v.marca || 'DESCONHECIDA',
+            grupo: v.grupo || 'DESCONHECIDO',
+            subgrupo: v.subgrupo || 'DESCONHECIDO',
+            tipoOperacao: v.tipoOperacao,
+            ufDestino: v.ufDestino,
+            empresaId: v.empresaId,
+            valorTotal: v.valorTotal,
+            quantidade: v.quantidade,
+          }));
+          
+          // Processar analytics de forma assíncrona para não bloquear a importação
+          // Mas aguardar para garantir que não haja perda de dados
+          await this.analyticsService.atualizarAnalytics(vendasParaAnalytics);
+          
+          this.logger.log(
+            `Analytics atualizado para lote de ${vendasParaAnalytics.length} vendas (${linhasProcessadas}/${totalLinhasParaProcessar})`,
+          );
+        } catch (error) {
+          // Logar erro mas não interromper a importação
+          // O analytics pode ser recalculado depois se necessário
+          this.logger.error(
+            `Erro ao atualizar analytics para lote (não crítico): ${error}`,
+          );
+        }
+      }
+
       // Atualizar progresso em tempo real
       const progresso = Math.round(
         (linhasProcessadas / totalLinhasParaProcessar) * 100,
@@ -424,22 +459,6 @@ export class VendasImportService {
         `Progresso: ${progresso}% (${linhasProcessadas}/${totalLinhasParaProcessar} linhas processadas)`,
       );
     }
-
-    // 11. Atualizar analytics em tempo real
-    // NOTA: Analytics será atualizado mesmo se grupo/subgrupo estiverem como "DESCONHECIDO"
-    // Quando produtos forem atualizados, o analytics será recalculado automaticamente
-    const vendasParaAnalytics = vendasComDadosProduto.map((v) => ({
-      dataVenda: v.dataVenda,
-      nomeFantasia: v.nomeFantasia,
-      marca: v.marca || 'DESCONHECIDA',
-      grupo: v.grupo || 'DESCONHECIDO',
-      subgrupo: v.subgrupo || 'DESCONHECIDO',
-      tipoOperacao: v.tipoOperacao,
-      ufDestino: v.ufDestino,
-      valorTotal: v.valorTotal,
-      quantidade: v.quantidade,
-    }));
-    await this.analyticsService.atualizarAnalytics(vendasParaAnalytics);
 
     // 12. Atualizar log com estatísticas finais (100% concluído)
     await this.prisma.vendaImportacaoLog.update({

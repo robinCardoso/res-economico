@@ -49,4 +49,10 @@ export class FilterAnalyticsDto {
   @IsString({ each: true })
   @Type(() => String)
   subgrupo?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Type(() => String)
+  empresaId?: string[];
 }

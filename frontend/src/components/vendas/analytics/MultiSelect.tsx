@@ -15,6 +15,7 @@ interface MultiSelectProps {
   placeholder?: string;
   searchPlaceholder?: string;
   className?: string;
+  getDisplayValue?: (value: string) => string;
 }
 
 export function MultiSelect({
@@ -24,16 +25,19 @@ export function MultiSelect({
   placeholder = 'Selecione...',
   searchPlaceholder = 'Buscar...',
   className,
+  getDisplayValue,
 }: MultiSelectProps) {
+  const getDisplay = React.useCallback((val: string) => getDisplayValue ? getDisplayValue(val) : val, [getDisplayValue]);
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
 
   const filteredOptions = React.useMemo(() => {
     if (!search) return options;
-    return options.filter((option) =>
-      option.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [options, search]);
+    return options.filter((option) => {
+      const displayValue = getDisplay(option);
+      return displayValue.toLowerCase().includes(search.toLowerCase());
+    });
+  }, [options, search, getDisplay]);
 
   const handleToggle = (option: string) => {
     const newValue = value.includes(option)
@@ -132,7 +136,7 @@ export function MultiSelect({
                   key={option}
                   className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-primary/10 text-primary rounded-md"
                 >
-                  <span>{option}</span>
+                  <span>{getDisplay(option)}</span>
                   <button
                     type="button"
                     onClick={(e) => handleRemove(option, e)}

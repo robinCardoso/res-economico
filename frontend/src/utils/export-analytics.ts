@@ -4,6 +4,7 @@ import type {
   CrescimentoFilialResponse,
   CrescimentoMarcaResponse,
   CrescimentoAssociadoResponse,
+  FilialAssociadoResponse,
 } from '@/services/vendas.service';
 
 // Tipo para células de dados do Excel (pode ser string, número ou null)
@@ -517,6 +518,144 @@ export function exportCrescimentoAssociadoCSV(
   const url = URL.createObjectURL(blob);
   link.setAttribute('href', url);
   link.setAttribute('download', filename || `crescimento-associado_${new Date().toISOString().split('T')[0]}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+/**
+ * Exporta dados de Filial/Associado para Excel
+ */
+export function exportFilialAssociadoExcel(
+  data: FilialAssociadoResponse,
+  filename?: string
+): void {
+  const workbook = XLSX.utils.book_new();
+  const dados: ExcelRow[] = [];
+
+  // Cabeçalho
+  const header = ['UF-DESTINC.', 'Nome Fantasia'];
+  data.mesesDisponiveis.forEach((mes) => {
+    header.push(`Mês ${mes}`);
+  });
+  header.push('Total Geral');
+  dados.push(header);
+
+  // Dados por UF e Associado
+  data.ufs.forEach((ufData) => {
+    // Linhas de associados
+    ufData.associados.forEach((associado) => {
+      const linha: ExcelRow = [ufData.uf, associado.nomeFantasia];
+      data.mesesDisponiveis.forEach((mes) => {
+        linha.push(associado.monthlySales[mes] || 0);
+      });
+      linha.push(associado.totalGeral);
+      dados.push(linha);
+    });
+
+    // Linha de subtotal da UF
+    const linhaSubtotal: ExcelRow = [`${ufData.uf} Total`, ''];
+    data.mesesDisponiveis.forEach((mes) => {
+      linhaSubtotal.push(ufData.monthlyTotals[mes] || 0);
+    });
+    linhaSubtotal.push(ufData.totalGeral);
+    dados.push(linhaSubtotal);
+  });
+
+  // Linha de total geral
+  const linhaTotal: ExcelRow = ['Total Geral', ''];
+  data.mesesDisponiveis.forEach((mes) => {
+    linhaTotal.push(data.totalGeral[mes] || 0);
+  });
+  linhaTotal.push(data.totalGeral.total);
+  dados.push(linhaTotal);
+
+  // Criar worksheet
+  const ws = XLSX.utils.aoa_to_sheet(dados);
+
+  // Ajustar larguras das colunas
+  const colWidths: Array<{ wch: number }> = [
+    { wch: 15 }, // UF
+    { wch: 30 }, // Nome Fantasia
+  ];
+  data.mesesDisponiveis.forEach(() => {
+    colWidths.push({ wch: 18 }); // Mês
+  });
+  colWidths.push({ wch: 18 }); // Total Geral
+  ws['!cols'] = colWidths;
+
+  // Formatar células monetárias
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let R = 1; R <= range.e.r; R++) {
+    // Formatar colunas de meses e total (a partir da coluna 3)
+    for (let C = 2; C <= range.e.c; C++) {
+      const cell = XLSX.utils.encode_cell({ r: R, c: C });
+      if (ws[cell] && typeof ws[cell].v === 'number') {
+        ws[cell].z = '#,##0.00';
+        ws[cell].t = 'n';
+      }
+    }
+  }
+
+  XLSX.utils.book_append_sheet(workbook, ws, 'Filial/Associado');
+
+  const nomeArquivo = filename || `filial-associado_${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(workbook, nomeArquivo);
+}
+
+/**
+ * Exporta dados de Filial/Associado para CSV
+ */
+export function exportFilialAssociadoCSV(
+  data: FilialAssociadoResponse,
+  filename?: string
+): void {
+  const linhas: string[] = [];
+
+  // Cabeçalho
+  const header = ['UF-DESTINC.', 'Nome Fantasia'];
+  data.mesesDisponiveis.forEach((mes) => {
+    header.push(`Mês ${mes}`);
+  });
+  header.push('Total Geral');
+  linhas.push(header.map((h) => `"${h}"`).join(';'));
+
+  // Dados por UF e Associado
+  data.ufs.forEach((ufData) => {
+    // Linhas de associados
+    ufData.associados.forEach((associado) => {
+      const linha: string[] = [ufData.uf, associado.nomeFantasia];
+      data.mesesDisponiveis.forEach((mes) => {
+        linha.push(formatCurrency(associado.monthlySales[mes] || 0));
+      });
+      linha.push(formatCurrency(associado.totalGeral));
+      linhas.push(linha.map((v) => `"${v}"`).join(';'));
+    });
+
+    // Linha de subtotal da UF
+    const linhaSubtotal: string[] = [`${ufData.uf} Total`, ''];
+    data.mesesDisponiveis.forEach((mes) => {
+      linhaSubtotal.push(formatCurrency(ufData.monthlyTotals[mes] || 0));
+    });
+    linhaSubtotal.push(formatCurrency(ufData.totalGeral));
+    linhas.push(linhaSubtotal.map((v) => `"${v}"`).join(';'));
+  });
+
+  // Linha de total geral
+  const linhaTotal: string[] = ['Total Geral', ''];
+  data.mesesDisponiveis.forEach((mes) => {
+    linhaTotal.push(formatCurrency(data.totalGeral[mes] || 0));
+  });
+  linhaTotal.push(formatCurrency(data.totalGeral.total));
+  linhas.push(linhaTotal.map((v) => `"${v}"`).join(';'));
+
+  const csvContent = '\ufeff' + linhas.join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename || `filial-associado_${new Date().toISOString().split('T')[0]}.csv`);
   link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
