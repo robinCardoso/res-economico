@@ -91,7 +91,8 @@ const vendasGroup: NavGroup = {
   items: [
     { label: 'Importar', href: '/admin/importacoes/vendas/importar', icon: UploadCloud },
     { label: 'Gerenciar', href: '/admin/importacoes/vendas/gerenciar', icon: List },
-    { label: 'Analytics', href: '/admin/importacoes/vendas/analytics', icon: BarChart3 },
+    { label: 'Analytics (V2)', href: '/admin/importacoes/vendas/analytics-v2', icon: BarChart3 },
+    { label: 'Analytics (Desabilitado)', href: '/admin/importacoes/vendas/analytics', icon: BarChart3 },
   ],
 };
 

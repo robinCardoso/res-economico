@@ -60,8 +60,9 @@ export class VendasAnalyticsService {
 
     vendas.forEach((venda) => {
       const data = new Date(venda.dataVenda);
-      const ano = data.getFullYear();
-      const mes = data.getMonth() + 1; // 1-12
+      // Usar UTC para garantir consistência com o banco de dados
+      const ano = data.getUTCFullYear();
+      const mes = data.getUTCMonth() + 1; // 1-12
       const nomeFantasia = venda.nomeFantasia || 'DESCONHECIDO';
       const marca = venda.marca || 'DESCONHECIDA';
       const grupo = venda.grupo || 'DESCONHECIDO';
@@ -372,15 +373,17 @@ export class VendasAnalyticsService {
     if (filtros.dataInicio || filtros.dataFim) {
       if (filtros.dataInicio) {
         const inicio = new Date(filtros.dataInicio);
-        where.ano = { gte: inicio.getFullYear() };
+        // Usar UTC para garantir consistência com o banco de dados
+        where.ano = { gte: inicio.getUTCFullYear() };
       }
       if (filtros.dataFim) {
         const fim = new Date(filtros.dataFim);
         const anoAtual = where.ano;
+        // Usar UTC para garantir consistência com o banco de dados
         where.ano =
           typeof anoAtual === 'object' && 'gte' in (anoAtual || {})
-            ? { ...anoAtual, lte: fim.getFullYear() }
-            : { lte: fim.getFullYear() };
+            ? { ...anoAtual, lte: fim.getUTCFullYear() }
+            : { lte: fim.getUTCFullYear() };
       }
     }
 
@@ -477,9 +480,13 @@ export class VendasAnalyticsService {
       if (dataInicio || dataFim) {
         where.dataVenda = {};
         if (dataInicio) {
+          // Garantir que a data de início seja tratada como UTC
+          // Se já é uma Date, usar diretamente (já deve estar em UTC do controller)
           where.dataVenda.gte = dataInicio;
         }
         if (dataFim) {
+          // Garantir que a data de fim seja tratada como UTC
+          // Se já é uma Date, usar diretamente (já deve estar em UTC do controller)
           where.dataVenda.lte = dataFim;
         }
       }
@@ -507,21 +514,25 @@ export class VendasAnalyticsService {
         
         if (inicio && fim) {
           // Iterar por todos os meses no intervalo
+          // Usar UTC para garantir consistência com o banco de dados
           const dataAtual = new Date(inicio);
-          while (dataAtual <= fim) {
-            anos.add(dataAtual.getFullYear());
-            meses.add(dataAtual.getMonth() + 1);
-            // Avançar para o próximo mês
-            dataAtual.setMonth(dataAtual.getMonth() + 1);
+          const fimUTC = new Date(fim);
+          while (dataAtual <= fimUTC) {
+            anos.add(dataAtual.getUTCFullYear());
+            meses.add(dataAtual.getUTCMonth() + 1);
+            // Avançar para o próximo mês usando UTC
+            dataAtual.setUTCMonth(dataAtual.getUTCMonth() + 1);
           }
         } else if (inicio) {
           // Apenas data início: incluir o mês de início
-          anos.add(inicio.getFullYear());
-          meses.add(inicio.getMonth() + 1);
+          // Usar UTC para garantir consistência com o banco de dados
+          anos.add(inicio.getUTCFullYear());
+          meses.add(inicio.getUTCMonth() + 1);
         } else if (fim) {
           // Apenas data fim: incluir o mês de fim
-          anos.add(fim.getFullYear());
-          meses.add(fim.getMonth() + 1);
+          // Usar UTC para garantir consistência com o banco de dados
+          anos.add(fim.getUTCFullYear());
+          meses.add(fim.getUTCMonth() + 1);
         }
 
         // Deletar registros que correspondem aos anos/meses do período

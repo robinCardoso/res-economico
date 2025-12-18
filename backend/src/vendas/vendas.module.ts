@@ -8,6 +8,7 @@ import { VendasAnalyticsService } from './analytics/vendas-analytics.service';
 import { VendasAnalyticsController } from './analytics/vendas-analytics.controller';
 import { VendasUpdateService } from './vendas-update.service';
 import { VendasAnalyticsSyncService } from './analytics/vendas-analytics-sync.service';
+import { VendasAnalyticsDirectService } from './analytics/vendas-analytics-direct.service';
 import { VendasImportDeleteService } from './import/vendas-import-delete.service';
 import { VendasColumnMappingService } from './vendas-column-mapping.service';
 import { VendasAnalyticsFilterService } from './vendas-analytics-filter.service';
@@ -26,6 +27,7 @@ import { CoreModule } from '../core/core.module';
     VendasValidatorService,
     VendasAnalyticsService,
     VendasAnalyticsSyncService,
+    VendasAnalyticsDirectService,
     VendasUpdateService,
   ],
   exports: [

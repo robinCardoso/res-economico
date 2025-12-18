@@ -211,13 +211,14 @@ export class VendasValidatorService {
         year += 2000;
       }
 
-      const parsed = new Date(year, month, day);
+      // Criar data em UTC para garantir consistência com o banco de dados
+      const parsed = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
 
-      // Validar se a data é válida
+      // Validar se a data é válida usando UTC
       if (
-        parsed.getFullYear() === year &&
-        parsed.getMonth() === month &&
-        parsed.getDate() === day
+        parsed.getUTCFullYear() === year &&
+        parsed.getUTCMonth() === month &&
+        parsed.getUTCDate() === day
       ) {
         return parsed;
       }
@@ -236,12 +237,13 @@ export class VendasValidatorService {
       const year = parseInt(isoMatch[1], 10);
       const month = parseInt(isoMatch[2], 10) - 1;
       const day = parseInt(isoMatch[3], 10);
-      const isoParsed = new Date(year, month, day);
+      // Criar data em UTC para garantir consistência com o banco de dados
+      const isoParsed = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
 
       if (
-        isoParsed.getFullYear() === year &&
-        isoParsed.getMonth() === month &&
-        isoParsed.getDate() === day
+        isoParsed.getUTCFullYear() === year &&
+        isoParsed.getUTCMonth() === month &&
+        isoParsed.getUTCDate() === day
       ) {
         return isoParsed;
       }
