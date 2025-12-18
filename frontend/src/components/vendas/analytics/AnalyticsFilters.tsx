@@ -82,7 +82,7 @@ export function AnalyticsFilters({ filters, onChange }: AnalyticsFiltersProps) {
           options={empresasOptions}
           value={filters.empresaId}
           onChange={(value) => handleFilterChange('empresaId', value)}
-          placeholder="Selecione empresas..."
+          placeholder="Todas as empresas"
           getDisplayValue={(id) => empresasMap.get(id) || id}
         />
       </div>

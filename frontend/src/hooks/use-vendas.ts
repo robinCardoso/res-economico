@@ -207,6 +207,8 @@ export function useRecalcularAnalytics() {
     onSuccess: () => {
       // Invalidar todas as queries de analytics para forçar recarregamento
       queryClient.invalidateQueries({ queryKey: ['vendas', 'analytics'] });
+      // Também invalidar o status do recálculo para começar a monitorar
+      queryClient.invalidateQueries({ queryKey: ['analytics', 'recalculo-status'] });
     },
   });
 }
@@ -219,8 +221,15 @@ export function useRecalculoStatus(enabled: boolean = true) {
     refetchInterval: (query) => {
       // Verificar status a cada 2 segundos enquanto estiver em andamento
       const data = query.state.data;
-      return data?.emAndamento ? 2000 : false;
+      if (data?.emAndamento) {
+        return 2000; // Atualizar a cada 2 segundos quando em andamento
+      }
+      // Também atualizar a cada 5 segundos quando não está em andamento (para detectar quando iniciar)
+      return enabled ? 5000 : false;
     },
+    // Refetch imediatamente quando a query é habilitada
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 }
 

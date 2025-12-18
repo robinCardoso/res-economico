@@ -40,6 +40,7 @@ export function ConfigPanel() {
     timeout: 30,
     verificar_duplicatas: true,
     usar_data_ult_modif: true,
+    importar_excluidos: false,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -68,6 +69,7 @@ export function ConfigPanel() {
           timeout: response.config.timeout || 30,
           verificar_duplicatas: response.config.verificar_duplicatas ?? true,
           usar_data_ult_modif: response.config.usar_data_ult_modif ?? true,
+          importar_excluidos: response.config.importar_excluidos ?? false,
         });
       }
     } catch (error) {
@@ -150,8 +152,8 @@ export function ConfigPanel() {
   if (loading) {
     return (
       <Card>
-        <CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <CardContent className="flex items-center justify-center py-6">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </CardContent>
       </Card>
     );
@@ -160,17 +162,17 @@ export function ConfigPanel() {
   const isConfigValid = !!(config.baseUrl && config.cliente);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 text-sm">
       {/* Informações */}
       <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <Info className="h-5 w-5 text-blue-600 mt-0.5" />
-            <div className="space-y-2">
-              <h4 className="font-semibold text-blue-900 dark:text-blue-100">
+        <CardContent className="pt-3 pb-3 px-4">
+          <div className="flex items-start gap-2">
+            <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              <h4 className="text-xs font-semibold text-blue-900 dark:text-blue-100">
                 Informações Importantes
               </h4>
-              <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+              <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-0.5">
                 <li>• <strong>URL Base</strong> e <strong>Cliente</strong> são obrigatórios</li>
                 <li>• <strong>Token da API</strong> é obrigatório para sincronização</li>
                 <li>• Suas credenciais são armazenadas de forma segura no banco de dados</li>
@@ -182,19 +184,19 @@ export function ConfigPanel() {
 
       {/* Dica sobre Nova Sincronização */}
       <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-            <div className="space-y-2">
-              <h4 className="font-semibold text-green-900 dark:text-green-100">
+        <CardContent className="pt-3 pb-3 px-4">
+          <div className="flex items-start gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              <h4 className="text-xs font-semibold text-green-900 dark:text-green-100">
                 Para Nova Sincronização
               </h4>
-              <p className="text-sm text-green-800 dark:text-green-200">
+              <p className="text-xs text-green-800 dark:text-green-200">
                 Para usar a <strong>Sincronização de Produtos</strong>, você só precisa preencher:
                 <br />
                 ✅ URL Base + Cliente + <strong>Token da API</strong>
                 <br />
-                <span className="text-xs">Simples e direto!</span>
+                <span className="text-[10px]">Simples e direto!</span>
               </p>
             </div>
           </div>
@@ -203,28 +205,30 @@ export function ConfigPanel() {
 
       {/* Formulário de Configuração */}
       <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>Credenciais do Bravo ERP</CardTitle>
-          <CardDescription>
+        <CardHeader className="pb-2 px-4 pt-3">
+          <CardTitle className="text-sm">Credenciais do Bravo ERP</CardTitle>
+          <CardDescription className="text-xs">
             Configure as credenciais e parâmetros de conexão
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 px-4 pb-4">
           {/* Linha 1: URL Base e Cliente */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="baseUrl">URL Base *</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="baseUrl" className="text-xs">URL Base *</Label>
               <Input
                 id="baseUrl"
+                className="h-8 text-xs"
                 value={config.baseUrl || ''}
                 onChange={(e) => setConfig({ ...config, baseUrl: e.target.value })}
                 placeholder="https://v2.bravoerp.com.br"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="cliente">Cliente *</Label>
+            <div className="space-y-1">
+              <Label htmlFor="cliente" className="text-xs">Cliente *</Label>
               <Input
                 id="cliente"
+                className="h-8 text-xs"
                 value={config.cliente || ''}
                 onChange={(e) => setConfig({ ...config, cliente: e.target.value })}
                 placeholder="redeuniao_sc"
@@ -233,18 +237,19 @@ export function ConfigPanel() {
           </div>
 
           {/* Linha 2: PDV, Ambiente e Servidor */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="pdv">PDV</Label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="pdv" className="text-xs">PDV</Label>
               <Input
                 id="pdv"
+                className="h-8 text-xs"
                 value={config.pdv || ''}
                 onChange={(e) => setConfig({ ...config, pdv: e.target.value })}
                 placeholder="1"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="ambiente">Ambiente</Label>
+            <div className="space-y-1">
+              <Label htmlFor="ambiente" className="text-xs">Ambiente</Label>
               <Select
                 value={config.ambiente || 'p'}
                 onValueChange={(value: 'p' | 'h') => setConfig({ ...config, ambiente: value })}
@@ -270,12 +275,13 @@ export function ConfigPanel() {
           </div>
 
           {/* Linha 3: Token e Timeout */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="token">Token da API (Obrigatório)</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="token" className="text-xs">Token da API (Obrigatório)</Label>
               <div className="relative">
                 <Input
                   id="token"
+                  className="h-8 text-xs pr-10"
                   type={showPassword ? 'text' : 'password'}
                   value={config.token || ''}
                   onChange={(e) => setConfig({ ...config, token: e.target.value })}
@@ -285,24 +291,25 @@ export function ConfigPanel() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  className="absolute right-0 top-0 h-8 px-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeOff className="h-3 w-3" />
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-3 w-3" />
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] text-muted-foreground">
                 🔑 <strong>Obrigatório</strong> para sincronização de produtos
               </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="timeout">Timeout (segundos)</Label>
+            <div className="space-y-1">
+              <Label htmlFor="timeout" className="text-xs">Timeout (segundos)</Label>
               <Input
                 id="timeout"
+                className="h-8 text-xs"
                 type="number"
                 value={config.timeout || 30}
                 onChange={(e) =>
@@ -317,20 +324,20 @@ export function ConfigPanel() {
           </div>
 
           {/* Linha 4: Configurações Avançadas */}
-          <div className="space-y-4 pt-4 border-t">
-            <div className="space-y-2">
-              <Label className="text-base font-semibold">
+          <div className="space-y-2.5 pt-3 border-t">
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">
                 Configurações Avançadas de Sincronização
               </Label>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-[10px] text-muted-foreground">
                 Configure como o sistema deve verificar duplicatas e gerenciar sincronização
                 incremental
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Verificação de Duplicatas */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="verificar_duplicatas"
@@ -339,18 +346,18 @@ export function ConfigPanel() {
                       setConfig({ ...config, verificar_duplicatas: checked })
                     }
                   />
-                  <Label htmlFor="verificar_duplicatas" className="text-sm font-medium">
+                  <Label htmlFor="verificar_duplicatas" className="text-xs font-medium">
                     Verificar Duplicatas (id_doc + id_prod)
                   </Label>
                 </div>
-                <p className="text-xs text-muted-foreground ml-8">
+                <p className="text-[10px] text-muted-foreground ml-7">
                   ✅ <strong>Recomendado:</strong> Evita importar produtos duplicados baseado na
                   combinação id_doc + id_prod
                 </p>
               </div>
 
               {/* Usar Data Última Modificação */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="usar_data_ult_modif"
@@ -359,14 +366,33 @@ export function ConfigPanel() {
                       setConfig({ ...config, usar_data_ult_modif: checked })
                     }
                   />
-                  <Label htmlFor="usar_data_ult_modif" className="text-sm font-medium">
+                  <Label htmlFor="usar_data_ult_modif" className="text-xs font-medium">
                     Sincronização Incremental por Data
                   </Label>
                 </div>
-                <p className="text-xs text-muted-foreground ml-8">
+                <p className="text-[10px] text-muted-foreground ml-7">
                   🔄 <strong>Totalmente Automatizado:</strong> Primeira sincronização (tabela vazia)
                   busca todos os produtos até a data atual. Sincronizações posteriores buscam
                   produtos modificados após a data da última sincronização bem-sucedida.
+                </p>
+              </div>
+
+              {/* Importar Produtos Excluídos */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="importar_excluidos"
+                    checked={config.importar_excluidos ?? false}
+                    onCheckedChange={(checked) =>
+                      setConfig({ ...config, importar_excluidos: checked })
+                    }
+                  />
+                  <Label htmlFor="importar_excluidos" className="text-xs font-medium">
+                    Importar Produtos Excluídos
+                  </Label>
+                </div>
+                <p className="text-[10px] text-muted-foreground ml-7">
+                  📦 <strong>Importa todos os produtos:</strong> Quando ativado, importa todos os produtos do Bravo ERP, incluindo os que estão marcados como excluídos. Quando desativado, importa apenas produtos ativos (excluido = 'N').
                 </p>
               </div>
             </div>
@@ -375,28 +401,31 @@ export function ConfigPanel() {
       </Card>
 
       {/* Ações */}
-      <div className="flex gap-3">
+      <div className="flex gap-2">
         <Button
           onClick={handleSave}
           disabled={saving || !isConfigValid}
-          className="flex-1"
+          className="flex-1 h-8 text-xs"
+          size="sm"
         >
-          <Save className="h-4 w-4 mr-2" />
+          <Save className="h-3 w-3 mr-1.5" />
           {saving ? 'Salvando...' : 'Salvar Configuração'}
         </Button>
         <Button
           onClick={handleTestConnection}
           disabled={testing || !isConfigValid}
           variant="outline"
+          className="h-8 text-xs"
+          size="sm"
         >
           {testing ? (
             <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
               Testando...
             </>
           ) : (
             <>
-              <AlertCircle className="h-4 w-4 mr-2" />
+              <AlertCircle className="h-3 w-3 mr-1.5" />
               Testar Conexão
             </>
           )}
@@ -405,22 +434,22 @@ export function ConfigPanel() {
 
       {/* Status */}
       <Card>
-        <CardContent className="pt-4">
+        <CardContent className="pt-2.5 pb-2.5 px-4">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="font-semibold">Status da Configuração</h4>
-              <p className="text-sm text-muted-foreground">
+              <h4 className="text-xs font-semibold">Status da Configuração</h4>
+              <p className="text-[10px] text-muted-foreground">
                 Verifique se todos os campos estão preenchidos corretamente
               </p>
             </div>
-            <div className="flex gap-2 flex-wrap">
-              <Badge variant={config.baseUrl ? 'default' : 'secondary'} className="text-xs">
+            <div className="flex gap-1.5 flex-wrap">
+              <Badge variant={config.baseUrl ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0.5">
                 URL: {config.baseUrl ? '✓' : '✗'}
               </Badge>
-              <Badge variant={config.cliente ? 'default' : 'secondary'} className="text-xs">
+              <Badge variant={config.cliente ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0.5">
                 Cliente: {config.cliente ? '✓' : '✗'}
               </Badge>
-              <Badge variant={config.token ? 'default' : 'secondary'} className="text-xs">
+              <Badge variant={config.token ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0.5">
                 Token: {config.token ? '✓' : '✗'}
               </Badge>
             </div>

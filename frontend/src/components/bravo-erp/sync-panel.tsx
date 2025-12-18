@@ -326,7 +326,7 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
       });
 
       const request: SyncRequest = {
-        apenas_ativos: true,
+        apenas_ativos: !(config.importar_excluidos ?? false),
         limit: 50,
         pages: 1,
         verificar_duplicatas: config.verificar_duplicatas,
@@ -443,7 +443,7 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
       });
 
       const request: SyncRequest = {
-        apenas_ativos: true,
+        apenas_ativos: !(config.importar_excluidos ?? false),
         pages: 999, // Máximo de páginas
         verificar_duplicatas: config.verificar_duplicatas,
         usar_data_ult_modif: config.usar_data_ult_modif,
@@ -609,13 +609,13 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
   const hasConfig = config && config.token;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 text-sm">
       {/* Alerta se não há configuração */}
       {!hasConfig && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Configuração necessária</AlertTitle>
-          <AlertDescription>
+        <Alert variant="destructive" className="py-2">
+          <AlertCircle className="h-3 w-3" />
+          <AlertTitle className="text-xs">Configuração necessária</AlertTitle>
+          <AlertDescription className="text-xs">
             Configure o token da API na aba Configuração antes de sincronizar.
           </AlertDescription>
         </Alert>
@@ -623,15 +623,15 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
 
       {/* Link para Mapeamento */}
       <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
-        <CardContent className="pt-6">
+        <CardContent className="pt-3 pb-3 px-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-start gap-3">
-              <Settings className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
+            <div className="flex items-start gap-2">
+              <Settings className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
               <div>
-                <h4 className="font-semibold text-green-900 dark:text-green-100">
+                <h4 className="text-xs font-semibold text-green-900 dark:text-green-100">
                   Configure o Mapeamento de Campos
                 </h4>
-                <p className="text-sm text-green-800 dark:text-green-200">
+                <p className="text-xs text-green-800 dark:text-green-200">
                   Escolha quais campos do Bravo ERP serão importados e como serão salvos no seu
                   banco de dados
                 </p>
@@ -642,31 +642,31 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
       </Card>
 
       {/* Botões de Sincronização */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Sincronização Rápida */}
         <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <RefreshCw className="h-5 w-5 text-orange-600" />
+          <CardHeader className="pb-2 px-4 pt-3">
+            <CardTitle className="flex items-center gap-1.5 text-sm">
+              <RefreshCw className="h-4 w-4 text-orange-600" />
               Sincronização Rápida
             </CardTitle>
-            <CardDescription>Importa até 50 produtos (recomendado para testes)</CardDescription>
+            <CardDescription className="text-xs">Importa até 50 produtos (recomendado para testes)</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-3">
             <Button
               onClick={handleSyncRapida}
               disabled={syncing || !hasConfig || loadingConfig}
-              size="lg"
-              className="w-full bg-orange-600 hover:bg-orange-700"
+              size="sm"
+              className="w-full h-8 bg-orange-600 hover:bg-orange-700 text-xs"
             >
               {syncing && syncType === 'rapida' ? (
                 <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
                   Sincronizando...
                 </>
               ) : (
                 <>
-                  <RefreshCw className="h-5 w-5 mr-2" />
+                  <RefreshCw className="h-3 w-3 mr-1.5" />
                   Sincronizar 50
                 </>
               )}
@@ -676,30 +676,30 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
 
         {/* Sincronização Completa */}
         <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5 text-green-600" />
+          <CardHeader className="pb-2 px-4 pt-3">
+            <CardTitle className="flex items-center gap-1.5 text-sm">
+              <Database className="h-4 w-4 text-green-600" />
               Sincronização Completa
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Importa TODOS os produtos disponíveis (pode demorar vários minutos)
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-3">
             <Button
               onClick={handleSyncCompleto}
               disabled={syncing || !hasConfig || loadingConfig}
-              size="lg"
-              className="w-full"
+              size="sm"
+              className="w-full h-8 text-xs"
             >
               {syncing && syncType === 'completa' ? (
                 <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
                   Sincronizando...
                 </>
               ) : (
                 <>
-                  <Database className="h-5 w-5 mr-2" />
+                  <Database className="h-3 w-3 mr-1.5" />
                   Sincronizar TODOS
                 </>
               )}
@@ -711,24 +711,24 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
       {/* Status da Sincronização */}
       {syncing && (
         <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+          <CardHeader className="pb-2 px-4 pt-3">
+            <CardTitle className="flex items-center gap-1.5 text-sm">
+              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
               Sincronização em Andamento
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs">
               {syncType === 'rapida'
                 ? 'Importando até 50 produtos...'
                 : 'Importando todos os produtos...'}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 px-4 pb-3">
             {/* Progresso Simplificado - Mostra apenas o que está acontecendo */}
             {syncing && (
-              <div className="space-y-4">
+              <div className="space-y-2.5">
                 {/* O que está acontecendo agora */}
-                <div className="text-sm text-muted-foreground flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
                   <span>
                     {progress?.progress?.current_step || 
                      'Iniciando sincronização...'}
@@ -736,22 +736,22 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
                 </div>
 
                 {/* Informações principais em destaque */}
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-1">
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-0.5">
+                    <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                       Produtos Processados
                     </div>
-                    <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                    <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
                       {progress?.progress?.products_processed ?? 
                        progress?.progress?.productsProcessed ?? 
                        0}
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <div className="space-y-0.5">
+                    <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                       Página Atual
                     </div>
-                    <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                    <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
                       {progress?.progress?.current_page ?? 
                        progress?.progress?.currentPage ?? 
                        0}
@@ -760,7 +760,7 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
                 </div>
 
                 {/* Total encontrado (sempre mostra, mesmo se 0) */}
-                <div className="text-sm text-muted-foreground pt-2 border-t">
+                <div className="text-xs text-muted-foreground pt-1.5 border-t">
                   Total de produtos encontrados:{' '}
                   <span className="font-semibold text-foreground">
                     {progress?.progress?.total_produtos_bravo ?? 
@@ -773,16 +773,16 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
 
             {/* Status geral */}
             {syncStatus && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 {syncStatus.isRunning ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                    <span className="text-sm">Sincronização em execução...</span>
+                    <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
+                    <span className="text-xs">Sincronização em execução...</span>
                   </>
                 ) : (
                   <>
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span className="text-sm">Sincronização concluída</span>
+                    <CheckCircle className="h-3 w-3 text-green-600" />
+                    <span className="text-xs">Sincronização concluída</span>
                   </>
                 )}
               </div>
@@ -792,10 +792,11 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
             <Button
               onClick={handleCancelSync}
               variant="outline"
-              className="w-full"
+              className="w-full h-8 text-xs"
+              size="sm"
               disabled={!currentLockId && !currentSyncLogId}
             >
-              <XCircle className="h-4 w-4 mr-2" />
+              <XCircle className="h-3 w-3 mr-1.5" />
               Cancelar Sincronização
             </Button>
           </CardContent>
@@ -804,14 +805,14 @@ export function SyncPanel({ onSyncStart, onSyncComplete }: SyncPanelProps) {
 
       {/* Informações */}
       <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-            <div className="space-y-2">
-              <h4 className="font-semibold text-blue-900 dark:text-blue-100">
+        <CardContent className="pt-3 pb-3 px-4">
+          <div className="flex items-start gap-2">
+            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              <h4 className="text-xs font-semibold text-blue-900 dark:text-blue-100">
                 Como funciona a sincronização
               </h4>
-              <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+              <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-0.5">
                 <li>
                   • <strong>Sincronização Rápida:</strong> Importa até 50 produtos, ideal para
                   testes e verificações rápidas

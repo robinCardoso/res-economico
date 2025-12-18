@@ -74,6 +74,9 @@ export class BravoConfigService {
         usar_data_ult_modif:
           configObj['bravo_usar_data_ult_modif'] === 'true' ||
           configObj['bravo_usar_data_ult_modif'] === undefined,
+        importar_excluidos:
+          configObj['bravo_importar_excluidos'] === 'true' ||
+          configObj['bravo_importar_excluidos'] === undefined,
       };
 
       return {
@@ -170,6 +173,12 @@ export class BravoConfigService {
           chave: 'bravo_usar_data_ult_modif',
           valor: (dto.usar_data_ult_modif ?? true).toString(),
           descricao: 'Usar sincronização incremental por data',
+          tipo: 'boolean',
+        },
+        {
+          chave: 'bravo_importar_excluidos',
+          valor: (dto.importar_excluidos ?? false).toString(),
+          descricao: 'Importar produtos excluídos (incluir todos os produtos, não apenas ativos)',
           tipo: 'boolean',
         },
       ];

@@ -399,6 +399,8 @@ export class VendasAnalyticsService {
     inicio?: Date;
     fim?: Date;
     erro?: string;
+    etapa?: string; // Etapa atual: 'limpeza', 'processamento', 'concluido'
+    registrosDeletados?: number; // Número de registros deletados na limpeza
   } = {
     emAndamento: false,
     progresso: 0,
@@ -415,9 +417,15 @@ export class VendasAnalyticsService {
       progresso: this.recalculoStatus.progresso,
       totalVendas: this.recalculoStatus.totalVendas,
       vendasProcessadas: this.recalculoStatus.vendasProcessadas,
-      inicio: this.recalculoStatus.inicio,
-      fim: this.recalculoStatus.fim,
+      inicio: this.recalculoStatus.inicio
+        ? this.recalculoStatus.inicio.toISOString()
+        : undefined,
+      fim: this.recalculoStatus.fim
+        ? this.recalculoStatus.fim.toISOString()
+        : undefined,
       erro: this.recalculoStatus.erro,
+      etapa: this.recalculoStatus.etapa,
+      registrosDeletados: this.recalculoStatus.registrosDeletados,
     };
   }
 
@@ -456,6 +464,8 @@ export class VendasAnalyticsService {
       vendasProcessadas: 0,
       inicio: new Date(),
       erro: undefined,
+      etapa: 'iniciando',
+      registrosDeletados: undefined,
     };
 
     try {
@@ -479,31 +489,105 @@ export class VendasAnalyticsService {
       this.recalculoStatus.totalVendas = totalVendas;
       this.logger.log(`Total de vendas para recalcular: ${totalVendas}`);
 
-      // Limpar analytics existentes no período
+      // ETAPA 1: Limpar analytics existentes no período
+      this.recalculoStatus.etapa = 'limpeza';
+      this.logger.log('Iniciando limpeza da tabela VendaAnalytics...');
+      
+      let registrosDeletados = 0;
+      
       if (dataInicio || dataFim) {
-        // Se há filtro de data, buscar anos e meses primeiro
-        const vendasParaAnosMeses = await this.prisma.venda.findMany({
-          where,
-          select: { dataVenda: true },
-          take: 1000, // Amostra para determinar período
-        });
-        const anos = new Set(
-          vendasParaAnosMeses.map((v) => new Date(v.dataVenda).getFullYear()),
-        );
-        const meses = new Set(
-          vendasParaAnosMeses.map((v) => new Date(v.dataVenda).getMonth() + 1),
-        );
+        // Se há filtro de data, calcular o período exato baseado nas datas
+        // e deletar apenas os registros que correspondem exatamente ao período
+        const inicio = dataInicio ? new Date(dataInicio) : null;
+        const fim = dataFim ? new Date(dataFim) : null;
+        
+        // Calcular anos e meses únicos do período filtrado
+        const anos = new Set<number>();
+        const meses = new Set<number>();
+        
+        if (inicio && fim) {
+          // Iterar por todos os meses no intervalo
+          const dataAtual = new Date(inicio);
+          while (dataAtual <= fim) {
+            anos.add(dataAtual.getFullYear());
+            meses.add(dataAtual.getMonth() + 1);
+            // Avançar para o próximo mês
+            dataAtual.setMonth(dataAtual.getMonth() + 1);
+          }
+        } else if (inicio) {
+          // Apenas data início: incluir o mês de início
+          anos.add(inicio.getFullYear());
+          meses.add(inicio.getMonth() + 1);
+        } else if (fim) {
+          // Apenas data fim: incluir o mês de fim
+          anos.add(fim.getFullYear());
+          meses.add(fim.getMonth() + 1);
+        }
 
-        await this.prisma.vendaAnalytics.deleteMany({
-          where: {
-            ano: { in: Array.from(anos) },
-            mes: { in: Array.from(meses) },
-          },
-        });
+        // Deletar registros que correspondem aos anos/meses do período
+        // IMPORTANTE: Isso deleta TODOS os registros daqueles meses, não apenas do período exato
+        // Isso é necessário porque VendaAnalytics não armazena a data exata, apenas ano/mês
+        // Durante o recálculo, vamos recriar todos os registros baseados nas vendas atuais do período
+        if (anos.size > 0 && meses.size > 0) {
+          const anosArray = Array.from(anos);
+          const mesesArray = Array.from(meses);
+          
+          // Contar registros antes de deletar para confirmar
+          const countBefore = await this.prisma.vendaAnalytics.count({
+            where: {
+              ano: { in: anosArray },
+              mes: { in: mesesArray },
+            },
+          });
+          
+          // Deletar e aguardar confirmação
+          const deleteResult = await this.prisma.vendaAnalytics.deleteMany({
+            where: {
+              ano: { in: anosArray },
+              mes: { in: mesesArray },
+            },
+          });
+          
+          registrosDeletados = deleteResult.count;
+          
+          this.logger.log(
+            `Limpeza de analytics concluída: ${registrosDeletados} registros deletados dos anos ${anosArray.join(', ')} e meses ${mesesArray.join(', ')} (esperado: ${countBefore})`,
+          );
+          
+          // Verificar se a limpeza foi bem-sucedida
+          if (registrosDeletados !== countBefore) {
+            this.logger.warn(
+              `Aviso: Número de registros deletados (${registrosDeletados}) difere do esperado (${countBefore})`,
+            );
+          }
+        }
       } else {
-        // Limpar tudo
-        await this.prisma.vendaAnalytics.deleteMany({});
+        // Limpar tudo - contar antes de deletar
+        const countBefore = await this.prisma.vendaAnalytics.count({});
+        
+        // Deletar e aguardar confirmação
+        const deleteResult = await this.prisma.vendaAnalytics.deleteMany({});
+        registrosDeletados = deleteResult.count;
+        
+        this.logger.log(
+          `Limpeza de analytics concluída: ${registrosDeletados} registros deletados de toda a tabela (esperado: ${countBefore})`,
+        );
+        
+        // Verificar se a limpeza foi bem-sucedida
+        if (registrosDeletados !== countBefore) {
+          this.logger.warn(
+            `Aviso: Número de registros deletados (${registrosDeletados}) difere do esperado (${countBefore})`,
+          );
+        }
       }
+      
+      // Atualizar status com confirmação da limpeza
+      this.recalculoStatus.registrosDeletados = registrosDeletados;
+      this.logger.log(`✅ Limpeza confirmada: ${registrosDeletados} registros removidos da tabela VendaAnalytics`);
+      
+      // ETAPA 2: Iniciar processamento das vendas
+      this.recalculoStatus.etapa = 'processamento';
+      this.logger.log('Iniciando processamento das vendas...');
 
       // Processar vendas em lotes para melhor performance e controle de progresso
       const BATCH_SIZE = 5000; // Processar 5000 vendas por vez
@@ -553,16 +637,35 @@ export class VendasAnalyticsService {
           (vendasProcessadas / totalVendas) * 100,
         );
 
+        // Calcular valor total do lote para debug
+        const valorTotalLote = vendas.reduce(
+          (sum, v) => sum + parseFloat(v.valorTotal.toString()),
+          0,
+        );
+
         this.logger.log(
-          `Progresso do recálculo: ${this.recalculoStatus.progresso}% (${vendasProcessadas}/${totalVendas})`,
+          `Progresso do recálculo: ${this.recalculoStatus.progresso}% (${vendasProcessadas}/${totalVendas}). Valor total do lote: R$ ${valorTotalLote.toFixed(2)}`,
         );
       }
 
+      // Verificar valor total após recálculo para debug
+      const valorTotalRecalculado = await this.prisma.vendaAnalytics.aggregate({
+        _sum: {
+          totalValor: true,
+        },
+      });
+      const totalValor = valorTotalRecalculado._sum.totalValor
+        ? parseFloat(valorTotalRecalculado._sum.totalValor.toString())
+        : 0;
+
+      this.recalculoStatus.etapa = 'concluido';
       this.recalculoStatus.emAndamento = false;
       this.recalculoStatus.fim = new Date();
       this.recalculoStatus.progresso = 100;
 
-      this.logger.log('Recálculo de analytics concluído');
+      this.logger.log(
+        `✅ Recálculo de analytics concluído. Total de vendas processadas: ${vendasProcessadas}. Valor total em analytics: R$ ${totalValor.toFixed(2)}`,
+      );
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido';

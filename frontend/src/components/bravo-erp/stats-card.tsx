@@ -34,9 +34,9 @@ export function StatsCard({ stats, loading = false, onRefresh }: StatsCardProps)
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">Estatísticas</CardTitle>
+    <Card className="text-sm">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-4 pt-3">
+        <CardTitle className="text-xs font-medium">Estatísticas</CardTitle>
         {onRefresh && (
           <button
             onClick={onRefresh}
@@ -45,37 +45,37 @@ export function StatsCard({ stats, loading = false, onRefresh }: StatsCardProps)
             title="Atualizar estatísticas"
           >
             <RefreshCw
-              className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}
+              className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`}
             />
           </button>
         )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-4 pb-3">
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-4">
+            <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
         ) : stats ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Total de Produtos</p>
-                <p className="text-2xl font-bold">{stats.totalProdutos.toLocaleString('pt-BR')}</p>
+          <div className="space-y-2.5">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground">Total de Produtos</p>
+                <p className="text-lg font-semibold">{stats.totalProdutos.toLocaleString('pt-BR')}</p>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Produtos Ativos</p>
-                <p className="text-2xl font-bold text-green-600">
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground">Produtos Ativos</p>
+                <p className="text-lg font-semibold text-green-600">
                   {stats.produtosAtivos.toLocaleString('pt-BR')}
                 </p>
               </div>
             </div>
 
-            <div className="pt-4 border-t">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                <Calendar className="h-4 w-4" />
+            <div className="pt-2 border-t">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                <Calendar className="h-3 w-3" />
                 <span>Última Sincronização</span>
               </div>
-              <p className="text-sm font-medium">
+              <p className="text-xs font-medium">
                 {stats.ultimaSincronizacao
                   ? formatDate(stats.ultimaSincronizacao)
                   : 'Nenhuma sincronização realizada'}
@@ -83,7 +83,7 @@ export function StatsCard({ stats, loading = false, onRefresh }: StatsCardProps)
             </div>
 
             {stats.ultimoSync && (
-              <div className="pt-2 space-y-1">
+              <div className="pt-1.5 space-y-0.5">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Tipo:</span>
                   <span className="font-medium">
@@ -121,9 +121,9 @@ export function StatsCard({ stats, loading = false, onRefresh }: StatsCardProps)
             )}
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Nenhuma estatística disponível</p>
+          <div className="text-center py-4 text-muted-foreground">
+            <Package className="h-5 w-5 mx-auto mb-1.5 opacity-50" />
+            <p className="text-xs">Nenhuma estatística disponível</p>
           </div>
         )}
       </CardContent>

@@ -47,6 +47,10 @@ export class CreateConfigDto {
   @IsBoolean()
   @IsOptional()
   usar_data_ult_modif?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  importar_excluidos?: boolean;
 }
 
 export class ConfigResponseDto {
@@ -63,6 +67,7 @@ export class ConfigResponseDto {
     timeout: number;
     verificar_duplicatas: boolean;
     usar_data_ult_modif: boolean;
+    importar_excluidos: boolean;
   };
   error?: string;
 }

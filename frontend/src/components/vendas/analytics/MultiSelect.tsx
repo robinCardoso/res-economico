@@ -72,7 +72,7 @@ export function MultiSelect({
             {value.length === 0 ? (
               <span className="text-muted-foreground">{placeholder}</span>
             ) : value.length === 1 ? (
-              <span className="truncate">{value[0]}</span>
+              <span className="truncate">{getDisplay(value[0])}</span>
             ) : (
               <span className="text-sm">
                 {value.length} selecionado(s)
@@ -121,7 +121,7 @@ export function MultiSelect({
                       checked={value.includes(option)}
                       onCheckedChange={() => handleToggle(option)}
                     />
-                    <span className="text-sm flex-1">{option}</span>
+                    <span className="text-sm flex-1">{getDisplay(option)}</span>
                   </div>
                 ))
               )}

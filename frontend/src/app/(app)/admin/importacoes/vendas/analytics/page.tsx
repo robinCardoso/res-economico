@@ -223,8 +223,12 @@ export default function AnalyticsVendasPage() {
 
   const handleRecalcularAnalytics = async () => {
     try {
+      // Limpar cache antes de iniciar o recálculo
+      queryClient.removeQueries({ queryKey: ['vendas', 'analytics'] });
       await recalcularMutation.mutateAsync({});
       setShowRecalcularDialog(false);
+      // Forçar atualização imediata do status
+      queryClient.invalidateQueries({ queryKey: ['analytics', 'recalculo-status'] });
       // Mostrar feedback imediato de que o recálculo foi iniciado
       toast({
         title: 'Recálculo iniciado',
@@ -293,8 +297,13 @@ export default function AnalyticsVendasPage() {
             ),
             duration: 8000,
           });
-          // Invalidar queries para atualizar dados
+          // Invalidar queries para atualizar dados e forçar refetch imediato
           queryClient.invalidateQueries({ queryKey: ['vendas', 'analytics'] });
+          // Forçar refetch imediato de todas as queries de analytics (ignorando staleTime)
+          queryClient.refetchQueries({ 
+            queryKey: ['vendas', 'analytics'],
+            type: 'active', // Apenas queries ativas (que estão sendo usadas)
+          });
           setUltimoStatusProcessado({
             emAndamento: false,
             fim: recalculoStatus.fim,
@@ -319,11 +328,23 @@ export default function AnalyticsVendasPage() {
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <strong className="text-base">Recalculando analytics...</strong>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Processando vendas: <strong>{recalculoStatus.vendasProcessadas.toLocaleString('pt-BR')}</strong> de{' '}
-                    <strong>{recalculoStatus.totalVendas.toLocaleString('pt-BR')}</strong> vendas
-                  </p>
+                  <strong className="text-base">
+                    {recalculoStatus.etapa === 'limpeza' 
+                      ? 'Limpando tabela VendaAnalytics...' 
+                      : recalculoStatus.etapa === 'processamento'
+                      ? 'Recalculando analytics...'
+                      : 'Recalculando analytics...'}
+                  </strong>
+                  {recalculoStatus.etapa === 'limpeza' && recalculoStatus.registrosDeletados !== undefined ? (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      <strong>{recalculoStatus.registrosDeletados.toLocaleString('pt-BR')}</strong> registros deletados
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Processando vendas: <strong>{(recalculoStatus.vendasProcessadas || 0).toLocaleString('pt-BR')}</strong> de{' '}
+                      <strong>{(recalculoStatus.totalVendas || 0).toLocaleString('pt-BR')}</strong> vendas
+                    </p>
+                  )}
                   {recalculoStatus.inicio && (
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Iniciado em: {new Date(recalculoStatus.inicio).toLocaleString('pt-BR')}
@@ -331,11 +352,11 @@ export default function AnalyticsVendasPage() {
                   )}
                 </div>
                 <div className="ml-4 flex items-center gap-3">
-                  <span className="text-sm font-semibold whitespace-nowrap min-w-[3rem] text-right">{recalculoStatus.progresso}%</span>
+                  <span className="text-sm font-semibold whitespace-nowrap min-w-[3rem] text-right">{(recalculoStatus.progresso || 0)}%</span>
                   <div className="w-64 bg-secondary rounded-full h-3">
                     <div
                       className="bg-primary h-3 rounded-full transition-all duration-300"
-                      style={{ width: `${recalculoStatus.progresso}%` }}
+                      style={{ width: `${recalculoStatus.progresso || 0}%` }}
                     />
                   </div>
                 </div>

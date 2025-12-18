@@ -130,6 +130,19 @@ export class VendasUpdateService {
     // IMPORTANTE: Isso garante que o analytics seja atualizado com grupo/subgrupo corretos
     if (result.count > 0) {
       try {
+        // Verificar se já há um recálculo em andamento
+        const statusRecalculo = this.analyticsService.getRecalculoStatus();
+        if (statusRecalculo.emAndamento) {
+          this.logger.debug(
+            `Recálculo de analytics já está em andamento. Pulando recálculo individual para evitar conflito. O recálculo em andamento processará todas as vendas necessárias.`,
+          );
+          // Retornar sem tentar recalcular - o recálculo em andamento já vai processar tudo
+          return {
+            atualizadas: result.count,
+            total,
+          };
+        }
+
         // Buscar todos os períodos únicos das vendas atualizadas
         const vendasAtualizadas = await this.prisma.venda.findMany({
           where,
@@ -150,12 +163,37 @@ export class VendasUpdateService {
           });
 
           // Recalcular analytics para cada período único
+          // IMPORTANTE: Verificar novamente antes de cada chamada, pois o status pode mudar
           for (const periodo of periodos) {
+            // Verificar novamente se já está em andamento (pode ter mudado entre iterações)
+            const statusAtual = this.analyticsService.getRecalculoStatus();
+            if (statusAtual.emAndamento) {
+              this.logger.debug(
+                `Recálculo de analytics iniciado durante processamento. Pulando período ${periodo}.`,
+              );
+              continue;
+            }
+
             const [ano, mes] = periodo.split('-').map(Number);
-            await this.analyticsService.recalculcarAnalytics(
-              new Date(ano, mes - 1, 1),
-              new Date(ano, mes, 0, 23, 59, 59, 999),
-            );
+            try {
+              await this.analyticsService.recalculcarAnalytics(
+                new Date(ano, mes - 1, 1),
+                new Date(ano, mes, 0, 23, 59, 59, 999),
+              );
+            } catch (error) {
+              // Se o recálculo já está em andamento, apenas logar e continuar
+              if (
+                error instanceof Error &&
+                error.message === 'Recálculo já está em andamento'
+              ) {
+                this.logger.debug(
+                  `Recálculo de analytics já está em andamento para período ${ano}/${mes}. Pulando.`,
+                );
+                continue;
+              }
+              // Se for outro erro, relançar
+              throw error;
+            }
           }
 
           this.logger.log(
@@ -163,10 +201,20 @@ export class VendasUpdateService {
           );
         }
       } catch (error) {
-        this.logger.error(
-          `Erro ao recalcular analytics após atualização de produto:`,
-          error,
-        );
+        // Se o erro for "Recálculo já está em andamento", apenas logar como debug
+        if (
+          error instanceof Error &&
+          error.message === 'Recálculo já está em andamento'
+        ) {
+          this.logger.debug(
+            `Recálculo de analytics já está em andamento. O recálculo em andamento processará todas as vendas necessárias.`,
+          );
+        } else {
+          this.logger.error(
+            `Erro ao recalcular analytics após atualização de produto:`,
+            error,
+          );
+        }
         // Não falhar se o analytics falhar
       }
     }

@@ -746,6 +746,8 @@ export const analyticsService = {
     inicio?: string;
     fim?: string;
     erro?: string;
+    etapa?: string;
+    registrosDeletados?: number;
   }> {
     const { data } = await api.get<{
       emAndamento: boolean;
@@ -755,6 +757,8 @@ export const analyticsService = {
       inicio?: string;
       fim?: string;
       erro?: string;
+      etapa?: string;
+      registrosDeletados?: number;
     }>('/vendas/analytics/recalcular/status');
     return data;
   },

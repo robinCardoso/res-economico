@@ -22,21 +22,25 @@ export class SyncDateFilterService {
     operadorFiltro: string;
     metodoFiltro: string;
   }> {
-    if (isCompleteSync && !aplicarFiltroData) {
-      // Sincronização completa SEM filtro por data
-      this.logger.log('📅 Sincronização completa - ignorando filtro por data');
-      return {
-        dataFiltro: null,
-        operadorFiltro: '>=',
-        metodoFiltro: 'sincronizacao_completa_sem_filtro',
-      };
-    }
-
-    if (!aplicarFiltroData || modo_teste) {
+    // Se modo_teste, não aplicar filtro
+    if (modo_teste) {
       return {
         dataFiltro: null,
         operadorFiltro: '>=',
         metodoFiltro: 'nenhum',
+      };
+    }
+
+    // Se aplicarFiltroData é false (opção desabilitada), buscar TODOS os produtos com data inferior à data atual
+    if (!aplicarFiltroData) {
+      const hoje = new Date().toISOString().split('T')[0];
+      this.logger.log(
+        `📅 Sincronização SEM incremental - Buscando TODOS os produtos com data inferior a ${hoje}`,
+      );
+      return {
+        dataFiltro: hoje,
+        operadorFiltro: '<',
+        metodoFiltro: 'todos_produtos_ate_hoje',
       };
     }
 

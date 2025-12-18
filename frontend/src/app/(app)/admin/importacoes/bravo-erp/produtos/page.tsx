@@ -129,37 +129,37 @@ export default function BravoERPProdutosPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-4 space-y-4">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Bravo ERP - Produtos</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-xl font-semibold">Bravo ERP - Produtos</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">
           Gerencie a sincronização de produtos do Bravo ERP
         </p>
       </div>
 
       {/* Estatísticas */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         <StatsCard stats={stats} loading={loadingStats} onRefresh={refreshStats} />
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="config" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="config">
-            <Settings className="h-4 w-4 mr-2" />
+      <Tabs defaultValue="config" className="space-y-3">
+        <TabsList className="h-9">
+          <TabsTrigger value="config" className="text-xs px-3 py-1.5">
+            <Settings className="h-3 w-3 mr-1.5" />
             Configuração
           </TabsTrigger>
-          <TabsTrigger value="sync">
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <TabsTrigger value="sync" className="text-xs px-3 py-1.5">
+            <RefreshCw className="h-3 w-3 mr-1.5" />
             Sincronização
           </TabsTrigger>
-          <TabsTrigger value="mapping">
-            <Map className="h-4 w-4 mr-2" />
+          <TabsTrigger value="mapping" className="text-xs px-3 py-1.5">
+            <Map className="h-3 w-3 mr-1.5" />
             Mapeamento
           </TabsTrigger>
-          <TabsTrigger value="logs">
-            <Package className="h-4 w-4 mr-2" />
+          <TabsTrigger value="logs" className="text-xs px-3 py-1.5">
+            <Package className="h-3 w-3 mr-1.5" />
             Logs
           </TabsTrigger>
         </TabsList>

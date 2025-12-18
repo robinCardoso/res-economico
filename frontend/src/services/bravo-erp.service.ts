@@ -16,6 +16,7 @@ export interface BravoConfig {
   timeout?: number;
   verificar_duplicatas?: boolean;
   usar_data_ult_modif?: boolean;
+  importar_excluidos?: boolean;
 }
 
 export interface SyncRequest {
