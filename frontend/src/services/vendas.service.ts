@@ -457,6 +457,7 @@ export interface AnalyticsFilters {
   nomeFantasia?: string[];
   grupo?: string[];
   subgrupo?: string[];
+  empresaId?: string[];
 }
 
 export interface CrescimentoEmpresaResponse {
@@ -515,6 +516,32 @@ export interface CrescimentoAssociadoResponse {
   limit: number;
 }
 
+export interface FilialAssociadoResponse {
+  ufs: UFData[];
+  totalGeral: {
+    [mes: number]: number; // 1-12
+    total: number;
+  };
+  mesesDisponiveis: number[]; // [1, 2, 3, ..., 12]
+}
+
+export interface UFData {
+  uf: string;
+  totalGeral: number;
+  monthlyTotals: {
+    [mes: number]: number; // 1-12
+  };
+  associados: AssociadoData[];
+}
+
+export interface AssociadoData {
+  nomeFantasia: string;
+  totalGeral: number;
+  monthlySales: {
+    [mes: number]: number; // 1-12
+  };
+}
+
 // Métodos para Analytics
 export const analyticsService = {
   async getCrescimentoEmpresa(filtros?: AnalyticsFilters): Promise<CrescimentoEmpresaResponse> {
@@ -544,6 +571,9 @@ export const analyticsService = {
     }
     if (filtros?.subgrupo?.length) {
       params.append('subgrupo', filtros.subgrupo.join(','));
+    }
+    if (filtros?.empresaId?.length) {
+      params.append('empresaId', filtros.empresaId.join(','));
     }
 
     const { data } = await api.get<CrescimentoEmpresaResponse>(
@@ -578,6 +608,9 @@ export const analyticsService = {
     }
     if (filtros?.subgrupo?.length) {
       params.append('subgrupo', filtros.subgrupo.join(','));
+    }
+    if (filtros?.empresaId?.length) {
+      params.append('empresaId', filtros.empresaId.join(','));
     }
 
     const { data } = await api.get<CrescimentoFilialResponse>(
@@ -651,6 +684,9 @@ export const analyticsService = {
     if (filtros?.subgrupo?.length) {
       params.append('subgrupo', filtros.subgrupo.join(','));
     }
+    if (filtros?.empresaId?.length) {
+      params.append('empresaId', filtros.empresaId.join(','));
+    }
 
     params.append('page', page.toString());
     params.append('limit', limit.toString());
@@ -658,6 +694,68 @@ export const analyticsService = {
     const { data } = await api.get<CrescimentoAssociadoResponse>(
       `/vendas/analytics/crescimento-associado?${params.toString()}`
     );
+    return data;
+  },
+
+  async getFilialAssociadoAnalytics(
+    filtros?: AnalyticsFilters,
+  ): Promise<FilialAssociadoResponse> {
+    const params = new URLSearchParams();
+
+    // Ano é único (não array) para este relatório
+    if (filtros?.ano && filtros.ano.length > 0) {
+      params.append('ano', filtros.ano[0].toString());
+    }
+
+    if (filtros?.marca?.length) {
+      params.append('marca', filtros.marca.join(','));
+    }
+
+    if (filtros?.tipoOperacao?.length) {
+      params.append('tipoOperacao', filtros.tipoOperacao.join(','));
+    }
+
+    // Filtros opcionais específicos
+    if (filtros?.filial?.length) {
+      params.append('ufDestino', filtros.filial.join(','));
+    }
+
+    if (filtros?.nomeFantasia?.length) {
+      params.append('nomeFantasia', filtros.nomeFantasia.join(','));
+    }
+
+    const { data } = await api.get<FilialAssociadoResponse>(
+      `/vendas/analytics/filial-associado?${params.toString()}`
+    );
+    return data;
+  },
+
+  async recalcularAnalytics(dataInicio?: string, dataFim?: string): Promise<{ message: string }> {
+    const { data } = await api.post<{ message: string }>('/vendas/analytics/recalcular', {
+      dataInicio,
+      dataFim,
+    });
+    return data;
+  },
+
+  async getRecalculoStatus(): Promise<{
+    emAndamento: boolean;
+    progresso: number;
+    totalVendas: number;
+    vendasProcessadas: number;
+    inicio?: string;
+    fim?: string;
+    erro?: string;
+  }> {
+    const { data } = await api.get<{
+      emAndamento: boolean;
+      progresso: number;
+      totalVendas: number;
+      vendasProcessadas: number;
+      inicio?: string;
+      fim?: string;
+      erro?: string;
+    }>('/vendas/analytics/recalcular/status');
     return data;
   },
 };

@@ -17,6 +17,7 @@ import {
   type CrescimentoFilialResponse,
   type CrescimentoMarcaResponse,
   type CrescimentoAssociadoResponse,
+  type FilialAssociadoResponse,
   type VendaColumnMapping,
   type CreateVendaColumnMappingDto,
   type VendaAnalyticsFilter,
@@ -185,6 +186,41 @@ export function useCrescimentoAssociado(
     queryKey: ['vendas', 'analytics', 'crescimento-associado', filtros, page, limit],
     queryFn: () => analyticsService.getCrescimentoAssociado(filtros, page, limit),
     staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+export function useFilialAssociadoAnalytics(filtros?: AnalyticsFilters) {
+  return useQuery<FilialAssociadoResponse>({
+    queryKey: ['vendas', 'analytics', 'filial-associado', filtros],
+    queryFn: () => analyticsService.getFilialAssociadoAnalytics(filtros),
+    enabled: !!filtros?.ano && filtros.ano.length > 0, // Só busca se tiver ano selecionado
+    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+  });
+}
+
+export function useRecalcularAnalytics() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params?: { dataInicio?: string; dataFim?: string }) =>
+      analyticsService.recalcularAnalytics(params?.dataInicio, params?.dataFim),
+    onSuccess: () => {
+      // Invalidar todas as queries de analytics para forçar recarregamento
+      queryClient.invalidateQueries({ queryKey: ['vendas', 'analytics'] });
+    },
+  });
+}
+
+export function useRecalculoStatus(enabled: boolean = true) {
+  return useQuery({
+    queryKey: ['analytics', 'recalculo-status'],
+    queryFn: () => analyticsService.getRecalculoStatus(),
+    enabled,
+    refetchInterval: (query) => {
+      // Verificar status a cada 2 segundos enquanto estiver em andamento
+      const data = query.state.data;
+      return data?.emAndamento ? 2000 : false;
+    },
   });
 }
 
