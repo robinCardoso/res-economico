@@ -21,6 +21,10 @@ import {
   FileCheck,
   Package,
   List,
+  Users,
+  AlertTriangle,
+  Target,
+  Lightbulb,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -81,6 +85,7 @@ const importacoesGroup: NavGroup = {
   items: [
     { label: 'Bravo ERP - Produtos', href: '/admin/importacoes/bravo-erp/produtos', icon: Package },
     { label: 'Vendas', href: '/admin/importacoes/vendas', icon: BarChart3 },
+    { label: 'Pedidos', href: '/admin/importacoes/pedidos', icon: BarChart3 },
   ],
 };
 
@@ -93,6 +98,30 @@ const vendasGroup: NavGroup = {
     { label: 'Gerenciar', href: '/admin/importacoes/vendas/gerenciar', icon: List },
     { label: 'Analytics (V2)', href: '/admin/importacoes/vendas/analytics-v2', icon: BarChart3 },
     { label: 'Analytics (Desabilitado)', href: '/admin/importacoes/vendas/analytics', icon: BarChart3 },
+  ],
+};
+
+// Menu Pedidos (colapsável) - submenu dentro de Importações
+const pedidosGroup: NavGroup = {
+  label: 'Pedidos',
+  icon: BarChart3,
+  items: [
+    { label: 'Importar Pedidos', href: '/admin/importacoes/pedidos/importar', icon: UploadCloud },
+    { label: 'Gerenciar Pedidos', href: '/admin/importacoes/pedidos/gerenciar', icon: List },
+    { label: 'Analytics', href: '/admin/importacoes/pedidos/analytics', icon: BarChart3 },
+  ],
+};
+
+// Menu Clientes (colapsável) ⭐ NOVO
+const clientesGroup: NavGroup = {
+  label: 'Clientes',
+  icon: Users,
+  items: [
+    { label: 'Perfil de Cliente', href: '/admin/clientes/perfil', icon: BarChart3 },
+    { label: 'Lista de Clientes', href: '/admin/clientes/lista', icon: List },
+    { label: 'Segmentação', href: '/admin/clientes/segmentacao', icon: Target },
+    { label: 'Alertas', href: '/admin/clientes/alertas', icon: AlertTriangle },
+    { label: 'Recomendações', href: '/admin/clientes/recomendacoes', icon: Lightbulb },
   ],
 };
 
@@ -130,9 +159,20 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
     if (pathname?.startsWith('/admin/processos')) {
       return ['processos'];
     }
+    // Abrir automaticamente o menu "Clientes" se estivermos em uma de suas rotas ⭐ NOVO
+    if (pathname?.startsWith('/admin/clientes')) {
+      return ['clientes'];
+    }
     // Abrir automaticamente o menu "Importações" se estivermos em uma de suas rotas
     if (pathname?.startsWith('/admin/importacoes')) {
-      return ['importacoes', 'vendas'];
+      const openMenus = ['importacoes'];
+      if (pathname?.startsWith('/admin/importacoes/vendas')) {
+        openMenus.push('vendas');
+      }
+      if (pathname?.startsWith('/admin/importacoes/pedidos')) {
+        openMenus.push('pedidos');
+      }
+      return openMenus;
     }
     return [];
   });
@@ -144,9 +184,9 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
         return prev.filter((key) => key !== menuKey);
       }
       // Se está fechado, abre ele
-      // Para submenus (como 'vendas'), manter o menu pai ('importacoes') aberto
-      if (menuKey === 'vendas') {
-        return [...prev.filter((key) => key !== 'vendas'), 'importacoes', 'vendas'];
+      // Para submenus (como 'vendas' ou 'pedidos'), manter o menu pai ('importacoes') aberto
+      if (menuKey === 'vendas' || menuKey === 'pedidos') {
+        return [...prev.filter((key) => key !== menuKey), 'importacoes', menuKey];
       }
       // Para outros menus, fecha todos os outros (comportamento accordion)
       return [menuKey];
@@ -308,6 +348,54 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
             </Collapsible>
           )}
 
+          {/* Clientes (colapsável) ⭐ NOVO */}
+          {isAdmin && (
+            <Collapsible
+              open={openMenus.includes('clientes')}
+              onOpenChange={() => toggleMenu('clientes')}
+            >
+              <CollapsibleTrigger
+                className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition ${
+                  isGroupActive(clientesGroup)
+                    ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                    : 'text-foreground/90 hover:bg-secondary'
+                }`}
+              >
+                <clientesGroup.icon className="h-4 w-4 flex-shrink-0" aria-hidden />
+                <span className="flex-1 text-left whitespace-nowrap">{clientesGroup.label}</span>
+                {openMenus.includes('clientes') ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-1 space-y-0.5 pl-8 overflow-visible data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+                {clientesGroup.items.map((item) => {
+                  const Icon = item.icon;
+                  const itemIsActive = isActive(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => {
+                        closeAllMenus();
+                        onNavClick();
+                      }}
+                      className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                        itemIsActive
+                          ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                          : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5 flex-shrink-0" aria-hidden />
+                      <span className="whitespace-nowrap">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+
           {/* Importações (colapsável) - apenas para admin */}
           {isAdmin && (
             <Collapsible
@@ -375,6 +463,65 @@ export const AdminSidebar = ({ sidebarOpen, onNavClick }: AdminSidebarProps) => 
                                 onClick={() => {
                                   // Não fechar todos os menus, apenas fechar após navegação
                                   // Manter "Importações" e "Vendas" abertos durante navegação
+                                  onNavClick();
+                                }}
+                                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                                  subItemIsActive
+                                    ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                                    : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
+                                }`}
+                              >
+                                <SubIcon className="h-3 w-3 flex-shrink-0" aria-hidden />
+                                <span className="whitespace-nowrap">{subItem.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    );
+                  }
+                  
+                  // Se for o item "Pedidos", renderizar como submenu colapsável
+                  if (item.href === '/admin/importacoes/pedidos') {
+                    return (
+                      <Collapsible
+                        key={item.href}
+                        open={openMenus.includes('pedidos')}
+                        onOpenChange={() => {
+                          // Não fechar todos os menus, apenas alternar o submenu "Pedidos"
+                          toggleMenu('pedidos');
+                        }}
+                      >
+                        <CollapsibleTrigger
+                          onClick={(e) => {
+                            // Prevenir o comportamento padrão que fecha todos os menus
+                            e.stopPropagation();
+                          }}
+                          className={`w-full flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                            isGroupActive(pedidosGroup)
+                              ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                              : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
+                          }`}
+                        >
+                          <Icon className="h-3.5 w-3.5 flex-shrink-0" aria-hidden />
+                          <span className="flex-1 text-left whitespace-nowrap">{item.label}</span>
+                          {openMenus.includes('pedidos') ? (
+                            <ChevronDown className="h-3 w-3" />
+                          ) : (
+                            <ChevronRight className="h-3 w-3" />
+                          )}
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-0.5 space-y-0.5 pl-6 overflow-visible data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+                          {pedidosGroup.items.map((subItem: NavItem) => {
+                            const SubIcon = subItem.icon;
+                            const subItemIsActive = isActive(subItem.href);
+                            return (
+                              <Link
+                                key={subItem.href}
+                                href={subItem.href}
+                                onClick={() => {
+                                  // Não fechar todos os menus, apenas fechar após navegação
+                                  // Manter "Importações" e "Pedidos" abertos durante navegação
                                   onNavClick();
                                 }}
                                 className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${

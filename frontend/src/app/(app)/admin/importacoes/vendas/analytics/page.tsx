@@ -65,6 +65,7 @@ export default function AnalyticsVendasPage() {
   const [newFilterName, setNewFilterName] = useState('');
   const [selectedFilterId, setSelectedFilterId] = useState<string>('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saveAsNew, setSaveAsNew] = useState(false); // Controla se deve salvar como novo
   const [filterToDelete, setFilterToDelete] = useState<string | null>(null);
   
   // Hooks para filtros salvos
@@ -138,12 +139,11 @@ export default function AnalyticsVendasPage() {
     }
 
     try {
-      // Se os filtros foram alterados ou não há filtro selecionado, sempre criar novo
-      // Só atualiza se os filtros são iguais e há um filtro selecionado
-      const shouldUpdate = isEditing && selectedFilterId && !filtersChanged;
+      // Determinar se deve atualizar ou criar novo
+      const shouldUpdate = isEditing && selectedFilterId && !saveAsNew;
       
       if (shouldUpdate) {
-        // Atualizar filtro existente (apenas se os filtros não foram alterados)
+        // Atualizar filtro existente
         await updateFilterMutation.mutateAsync({
           id: selectedFilterId,
           dto: {
@@ -156,7 +156,7 @@ export default function AnalyticsVendasPage() {
           description: 'Filtro atualizado com sucesso!',
         });
       } else {
-        // Criar novo filtro (sempre que os filtros foram alterados ou não há filtro selecionado)
+        // Criar novo filtro
         await createFilterMutation.mutateAsync({
           nome: newFilterName.trim(),
           filters,
@@ -172,9 +172,10 @@ export default function AnalyticsVendasPage() {
       }
       setNewFilterName('');
       setShowSaveDialog(false);
+      setSaveAsNew(false);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      const action = isEditing && selectedFilterId && !filtersChanged ? 'atualizar' : 'salvar';
+      const action = isEditing && selectedFilterId && !saveAsNew ? 'atualizar' : 'salvar';
       toast({
         variant: 'destructive',
         title: 'Erro',
@@ -376,87 +377,134 @@ export default function AnalyticsVendasPage() {
       {/* Filtros */}
       <Card>
         <CardHeader className="pb-2">
-          <div className="flex flex-row items-center justify-between">
+          <div className="space-y-4">
+            {/* Título e Descrição */}
             <div>
               <CardTitle className="text-sm font-semibold">Filtros</CardTitle>
               <CardDescription className="text-xs">
                 Selecione os filtros desejados. Múltiplos valores no mesmo filtro = OR, filtros diferentes = AND
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Select
-                value={selectedFilterId || 'none'}
-                onValueChange={(value) => {
-                  if (value === 'none') {
-                    setSelectedFilterId('');
-                    setNewFilterName('');
-                    setFilters({});
-                  } else {
-                    handleLoadFilter(value);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Carregar filtro salvo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">
-                    {isEditing ? 'Limpar seleção' : 'Nenhum filtro'}
-                  </SelectItem>
-                  {savedFilters.length === 0 ? (
-                    <SelectItem value="no-filters" disabled>
-                      Nenhum filtro salvo
+            
+            {/* Ações - Responsivo */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
+              {/* Grupo 1: Carregar/Deletar Filtro */}
+              <div className="flex items-center gap-2">
+                <Select
+                  value={selectedFilterId || 'none'}
+                  onValueChange={(value) => {
+                    if (value === 'none') {
+                      setSelectedFilterId('');
+                      setNewFilterName('');
+                      setFilters({});
+                    } else {
+                      handleLoadFilter(value);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue placeholder="Carregar filtro salvo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">
+                      {isEditing ? 'Limpar seleção' : 'Nenhum filtro'}
                     </SelectItem>
-                  ) : (
-                    savedFilters.map((filter) => (
-                      <SelectItem key={filter.id} value={filter.id}>
-                        {filter.nome}
+                    {savedFilters.length === 0 ? (
+                      <SelectItem value="no-filters" disabled>
+                        Nenhum filtro salvo
                       </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              {selectedFilterId && (
+                    ) : (
+                      savedFilters.map((filter) => (
+                        <SelectItem key={filter.id} value={filter.id}>
+                          {filter.nome}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {selectedFilterId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFilterToDelete(selectedFilterId)}
+                    disabled={deleteFilterMutation.isPending}
+                    title="Deletar filtro selecionado"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Grupo 2: Ações de Salvar/Atualizar/Recalcular */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Botão de Atualizar - só aparece quando há filtro selecionado E filtros foram alterados */}
+                {isEditing && filtersChanged && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setNewFilterName(selectedFilter?.nome || '');
+                      setSaveAsNew(false);
+                      setShowSaveDialog(true);
+                    }}
+                    disabled={updateFilterMutation.isPending}
+                    className="flex-shrink-0"
+                  >
+                    <Save className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Atualizar Filtro</span>
+                  </Button>
+                )}
+                {/* Botão de Salvar/Salvar como Novo */}
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setFilterToDelete(selectedFilterId)}
-                  disabled={deleteFilterMutation.isPending}
+                  onClick={() => {
+                    // Se está editando e os filtros foram alterados, salvar como novo
+                    if (isEditing && filtersChanged) {
+                      setNewFilterName('');
+                      setSaveAsNew(true);
+                    } else if (isEditing && !filtersChanged) {
+                      // Se está editando mas não alterou, atualizar
+                      setNewFilterName(selectedFilter?.nome || '');
+                      setSaveAsNew(false);
+                    } else {
+                      // Não está editando, salvar novo
+                      setNewFilterName('');
+                      setSaveAsNew(false);
+                    }
+                    setShowSaveDialog(true);
+                  }}
+                  disabled={createFilterMutation.isPending || updateFilterMutation.isPending}
+                  className="flex-shrink-0"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Save className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">
+                    {isEditing && filtersChanged ? 'Salvar como Novo' : isEditing && !filtersChanged ? 'Renomear Filtro' : 'Salvar Filtro'}
+                  </span>
+                  <span className="sm:hidden">
+                    {isEditing && filtersChanged ? 'Novo' : 'Salvar'}
+                  </span>
                 </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  // Se os filtros foram alterados, não preencher o nome do filtro selecionado
-                  // para permitir salvar com nome diferente
-                  if (isEditing && selectedFilter && !filtersChanged) {
-                    setNewFilterName(selectedFilter.nome);
-                  } else {
-                    setNewFilterName('');
-                  }
-                  setShowSaveDialog(true);
-                }}
-                disabled={createFilterMutation.isPending || updateFilterMutation.isPending}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {filtersChanged ? 'Salvar Filtro' : isEditing ? 'Atualizar Filtro' : 'Salvar Filtro'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowRecalcularDialog(true)}
-                disabled={recalcularMutation.isPending || recalculoStatus?.emAndamento}
-              >
-                {recalcularMutation.isPending || recalculoStatus?.emAndamento ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                )}
-                {recalculoStatus?.emAndamento ? 'Recalculando...' : 'Recalcular Analytics'}
-              </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowRecalcularDialog(true)}
+                  disabled={recalcularMutation.isPending || recalculoStatus?.emAndamento}
+                  className="flex-shrink-0"
+                >
+                  {recalcularMutation.isPending || recalculoStatus?.emAndamento ? (
+                    <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 sm:mr-2" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {recalculoStatus?.emAndamento ? 'Recalculando...' : 'Recalcular Analytics'}
+                  </span>
+                  <span className="sm:hidden">
+                    {recalculoStatus?.emAndamento ? 'Recalc...' : 'Recalcular'}
+                  </span>
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -466,17 +514,28 @@ export default function AnalyticsVendasPage() {
       </Card>
 
       {/* Dialog para salvar/atualizar filtro */}
-      <AlertDialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+      <AlertDialog 
+        open={showSaveDialog} 
+        onOpenChange={(open) => {
+          setShowSaveDialog(open);
+          if (!open) {
+            setSaveAsNew(false);
+            if (!isEditing) {
+              setNewFilterName('');
+            }
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {filtersChanged ? 'Salvar Novo Filtro' : isEditing ? 'Atualizar Filtro' : 'Salvar Filtro'}
+              {saveAsNew ? 'Salvar Novo Filtro' : isEditing ? 'Atualizar Filtro' : 'Salvar Filtro'}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {filtersChanged && isEditing
-                ? 'Os filtros foram alterados. Digite um nome para salvar como um novo filtro.'
+              {saveAsNew
+                ? 'Digite um nome para salvar uma nova cópia do filtro com as alterações.'
                 : isEditing
-                  ? 'Altere o nome para atualizar o filtro existente.'
+                  ? `Você está atualizando o filtro "${selectedFilter?.nome}". As alterações serão salvas no filtro existente.`
                   : 'Digite um nome para salvar a configuração atual de filtros.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -496,6 +555,7 @@ export default function AnalyticsVendasPage() {
             <AlertDialogCancel
               onClick={() => {
                 setShowSaveDialog(false);
+                setSaveAsNew(false);
                 if (!isEditing) {
                   setNewFilterName('');
                 }
@@ -514,10 +574,10 @@ export default function AnalyticsVendasPage() {
               {createFilterMutation.isPending || updateFilterMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {filtersChanged ? 'Salvando...' : isEditing ? 'Atualizando...' : 'Salvando...'}
+                  {saveAsNew ? 'Salvando...' : isEditing ? 'Atualizando...' : 'Salvando...'}
                 </>
               ) : (
-                filtersChanged ? 'Salvar' : isEditing ? 'Atualizar' : 'Salvar'
+                saveAsNew ? 'Salvar Novo' : isEditing ? 'Atualizar' : 'Salvar'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

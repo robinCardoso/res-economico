@@ -22,7 +22,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { RowData } from '@/lib/imports/import-vendas-utils';
+import type { RowData } from '@/lib/imports/import-utils';
 
 type ImportStepperProps = {
     pageTitle: string;
@@ -43,6 +43,7 @@ type ImportStepperProps = {
     useDatabaseMappings?: boolean;
     onLoadMappings?: () => Promise<Array<{ id: string; name: string; mappings: Record<string, MappingInfo>; filters: Filter[] }>>;
     onSaveMapping?: (name: string, mappings: Record<string, MappingInfo>, filters: Filter[]) => Promise<{ id: string }>;
+    onUpdateMapping?: (id: string, mappings: Record<string, MappingInfo>, filters: Filter[]) => Promise<void>;
     onDeleteMapping?: (id: string) => Promise<void>;
 };
 
@@ -81,6 +82,7 @@ export function ImportStepper({
     useDatabaseMappings = false,
     onLoadMappings,
     onSaveMapping,
+    onUpdateMapping,
     onDeleteMapping,
 }: ImportStepperProps) {
     const { toast } = useToast();
@@ -257,6 +259,39 @@ export function ImportStepper({
     }, []);
 
     const handleSaveMapping = async () => {
+        // Se um mapeamento está selecionado, atualizar ao invés de criar novo
+        if (selectedMapping) {
+            try {
+                if (useDatabaseMappings && onUpdateMapping) {
+                    // Atualizar no banco de dados
+                    await onUpdateMapping(selectedMapping, mappings, filters);
+                    const updatedMappings = savedMappings.map(m => 
+                        m.id === selectedMapping 
+                            ? { ...m, mappings, filters }
+                            : m
+                    );
+                    setSavedMappings(updatedMappings);
+                    toast({ title: "Sucesso", description: "Mapeamento e filtros atualizados no banco de dados!" });
+                } else {
+                    // Atualizar no localStorage (compatibilidade com outros tipos)
+                    const updatedMappings = savedMappings.map(m => 
+                        m.id === selectedMapping 
+                            ? { ...m, mappings, filters }
+                            : m
+                    );
+                    setSavedMappings(updatedMappings);
+                    localStorage.setItem(`importMappings_${importType}`, JSON.stringify(updatedMappings));
+                    toast({ title: "Sucesso", description: "Mapeamento e filtros atualizados!" });
+                }
+            } catch (error: unknown) {
+                console.error('Erro ao atualizar mapeamento:', error);
+                const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+                toast({ variant: "destructive", title: "Erro", description: `Erro ao atualizar mapeamento: ${errorMessage}` });
+            }
+            return;
+        }
+
+        // Criar novo mapeamento
         if (!newMappingName) {
             toast({ variant: "destructive", title: "Erro", description: "Dê um nome ao seu mapeamento." });
             return;
@@ -567,11 +602,18 @@ export function ImportStepper({
                                 </Select>
                                 <div className="flex gap-2">
                                     <Input 
-                                        placeholder="Salvar como..." 
-                                        value={newMappingName} 
-                                        onChange={handleNewMappingNameChange} 
+                                        placeholder={selectedMapping ? "Nome do mapeamento carregado" : "Salvar como..."} 
+                                        value={selectedMapping ? savedMappings.find(m => m.id === selectedMapping)?.name || '' : newMappingName} 
+                                        onChange={handleNewMappingNameChange}
+                                        disabled={!!selectedMapping}
                                     />
-                                    <Button onClick={handleSaveMapping} disabled={!newMappingName}>Salvar</Button>
+                                    <Button 
+                                        onClick={handleSaveMapping} 
+                                        disabled={selectedMapping ? false : !newMappingName}
+                                        variant={selectedMapping ? "default" : "default"}
+                                    >
+                                        {selectedMapping ? "Atualizar" : "Salvar"}
+                                    </Button>
                                 </div>
                                 {selectedMapping && <Button variant="outline" className="border-red-500 text-red-500" onClick={() => handleDeleteMapping(selectedMapping)}>Excluir</Button>}
                             </div>

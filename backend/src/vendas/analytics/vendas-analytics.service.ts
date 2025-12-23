@@ -157,6 +157,8 @@ export class VendasAnalyticsService {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         // Usar SQL raw com ON CONFLICT para fazer upsert atômico
+        // IMPORTANTE: Substituir valores em vez de somar para evitar duplicação
+        // Quando uma venda é reimportada, os analytics devem refletir o valor mais recente
         // Isso evita race conditions quando múltiplas requisições processam em paralelo
         // O id é gerado usando gen_random_uuid() (PostgreSQL 13+)
         // IMPORTANTE: Se houver constraint antigo (sem grupo/subgrupo), ele será tratado no catch
@@ -184,8 +186,8 @@ export class VendasAnalyticsService {
             )
             ON CONFLICT ("ano", "mes", "nomeFantasia", "marca", "grupo", "subgrupo", "tipoOperacao", "uf", "empresaId")
             DO UPDATE SET
-              "totalValor" = "VendaAnalytics"."totalValor" + ${analytics.totalValor}::decimal,
-              "totalQuantidade" = "VendaAnalytics"."totalQuantidade" + ${analytics.totalQuantidade}::decimal,
+              "totalValor" = EXCLUDED."totalValor",
+              "totalQuantidade" = EXCLUDED."totalQuantidade",
               "updatedAt" = NOW()
           `;
           // Sucesso - sair do loop de retry

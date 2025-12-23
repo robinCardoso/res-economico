@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { X, Home, LayoutDashboard, UploadCloud, BellRing, ClipboardList, Layers3, Building, FileText, Settings2, ChevronDown, ChevronRight, BarChart3 } from 'lucide-react';
+import { X, Home, LayoutDashboard, UploadCloud, BellRing, ClipboardList, Layers3, Building, FileText, Settings2, ChevronDown, ChevronRight, BarChart3, Users, AlertTriangle, Target, Lightbulb, List } from 'lucide-react';
 import { useState } from 'react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 // import { useAuthStore } from '@/stores/auth.store';
@@ -24,6 +24,9 @@ export const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
   const [openMenus, setOpenMenus] = useState<string[]>(() => {
     if (pathname?.startsWith('/admin/resultado-economico')) {
       return ['resultado-economico'];
+    }
+    if (pathname?.startsWith('/admin/clientes')) {
+      return ['clientes'];
     }
     return [];
   });
@@ -61,6 +64,14 @@ export const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
     { label: 'Auditoria', href: '/admin/resultado-economico/auditoria', icon: FileText },
     { label: 'Relatórios', href: '/admin/resultado-economico/relatorios', icon: FileText },
     { label: 'Configurações', href: '/admin/resultado-economico/configuracoes', icon: Settings2 },
+  ];
+
+  const clientesItems = [
+    { label: 'Perfil de Cliente', href: '/admin/clientes/perfil', icon: BarChart3 },
+    { label: 'Lista de Clientes', href: '/admin/clientes/lista', icon: List },
+    { label: 'Segmentação', href: '/admin/clientes/segmentacao', icon: Target },
+    { label: 'Alertas', href: '/admin/clientes/alertas', icon: AlertTriangle },
+    { label: 'Recomendações', href: '/admin/clientes/recomendacoes', icon: Lightbulb },
   ];
 
   if (!isOpen) return null;
@@ -148,6 +159,52 @@ export const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-1 space-y-0.5 pl-8 overflow-visible data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
                 {resultadoEconomicoItems.map((item) => {
+                  const Icon = item.icon;
+                  const itemIsActive = isActive(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => {
+                        closeAllMenus();
+                        onClose();
+                      }}
+                      className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-medium transition ${
+                        itemIsActive
+                          ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                          : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5 flex-shrink-0" aria-hidden />
+                      <span className="whitespace-nowrap">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Clientes (colapsável) ⭐ NOVO */}
+            <Collapsible
+              open={openMenus.includes('clientes')}
+              onOpenChange={() => toggleMenu('clientes')}
+            >
+              <CollapsibleTrigger
+                className={`w-full flex items-center gap-2.5 rounded-lg px-4 py-3 text-sm font-medium transition ${
+                  clientesItems.some((item) => isActive(item.href))
+                    ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'
+                    : 'text-foreground/90 hover:bg-secondary'
+                }`}
+              >
+                <Users className="h-4 w-4 flex-shrink-0" aria-hidden />
+                <span className="flex-1 text-left whitespace-nowrap">Clientes</span>
+                {openMenus.includes('clientes') ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-1 space-y-0.5 pl-8 overflow-visible data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
+                {clientesItems.map((item) => {
                   const Icon = item.icon;
                   const itemIsActive = isActive(item.href);
                   return (
