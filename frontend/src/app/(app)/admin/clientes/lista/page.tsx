@@ -204,24 +204,24 @@ export default function ListaClientesPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="text-center py-12">Carregando lista de clientes...</div>
+        <div className="container mx-auto p-4">
+        <div className="text-center py-8">Carregando lista de clientes...</div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div>
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-1 mb-1">
             <Link href="/admin/clientes/perfil">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <h1 className="text-3xl font-bold tracking-tight">Lista de Clientes</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Lista de Clientes</h1>
           </div>
           <p className="text-muted-foreground">
             {filteredAndSortedData.length} cliente(s) encontrado(s)
@@ -241,9 +241,9 @@ export default function ListaClientesPage() {
 
       {/* Filtro de Anos */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium">Filtrar por ano:</label>
+        <CardContent className="pt-4">
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-medium">Filtrar por ano:</label>
             <div className="flex gap-2 flex-wrap">
               {availableYears.map(year => (
                 <button
@@ -265,11 +265,11 @@ export default function ListaClientesPage() {
 
       {/* Busca e Filtros */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-2">
             <div>
-              <CardTitle className="text-lg">Filtros</CardTitle>
-              <CardDescription>Refine sua busca</CardDescription>
+              <CardTitle className="text-base">Filtros</CardTitle>
+              <CardDescription className="text-xs">Refine sua busca</CardDescription>
             </div>
             <Button
               variant="outline"
@@ -283,29 +283,29 @@ export default function ListaClientesPage() {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           {/* Busca */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Buscar por nome do cliente..."
+              placeholder="Buscar por nome..."
               value={searchTerm}
               onChange={e => {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg bg-background"
+              className="w-full pl-8 pr-3 py-1.5 text-sm border rounded-lg bg-background"
             />
           </div>
 
           {/* Filtros expandíveis */}
           {showFilters && (
-            <div className="space-y-4 border-t pt-4">
+            <div className="space-y-3 border-t pt-3">
               {/* Segmentos */}
               <div>
-                <h4 className="font-semibold mb-2 text-sm">Segmento:</h4>
-                <div className="flex flex-wrap gap-2">
+                <h4 className="font-semibold mb-1 text-xs">Segmento:</h4>
+                <div className="flex flex-wrap gap-1.5">
                   {availableSegmentos.map(segmento => (
                     <Button
                       key={segmento}
@@ -324,8 +324,8 @@ export default function ListaClientesPage() {
               {/* UFs */}
               {uniqueUFs.length > 0 && (
                 <div>
-                  <h4 className="font-semibold mb-2 text-sm">Estado (UF):</h4>
-                  <div className="flex flex-wrap gap-2">
+                  <h4 className="font-semibold mb-1 text-xs">Estado (UF):</h4>
+                  <div className="flex flex-wrap gap-1.5">
                     {uniqueUFs.map(uf => (
                       <Button
                         key={uf}
@@ -345,7 +345,7 @@ export default function ListaClientesPage() {
 
           {/* Filtros ativos */}
           {(searchTerm || selectedSegmentos.length > 0 || selectedUFs.length > 0) && (
-            <div className="flex flex-wrap gap-2 pt-2 border-t">
+            <div className="flex flex-wrap gap-1.5 pt-2 border-t">
               {searchTerm && (
                 <Badge
                   variant="secondary"
@@ -385,17 +385,17 @@ export default function ListaClientesPage() {
 
       {/* Tabela */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-4">
           {filteredAndSortedData.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-8">
               <p className="text-muted-foreground">Nenhum cliente encontrado</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-semibold cursor-pointer hover:bg-muted" onClick={() => handleSort('nome')}>
+                    <th className="text-left py-2 px-3 font-semibold cursor-pointer hover:bg-muted" onClick={() => handleSort('nome')}>
                       <div className="flex items-center gap-2">
                         Nome
                         {sortField === 'nome' && (
@@ -403,7 +403,7 @@ export default function ListaClientesPage() {
                         )}
                       </div>
                     </th>
-                    <th className="text-left py-3 px-4 font-semibold cursor-pointer hover:bg-muted" onClick={() => handleSort('segmento')}>
+                    <th className="text-left py-2 px-3 font-semibold cursor-pointer hover:bg-muted" onClick={() => handleSort('segmento')}>
                       <div className="flex items-center gap-2">
                         Segmento
                         {sortField === 'segmento' && (
@@ -411,8 +411,8 @@ export default function ListaClientesPage() {
                         )}
                       </div>
                     </th>
-                    <th className="text-left py-3 px-4 font-semibold">UF</th>
-                    <th className="text-right py-3 px-4 font-semibold cursor-pointer hover:bg-muted" onClick={() => handleSort('receita')}>
+                    <th className="text-left py-2 px-3 font-semibold">UF</th>
+                    <th className="text-right py-2 px-3 font-semibold cursor-pointer hover:bg-muted" onClick={() => handleSort('receita')}>
                       <div className="flex items-center justify-end gap-2">
                         Receita Total
                         {sortField === 'receita' && (
@@ -420,7 +420,7 @@ export default function ListaClientesPage() {
                         )}
                       </div>
                     </th>
-                    <th className="text-left py-3 px-4 font-semibold cursor-pointer hover:bg-muted" onClick={() => handleSort('ultimaCompra')}>
+                    <th className="text-left py-2 px-3 font-semibold cursor-pointer hover:bg-muted" onClick={() => handleSort('ultimaCompra')}>
                       <div className="flex items-center gap-2">
                         Última Compra
                         {sortField === 'ultimaCompra' && (
@@ -428,7 +428,7 @@ export default function ListaClientesPage() {
                         )}
                       </div>
                     </th>
-                    <th className="text-right py-3 px-4 font-semibold cursor-pointer hover:bg-muted" onClick={() => handleSort('frequencia')}>
+                    <th className="text-right py-2 px-3 font-semibold cursor-pointer hover:bg-muted" onClick={() => handleSort('frequencia')}>
                       <div className="flex items-center justify-end gap-2">
                         Frequência
                         {sortField === 'frequencia' && (
@@ -436,16 +436,16 @@ export default function ListaClientesPage() {
                         )}
                       </div>
                     </th>
-                    <th className="text-center py-3 px-4 font-semibold">Ação</th>
+                    <th className="text-center py-2 px-3 font-semibold">Ação</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedData.map((cliente, idx) => (
-                    <tr key={idx} className="border-b hover:bg-muted/50 transition-colors">
-                      <td className="py-3 px-4">
-                        <p className="font-medium">{cliente.nomeFantasia}</p>
+                    <tr key={idx} className="border-b hover:bg-muted/50 transition-colors text-xs">
+                      <td className="py-2 px-3">
+                        <p className="font-medium text-xs">{cliente.nomeFantasia}</p>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-2 px-3">
                         <Badge
                           className={
                             SEGMENTO_CONFIG[cliente.segmentacao.segmento as keyof typeof SEGMENTO_CONFIG]?.color ||
@@ -457,19 +457,19 @@ export default function ListaClientesPage() {
                             cliente.segmentacao.segmento}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground">
+                      <td className="py-2 px-3 text-xs text-muted-foreground">
                         {cliente.uf || '-'}
                       </td>
-                      <td className="py-3 px-4 text-right font-medium">
+                      <td className="py-2 px-3 text-right font-medium text-xs">
                         {numeral(cliente.metricas.receitaTotal).format('$0,0.00')}
                       </td>
-                      <td className="py-3 px-4 text-sm">
+                      <td className="py-2 px-3 text-xs">
                         {new Date(cliente.metricas.ultimaCompra).toLocaleDateString('pt-BR')}
                       </td>
-                      <td className="py-3 px-4 text-right text-sm">
+                      <td className="py-2 px-3 text-right text-xs">
                         {numeral(cliente.metricas.frequenciaCompra).format('0.0')}/mês
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-2 px-3 text-center">
                         <Link href={`/admin/clientes/${encodeURIComponent(cliente.nomeFantasia)}`}>
                           <Button variant="ghost" size="sm">
                             <ChevronRight className="h-4 w-4" />
@@ -487,20 +487,20 @@ export default function ListaClientesPage() {
 
       {/* Paginação */}
       {filteredAndSortedData.length > 0 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
+        <div className="flex items-center justify-between text-xs gap-2">
+          <div className="text-xs text-muted-foreground">
             Mostrando {startIdx + 1} a {Math.min(endIdx, filteredAndSortedData.length)} de{' '}
             {filteredAndSortedData.length} cliente(s)
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <select
               value={itemsPerPage}
               onChange={e => {
                 setItemsPerPage(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="border rounded px-2 py-1 text-sm bg-background"
+              className="border rounded px-2 py-1 text-xs bg-background"
             >
               <option value={10}>10 por página</option>
               <option value={20}>20 por página</option>
@@ -517,7 +517,7 @@ export default function ListaClientesPage() {
               Anterior
             </Button>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               {(() => {
                 const pages = [];
                 let startPage = Math.max(1, currentPage - 2);
