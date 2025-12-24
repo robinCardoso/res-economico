@@ -87,7 +87,7 @@ export class BravoConfigService {
       console.error('Erro ao buscar configuração:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Erro desconhecido',
+        error: 'Não foi possível carregar as configurações do Bravo ERP do banco de dados',
       };
     }
   }
@@ -102,9 +102,15 @@ export class BravoConfigService {
       console.log('🔄 Iniciando salvamento de configuração...');
 
       // Validar dados obrigatórios
-      if (!dto.baseUrl || !dto.cliente) {
-        console.error('❌ Campos obrigatórios não preenchidos');
-        throw new BadRequestException('URL Base e Cliente são obrigatórios');
+      if (!dto.baseUrl || !dto.cliente || !dto.token) {
+        const missingFields: string[] = [];
+        if (!dto.baseUrl) missingFields.push('URL Base');
+        if (!dto.cliente) missingFields.push('Código do Cliente');
+        if (!dto.token) missingFields.push('Token');
+        
+        const errorMsg = `Campos obrigatórios não preenchidos: ${missingFields.join(', ')}. Todos os campos marcados com * são obrigatórios para configurar o Bravo ERP.`;
+        console.error('❌ ' + errorMsg);
+        throw new BadRequestException(errorMsg);
       }
 
       // Preparar configurações para inserir/atualizar
@@ -210,12 +216,13 @@ export class BravoConfigService {
 
       return {
         success: true,
-        message: 'Configuração salva com sucesso',
+        message: '✅ Configuração salva com sucesso! O TOKEN foi registrado no sistema. Agora você pode usar a sincronização com Bravo ERP. Acesse o menu de sincronização para importar dados de produtos.',
       };
     } catch (error) {
-      console.error('❌ Erro ao salvar configuração:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido ao salvar configuração';
+      console.error('❌ Erro ao salvar configuração:', errorMsg);
       throw new BadRequestException(
-        error instanceof Error ? error.message : 'Erro desconhecido',
+        errorMsg || 'Não foi possível salvar as configurações do Bravo ERP. Tente novamente.',
       );
     }
   }

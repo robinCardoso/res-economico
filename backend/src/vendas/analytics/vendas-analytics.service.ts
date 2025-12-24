@@ -198,10 +198,9 @@ export class VendasAnalyticsService {
           if (
             conflictError?.code === '23505' &&
             typeof conflictError?.message === 'string' &&
-            conflictError.message.includes('already exists') &&
-            conflictError.message.includes('ano, mes, "nomeFantasia", marca, uf')
+            conflictError.message.includes('already exists')
           ) {
-            // Constraint antigo detectado - buscar TODOS os registros existentes (pode haver múltiplos)
+            // Constraint antigo ou novo - buscar registros existentes
             const registrosExistentes = await this.prisma.vendaAnalytics.findMany(
               {
                 where: {
@@ -210,7 +209,7 @@ export class VendasAnalyticsService {
                   nomeFantasia: analytics.nomeFantasia,
                   marca: analytics.marca,
                   uf: analytics.uf,
-                  // Não filtrar por grupo/subgrupo (constraint antigo)
+                  // Não filtrar por grupo/subgrupo/tipoOperacao (podem estar incompletos nos dados antigos)
                 },
               },
             );
@@ -255,7 +254,7 @@ export class VendasAnalyticsService {
               }
 
               this.logger.warn(
-                `Constraint antigo detectado. Consolidados ${registrosExistentes.length} registro(s) existente(s) com novo grupo/subgrupo: ${analytics.grupo}/${analytics.subgrupo}`,
+                `Constraint detectado. Consolidados ${registrosExistentes.length} registro(s) existente(s) com novo grupo/subgrupo/tipoOperacao: ${analytics.grupo}/${analytics.subgrupo}/${analytics.tipoOperacao}`,
               );
               return; // Sucesso após consolidação
             } else {

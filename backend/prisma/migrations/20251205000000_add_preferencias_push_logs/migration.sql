@@ -86,9 +86,6 @@ ALTER TABLE "PreferenciaNotificacao" ADD CONSTRAINT "PreferenciaNotificacao_usua
 -- AddForeignKey
 ALTER TABLE "PushSubscription" ADD CONSTRAINT "PushSubscription_usuarioId_fkey" FOREIGN KEY ("usuarioId") REFERENCES "Usuario"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
-ALTER TABLE "LogAlteracaoAta" ADD CONSTRAINT "LogAlteracaoAta_ataId_fkey" FOREIGN KEY ("ataId") REFERENCES "AtaReuniao"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
+-- AddForeignKey (LogAlteracaoAta.usuarioId only - ataId FK will be added later when AtaReuniao exists)
 ALTER TABLE "LogAlteracaoAta" ADD CONSTRAINT "LogAlteracaoAta_usuarioId_fkey" FOREIGN KEY ("usuarioId") REFERENCES "Usuario"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 

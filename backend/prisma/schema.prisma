@@ -30,7 +30,7 @@ model Empresa {
   resumos               ResumoEconomico[]
   templates             TemplateImportacao[]
   uploads               Upload[]
-  usuarios              Usuario[]
+  // usuarios removido - não há constraint com Usuario
   processos             Processo[]
   atas                  AtaReuniao[]
   modelosAtas           ModeloAta[]
@@ -61,6 +61,8 @@ model Usuario {
   nome                   String
   roles                  String[]                @default(["user"])
   empresaId              String?
+  ativo                  Boolean                 @default(true)
+  ultimoAcesso           DateTime?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   departamento           Departamento?
@@ -83,7 +85,8 @@ model Usuario {
   pedidosImportacaoLogs  PedidoImportacaoLog[]
   pedidoColumnMappings   PedidoColumnMapping[] // Mapeamentos de colunas de pedidos criados pelo usuário
   pedidoAnalyticsFilters PedidoAnalyticsFilter[] // Filtros de analytics salvos pelo usuário
-  empresa                Empresa?                @relation(fields: [empresaId], references: [id])
+  clientesAssociados     UsuarioCliente[] // Clientes associados ao usuário
+  // empresaId removido de constraint - usuários não são deletados com empresa
 }
 
 model TemplateImportacao {
@@ -1484,4 +1487,32 @@ model PedidoAnalyticsFilter {
 
   @@index([usuarioId])
   @@index([createdAt])
+}
+
+// =====================================================
+// USUÁRIOS - ASSOCIAÇÃO COM CLIENTES
+// =====================================================
+
+model UsuarioCliente {
+  id           String                 @id @default(uuid())
+  usuarioId    String
+  nomeFantasia String // Identificador do cliente (de Venda/Pedido)
+  tipoCliente  TipoClienteAssociacao // VENDA, PEDIDO ou AMBOS
+  permissoes   Json? // Permissões granulares: { vendas: true, pedidos: true, analytics: true }
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  createdBy    String? // Quem criou a associação
+
+  // Relacionamentos
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, nomeFantasia, tipoCliente])
+  @@index([usuarioId])
+  @@index([nomeFantasia])
+}
+
+enum TipoClienteAssociacao {
+  VENDA
+  PEDIDO
+  AMBOS
 }

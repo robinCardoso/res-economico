@@ -1,6 +1,17 @@
+-- CreateEnum StatusAta se não existir
+DO $$ BEGIN
+  CREATE TYPE "StatusAta" AS ENUM ('RASCUNHO', 'PUBLICADA', 'ARQUIVADA');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
 -- AlterEnum
-ALTER TYPE "StatusAta" ADD VALUE 'EM_PROCESSO';
-ALTER TYPE "StatusAta" ADD VALUE 'FINALIZADA';
+DO $$ BEGIN
+  ALTER TYPE "StatusAta" ADD VALUE IF NOT EXISTS 'EM_PROCESSO';
+  ALTER TYPE "StatusAta" ADD VALUE IF NOT EXISTS 'FINALIZADA';
+EXCEPTION
+  WHEN others THEN null;
+END $$;
 
 -- CreateEnum (criar antes de usar)
 CREATE TYPE "StatusPrazo" AS ENUM ('PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDO', 'VENCIDO', 'CANCELADO');
@@ -145,4 +156,13 @@ ALTER TABLE "LembretePrazo" ADD CONSTRAINT "LembretePrazo_prazoId_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "LembretePrazo" ADD CONSTRAINT "LembretePrazo_usuarioId_fkey" FOREIGN KEY ("usuarioId") REFERENCES "Usuario"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey (Missing from earlier migration - LogAlteracaoAta to AtaReuniao)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'LogAlteracaoAta') THEN
+    ALTER TABLE "LogAlteracaoAta" ADD CONSTRAINT "LogAlteracaoAta_ataId_fkey" FOREIGN KEY ("ataId") REFERENCES "AtaReuniao"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
 

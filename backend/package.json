@@ -38,7 +38,9 @@
     "identificar-duplicados": "ts-node scripts/identificar-linhas-duplicadas.ts",
     "limpar-duplicados": "ts-node scripts/limpar-linhas-duplicadas.ts",
     "verificar-tipo-conta": "ts-node scripts/verificar-tipo-conta-resultado.ts",
-    "corrigir-tipo-conta": "ts-node scripts/corrigir-tipo-conta-resultado.ts"
+    "corrigir-tipo-conta": "ts-node scripts/corrigir-tipo-conta-resultado.ts",
+    "seed": "ts-node prisma/seed.ts",
+    "seed:prod": "node -r tsconfig-paths/register -r ts-node/register prisma/seed.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

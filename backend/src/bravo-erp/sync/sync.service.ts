@@ -54,6 +54,7 @@ export class SyncService {
       resume_sync_id = null,
       verificar_duplicatas = true,
       usar_data_ult_modif = true,
+      importar_excluidos = false,
       modo_teste = false,
       teste_duplicatas = false,
     } = dto;
@@ -62,6 +63,38 @@ export class SyncService {
       this.logger.log(
         `🚀 Iniciando sincronização - Limit: ${limit}, Páginas: ${pages}, Apenas ativos: ${apenas_ativos} (padrão: false - importa todos os produtos)`,
       );
+
+      // ✅ VALIDAÇÃO 1: Verificar se Token está configurado ANTES de fazer qualquer coisa
+      if (!modo_teste) {
+        const configs = await this.prisma.bravoSyncConfig.findFirst({
+          where: { chave: 'bravo_token' },
+        });
+
+        if (!configs?.valor) {
+          const errorMsg = '❌ Token do Bravo ERP não está configurado. Configure o token em Configurações > Bravo ERP antes de iniciar a sincronização.';
+          this.logger.error(errorMsg);
+          throw new BadRequestException(errorMsg);
+        }
+      }
+
+      // ✅ CARREGA configuração: Se importar_excluidos não foi passado, carrega do banco
+      let finalImportarExcluidos = importar_excluidos;
+      if (!modo_teste && !importar_excluidos) {
+        const configExcluidos = await this.prisma.bravoSyncConfig.findFirst({
+          where: { chave: 'bravo_importar_excluidos' },
+        });
+        finalImportarExcluidos = configExcluidos?.valor === 'true';
+      }
+
+      // ✅ LÓGICA: Se importar_excluidos é true, desabilita o filtro apenas_ativos
+      const apenasAtivosFinal = !finalImportarExcluidos && apenas_ativos;
+      if (finalImportarExcluidos) {
+        this.logger.log('📦 Modo: Importar TODOS os produtos (ativos + excluídos)');
+      } else if (apenas_ativos) {
+        this.logger.log('📦 Modo: Importar apenas produtos ATIVOS');
+      } else {
+        this.logger.log('📦 Modo: Importar produtos ATIVOS por padrão');
+      }
 
       // Limpar logs órfãos antes de verificar lock (prevenir falsos positivos)
       await this.cleanupOrphanedLogsIfNeeded();
@@ -154,7 +187,7 @@ export class SyncService {
         effectiveLimit,
         dataFiltro,
         operadorFiltro,
-        apenas_ativos,
+        apenas_ativos: apenasAtivosFinal,
         verificar_duplicatas,
         modo_teste,
         syncLogId,
@@ -180,9 +213,11 @@ export class SyncService {
         sync_log_id: syncLogId || undefined,
         lock_id: lockId || undefined,
         data: {
-          filtro_aplicado: apenas_ativos
+          filtro_aplicado: finalImportarExcluidos
+            ? 'Todos os produtos (ativos + excluídos)'
+            : apenasAtivosFinal
             ? 'Apenas produtos ativos'
-            : 'Todos os produtos',
+            : 'Produtos ativos por padrão',
           total_produtos_bravo: resultado.totalProdutos,
           produtos_filtrados: resultado.totalProdutos,
           paginas_processadas: resultado.totalPagesProcessed,

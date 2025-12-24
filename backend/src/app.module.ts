@@ -24,6 +24,7 @@ import { PushNotificationsModule } from './push-notifications/push-notifications
 import { BravoErpModule } from './bravo-erp/bravo-erp.module';
 import { VendasModule } from './vendas/vendas.module';
 import { PedidosModule } from './pedidos/pedidos.module';
+import { UsuariosModule } from './usuarios/usuarios.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { PedidosModule } from './pedidos/pedidos.module';
     BravoErpModule,
     VendasModule,
     PedidosModule,
+    UsuariosModule,
   ],
   controllers: [AppController],
   providers: [AppService],
