@@ -108,6 +108,9 @@ export function ImportStepper({
     const [importResult, setImportResult] = useState<Record<string, unknown> | null>(null);
     const [showEmptyFieldsDialog, setShowEmptyFieldsDialog] = useState(false);
     const [emptyFieldsIssues, setEmptyFieldsIssues] = useState<Array<{ rowIndex: number; fields: string[]; fileColumn: string; isRequired: boolean }>>([]);
+    const [isValidationLoading, setIsValidationLoading] = useState(false);
+    const [validationExecuted, setValidationExecuted] = useState(false); // Novo estado para rastrear se a validação já foi executada
+    const [validationProgress, setValidationProgress] = useState(0); // Estado para rastrear o progresso da validação
 
     // Carregar mapeamentos salvos (do banco de dados ou localStorage)
     useEffect(() => {
@@ -369,71 +372,133 @@ export function ImportStepper({
         }
     };
 
-    // Valida campos vazios nos dados originais do Excel (antes do mapeamento)
-    // Isso é mais eficiente e preciso, pois verifica os dados brutos
+    // Estado para armazenar os campos vazios encontrados
+    const [validateEmptyFields, setValidateEmptyFields] = useState<Array<{ rowIndex: number; fields: string[]; fileColumn: string; isRequired: boolean }>>([]);
+    
+    // Validação de campos vazios com processamento em chunks para evitar travamento
     // Valida APENAS campos obrigatórios (campos opcionais não são reportados)
-    const validateEmptyFields = useMemo(() => {
-        const issues: Array<{ rowIndex: number; fields: string[]; fileColumn: string; isRequired: boolean }> = [];
-        
-        // Só validar se temos mapeamentos e dados
+    const validateEmptyFieldsAsync = useCallback(async () => {
         if (filteredData.length === 0 || requiredFields.length === 0) {
-            return issues;
+            setValidateEmptyFields([]);
+            setValidationExecuted(true);
+            setValidationProgress(0);
+            return [];
         }
         
-        filteredData.forEach((row, index) => {
-            const emptyRequiredFields: Array<{ label: string; fileColumn: string }> = [];
+        setIsValidationLoading(true);
+        setValidationProgress(0);
+        const issues: Array<{ rowIndex: number; fields: string[]; fileColumn: string; isRequired: boolean }> = [];
+        
+        // Processar em chunks para evitar travamento da UI
+        const CHUNK_SIZE = 100; // Processar 100 linhas por vez
+        
+        for (let i = 0; i < filteredData.length; i += CHUNK_SIZE) {
+            const chunk = filteredData.slice(i, i + CHUNK_SIZE);
             
-            // Verificar APENAS campos obrigatórios mapeados
-            requiredFields.forEach(field => {
-                const mapping = mappings[field];
-                if (mapping && mapping.fileColumn) {
-                    // Pegar o valor original do Excel (antes da conversão)
-                    // row contém os dados brutos do Excel, onde as chaves são os nomes das colunas do Excel
-                    // mapping.fileColumn é o nome da coluna do Excel que foi mapeada para este campo
-                    const originalValue = row[mapping.fileColumn];
-                    
-                    // Verificar se está vazio: null, undefined, string vazia, apenas espaços, ou NaN para números
-                    let isEmpty = false;
-                    
-                    if (originalValue === null || originalValue === undefined) {
-                        isEmpty = true;
-                    } else if (typeof originalValue === 'string') {
-                        isEmpty = originalValue.trim() === '';
-                    } else if (typeof originalValue === 'number') {
-                        // Para números, considerar vazio apenas se for NaN (0 é um valor válido)
-                        isEmpty = isNaN(originalValue);
-                    } else if (typeof originalValue === 'boolean') {
-                        // Boolean nunca é vazio
-                        isEmpty = false;
-                    } else {
-                        // Para outros tipos, converter para string e verificar
-                        const strValue = String(originalValue).trim();
-                        isEmpty = strValue === '' || strValue === 'null' || strValue === 'undefined';
+            // Processar cada linha do chunk
+            chunk.forEach((row, chunkIndex) => {
+                const index = i + chunkIndex; // Índice global
+                const emptyRequiredFields: Array<{ label: string; fileColumn: string }> = [];
+                
+                // Verificar APENAS campos obrigatórios mapeados
+                requiredFields.forEach(field => {
+                    const mapping = mappings[field];
+                    if (mapping && mapping.fileColumn) {
+                        // Pegar o valor original do Excel (antes da conversão)
+                        // row contém os dados brutos do Excel, onde as chaves são os nomes das colunas do Excel
+                        // mapping.fileColumn é o nome da coluna do Excel que foi mapeada para este campo
+                        const originalValue = row[mapping.fileColumn];
+                        
+                        // Verificar se está vazio: null, undefined, string vazia, apenas espaços, ou NaN para números
+                        let isEmpty = false;
+                        
+                        // Obter o tipo de dado do campo mapeado para validação mais precisa
+                        const mappingInfo = mappings[field] as MappingInfo | undefined;
+                        const dataType = mappingInfo?.dataType;
+                        
+                        if (originalValue === null || originalValue === undefined) {
+                            isEmpty = true;
+                        } else if (typeof originalValue === 'string') {
+                            const trimmedValue = originalValue.trim();
+                            isEmpty = trimmedValue === '';
+                            
+                            // Para campos numéricos, mesmo que não esteja vazio, pode ser inválido
+                            if (isEmpty === false && dataType && ['integer', 'decimal', 'currency'].includes(dataType)) {
+                                // Tenta converter para número para verificar se é um número válido
+                                const numValue = trimmedValue.replace('R$', '').replace(/\./g, '').replace(',', '.');
+                                const parsedNum = parseFloat(numValue);
+                                isEmpty = isNaN(parsedNum);
+                            }
+                        } else if (typeof originalValue === 'number') {
+                            // Para números, considerar vazio apenas se for NaN (0 é um valor válido)
+                            isEmpty = isNaN(originalValue);
+                        } else if (typeof originalValue === 'boolean') {
+                            // Boolean nunca é vazio
+                            isEmpty = false;
+                        } else {
+                            // Para outros tipos, converter para string e verificar
+                            const strValue = String(originalValue).trim();
+                            isEmpty = strValue === '' || strValue === 'null' || strValue === 'undefined';
+                            
+                            // Para campos numéricos, mesmo que não esteja vazio, pode ser inválido
+                            if (isEmpty === false && dataType && ['integer', 'decimal', 'currency'].includes(dataType)) {
+                                // Tenta converter para número para verificar se é um número válido
+                                const numValue = strValue.replace('R$', '').replace(/\./g, '').replace(',', '.');
+                                const parsedNum = parseFloat(numValue);
+                                isEmpty = isNaN(parsedNum);
+                            }
+                        }
+                        
+                        if (isEmpty) {
+                            const fieldLabel = databaseFields.find(f => f.value === field)?.label || field;
+                            emptyRequiredFields.push({
+                                label: fieldLabel,
+                                fileColumn: mapping.fileColumn
+                            });
+                        }
                     }
-                    
-                    if (isEmpty) {
-                        const fieldLabel = databaseFields.find(f => f.value === field)?.label || field;
-                        emptyRequiredFields.push({
-                            label: fieldLabel,
-                            fileColumn: mapping.fileColumn
-                        });
-                    }
+                });
+                
+                // Adicionar apenas se houver campos obrigatórios vazios
+                if (emptyRequiredFields.length > 0) {
+                    issues.push({
+                        rowIndex: index + 1, // Linha 1-indexed para o usuário (linha do Excel)
+                        fields: emptyRequiredFields.map(f => f.label),
+                        fileColumn: emptyRequiredFields[0].fileColumn, // Primeira coluna vazia para referência
+                        isRequired: true // Sempre true, pois só validamos obrigatórios
+                    });
                 }
             });
             
-            // Adicionar apenas se houver campos obrigatórios vazios
-            if (emptyRequiredFields.length > 0) {
-                issues.push({
-                    rowIndex: index + 1, // Linha 1-indexed para o usuário (linha do Excel)
-                    fields: emptyRequiredFields.map(f => f.label),
-                    fileColumn: emptyRequiredFields[0].fileColumn, // Primeira coluna vazia para referência
-                    isRequired: true // Sempre true, pois só validamos obrigatórios
-                });
-            }
-        });
+            // Atualizar progresso
+            const progress = Math.min(100, Math.floor(((i + CHUNK_SIZE) / filteredData.length) * 100));
+            setValidationProgress(progress);
+            
+            // Yield para permitir que o navegador atualize a UI
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        
+        setValidateEmptyFields(issues);
+        setValidationExecuted(true);
+        setValidationProgress(100);
+        setIsValidationLoading(false);
+        
+        // Resetar progresso após completar
+        setTimeout(() => setValidationProgress(0), 300);
         
         return issues;
     }, [filteredData, requiredFields, mappings, databaseFields]);
+    
+    // Executar a validação automaticamente somente quando os dados forem pequenos
+    useEffect(() => {
+        // Executar validação automaticamente apenas para arquivos pequenos
+        if (filteredData.length <= 500) {  // Limite arbitrário para arquivos pequenos
+            validateEmptyFieldsAsync();
+        } else {
+            setValidationExecuted(false); // Marcar como não executado para arquivos grandes
+            setValidateEmptyFields([]); // Limpar resultados anteriores
+        }
+    }, [filteredData, validateEmptyFieldsAsync]);
     
     // Estatísticas de validação para mostrar no Passo 2
     // Agora só mostra campos obrigatórios, então todas as issues são required
@@ -447,7 +512,7 @@ export function ImportStepper({
         };
     }, [validateEmptyFields]);
 
-    const handleNextToReview = () => {
+    const handleNextToReview = async () => {
         if (!empresaId) {
             toast({ variant: "destructive", title: "Empresa Obrigatória", description: "Selecione uma empresa antes de continuar." });
             return;
@@ -457,11 +522,33 @@ export function ImportStepper({
             return;
         }
         
-        // Validar campos vazios (já calculado em useMemo)
-        if (validateEmptyFields.length > 0) {
-            setEmptyFieldsIssues(validateEmptyFields);
-            setShowEmptyFieldsDialog(true);
-            return;
+        // Executar validação se ainda não foi executada
+        if (!validationExecuted) {
+            setIsValidationLoading(true);
+            const emptyFields = await validateEmptyFieldsAsync();
+            setIsValidationLoading(false);
+            
+            if (emptyFields.length > 0) {
+                setEmptyFieldsIssues(emptyFields);
+                setShowEmptyFieldsDialog(true);
+                return;
+            }
+        } else {
+            // Se a validação já foi executada, usar os resultados existentes
+            if (validateEmptyFields.length > 0) {
+                setEmptyFieldsIssues(validateEmptyFields);
+                setShowEmptyFieldsDialog(true);
+                return;
+            }
+        }
+        
+        // Avisar o usuário se o arquivo é grande e a validação foi feita apenas em uma amostra
+        if (isLargeFile && totalFileRows && totalFileRows > filteredData.length) {
+            toast({
+                title: "Validação Parcial Concluída",
+                description: `A validação frontend verificou ${filteredData.length} linhas. O backend verificará todas as ${totalFileRows.toLocaleString('pt-BR')} linhas durante a importação.`,
+                duration: 5000,
+            });
         }
         
         // Se não houver problemas, avançar para revisão
@@ -619,7 +706,15 @@ export function ImportStepper({
                             </div>
                         </div>
                         <div className='p-4 border rounded-lg space-y-2'>
-                            <h3 className="font-semibold text-lg">Mapeamento de Colunas</h3>
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-semibold text-lg">Mapeamento de Colunas</h3>
+                                {isLargeFile && !validationExecuted && (
+                                    <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        <span>Validação pendente</span>
+                                    </div>
+                                )}
+                            </div>
                             <div className="grid gap-4 max-h-[40vh] overflow-y-auto p-2 mt-2">
                                 {databaseFields.map(dbField => (
                                     <div key={dbField.value} className="grid grid-cols-1 md:grid-cols-[1fr_2fr_1fr] gap-2 items-center">
@@ -679,6 +774,73 @@ export function ImportStepper({
                         )}
                         </div>
                         
+                        {/* Botão para executar validação manualmente - exibido apenas para arquivos grandes */}
+                        {isLargeFile && (
+                            <div className="p-4 border rounded-lg">
+                                <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold text-lg">Validação de Dados</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            {validationExecuted 
+                                                ? `Validação concluída: ${validateEmptyFields.length} campos obrigatórios vazios encontrados em ${new Set(validateEmptyFields.map(i => i.rowIndex)).size} linhas.`
+                                                : 'A validação não foi executada automaticamente devido ao tamanho do arquivo.'}
+                                        </p>
+                                        {isLargeFile && (
+                                            <p className="text-sm text-amber-600 mt-1">
+                                                <span className="font-medium">Aviso:</span> A validação verifica apenas uma amostra de {Math.min(filteredData.length, 2000)} linhas devido ao tamanho do arquivo. O backend validará todas as linhas durante a importação.
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button 
+                                            onClick={async () => {
+                                                setIsValidationLoading(true);
+                                                await validateEmptyFieldsAsync();
+                                                setIsValidationLoading(false);
+                                            }}
+                                            disabled={isValidationLoading || !isMappingValid}
+                                            variant="outline"
+                                        >
+                                            {isValidationLoading ? (
+                                                <>
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Validando... {validationProgress}%
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {validationExecuted ? 'Revalidar' : 'Validar'} Dados
+                                                </>
+                                            )}
+                                        </Button>
+                                        {isLargeFile && (
+                                            <Button 
+                                                onClick={async () => {
+                                                    toast({
+                                                        title: "Informação",
+                                                        description: `A validação atual verifica ${filteredData.length} linhas devido ao tamanho do arquivo. O backend validará todas as ${totalFileRows?.toLocaleString('pt-BR') || 'N/A'} linhas durante a importação.`,
+                                                        duration: 6000,
+                                                    });
+                                                }}
+                                                variant="outline"
+                                                size="sm"
+                                            >
+                                                Sobre a Validação
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                                {isValidationLoading && (
+                                    <div className="mt-3">
+                                        <div className="flex justify-between text-sm mb-1">
+                                            <span>Processando validação...</span>
+                                            <span>{validationProgress}%</span>
+                                        </div>
+                                        <Progress value={validationProgress} className="w-full" />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        
                         {/* Aviso de campos vazios - apenas obrigatórios */}
                         {isMappingValid && validationStats.totalIssues > 0 && (
                             <div className="p-4 border border-red-500 bg-red-50 rounded-lg">
@@ -736,7 +898,10 @@ export function ImportStepper({
                     </CardContent>
                     <CardFooter className="justify-between">
                          <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft className="mr-2 h-4 w-4"/>Voltar</Button>
-                         <Button onClick={handleNextToReview} disabled={!isMappingValid || !empresaId}>Revisar {filteredData.length} Linhas <ChevronsRight className="ml-2 h-4 w-4"/></Button>
+                         <Button onClick={handleNextToReview} disabled={!isMappingValid || !empresaId}>
+                            {isLargeFile && !validationExecuted ? 'Validar e Revisar ' : 'Revisar '}
+                            {filteredData.length} Linhas <ChevronsRight className="ml-2 h-4 w-4"/>
+                         </Button>
                     </CardFooter>
                 </Card>
             );

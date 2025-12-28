@@ -44,4 +44,3 @@ export class FilterAnalyticsDto {
   @Type(() => String)
   empresaId?: string[];
 }
-

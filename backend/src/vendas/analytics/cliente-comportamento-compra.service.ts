@@ -30,7 +30,7 @@ export class ClienteComportamentoCompraService {
 
     const vendas: any[] = await this.buscarVendasClientes(filtros);
     this.logger.log(`Encontradas ${vendas.length} vendas para análise`);
-    
+
     const comportamentosPorCliente = new Map<string, any>();
 
     // Process vendas in batches to avoid memory issues
@@ -53,32 +53,36 @@ export class ClienteComportamentoCompraService {
 
         comportamentosPorCliente.get(chave).vendas.push(venda);
       }
-      
+
       // Allow event loop to process other tasks
       if (i % (batchSize * 5) === 0) {
-        await new Promise(resolve => setImmediate(resolve));
+        await new Promise((resolve) => setImmediate(resolve));
       }
     }
 
-    this.logger.log(`Agrupadas vendas de ${comportamentosPorCliente.size} clientes únicos`);
-    
+    this.logger.log(
+      `Agrupadas vendas de ${comportamentosPorCliente.size} clientes únicos`,
+    );
+
     const comportamentos: ComportamentoCompraCliente[] = [];
     let contador = 0;
     const clientesArray = Array.from(comportamentosPorCliente.values());
-    
+
     // Process clients in smaller batches to prevent blocking
     const clientBatchSize = 10;
     for (let i = 0; i < clientesArray.length; i += clientBatchSize) {
       const batch = clientesArray.slice(i, i + clientBatchSize);
-      const batchPromises = batch.map(dados => this.analisarComportamentoCliente(dados));
+      const batchPromises = batch.map((dados) =>
+        this.analisarComportamentoCliente(dados),
+      );
       const batchResults = await Promise.all(batchPromises);
       comportamentos.push(...batchResults);
-      
+
       contador += batch.length;
       if (contador % 50 === 0) {
         this.logger.log(`Analisados ${contador} clientes...`);
         // Allow event loop to process other tasks
-        await new Promise(resolve => setImmediate(resolve));
+        await new Promise((resolve) => setImmediate(resolve));
       }
     }
 
@@ -170,12 +174,14 @@ export class ClienteComportamentoCompraService {
           select: { dataVenda: true },
           orderBy: { dataVenda: 'desc' },
         });
-        
+
         marcasMap.set(marca, {
           marca,
           quantidadeCompras: 0,
           valorTotal: 0,
-          ultimaCompra: ultimaVendaMarca ? new Date(ultimaVendaMarca.dataVenda) : new Date(venda.ano, venda.mes, 0),
+          ultimaCompra: ultimaVendaMarca
+            ? new Date(ultimaVendaMarca.dataVenda)
+            : new Date(venda.ano, venda.mes, 0),
           datas: [],
         });
       }
@@ -438,7 +444,7 @@ export class ClienteComportamentoCompraService {
           potencialReceita,
           probabilidade,
         });
-        
+
         // Limit to top 5 opportunities to avoid unnecessary processing
         if (oportunidades.length >= 5) {
           break;
@@ -456,7 +462,7 @@ export class ClienteComportamentoCompraService {
     { marca: string; percentualClientes: number }[]
   > {
     this.logger.log('Buscando top marcas globais...');
-    
+
     // Otimização: Usar agregação direta no banco ao invés de buscar todas as vendas
     const resultados: any[] = await this.prisma.$queryRaw`
       SELECT 
@@ -468,21 +474,23 @@ export class ClienteComportamentoCompraService {
       ORDER BY clientes DESC
       LIMIT 10
     `;
-    
+
     this.logger.log(`Encontradas ${resultados.length} marcas populares`);
-    
+
     return resultados.map((r: any) => ({
       marca: r.marca,
-      percentualClientes: parseFloat(r.percentual_clientes)
+      percentualClientes: parseFloat(r.percentual_clientes),
     }));
   }
 
   /**
    * Busca vendas dos clientes
    */
-  private async buscarVendasClientes(filtros: FiltrosPerfilClienteDto): Promise<any[]> {
+  private async buscarVendasClientes(
+    filtros: FiltrosPerfilClienteDto,
+  ): Promise<any[]> {
     this.logger.log('Buscando vendas para análise de comportamento...');
-    
+
     // Otimização: Usar raw query para melhor performance
     let query = `
       SELECT 
@@ -498,40 +506,40 @@ export class ClienteComportamentoCompraService {
       FROM "VendaAnalytics"
       WHERE 1=1
     `;
-    
+
     const params: any[] = [];
-    
+
     if (filtros.ano && filtros.ano.length > 0) {
       query += ` AND ano = ANY($${params.length + 1})`;
       params.push(filtros.ano);
     }
-    
+
     if (filtros.mes && filtros.mes.length > 0) {
       query += ` AND mes = ANY($${params.length + 1})`;
       params.push(filtros.mes);
     }
-    
+
     if (filtros.nomeFantasia && filtros.nomeFantasia.length > 0) {
       query += ` AND "nomeFantasia" = ANY($${params.length + 1})`;
       params.push(filtros.nomeFantasia);
     }
-    
+
     if (filtros.empresaId && filtros.empresaId.length > 0) {
       query += ` AND "empresaId" = ANY($${params.length + 1})`;
       params.push(filtros.empresaId);
     }
-    
+
     if (filtros.uf && filtros.uf.length > 0) {
       query += ` AND uf = ANY($${params.length + 1})`;
       params.push(filtros.uf);
     }
-    
+
     this.logger.log('Executando consulta de vendas otimizada...');
-    
+
     const vendas: any[] = await this.prisma.$queryRawUnsafe(query, ...params);
-    
+
     this.logger.log(`Consulta concluída: ${vendas.length} vendas encontradas`);
-    
+
     return vendas;
   }
 

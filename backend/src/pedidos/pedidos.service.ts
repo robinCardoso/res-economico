@@ -37,7 +37,8 @@ export class PedidosService {
 
     // Garantir que page e limit são números (conversão explícita para evitar problemas com query params)
     const pageNum = typeof page === 'string' ? parseInt(page, 10) : page || 1;
-    const limitNum = typeof limit === 'string' ? parseInt(limit, 10) : limit || 50;
+    const limitNum =
+      typeof limit === 'string' ? parseInt(limit, 10) : limit || 50;
 
     const skip = (pageNum - 1) * limitNum;
 
@@ -503,4 +504,3 @@ export class PedidosService {
     );
   }
 }
-

@@ -46,10 +46,10 @@ export class BravoConfigController {
         if (!dto.baseUrl) missingFields.push('URL da API');
         if (!dto.cliente) missingFields.push('Código do Cliente');
         if (!dto.token) missingFields.push('Token');
-        
+
         throw new Error(
           `Campos obrigatórios não preenchidos: ${missingFields.join(', ')}. ` +
-          `Preencha todos os campos para configurar o Bravo ERP corretamente.`,
+            `Preencha todos os campos para configurar o Bravo ERP corretamente.`,
         );
       }
 
@@ -60,7 +60,10 @@ export class BravoConfigController {
       }
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao salvar configuração';
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Erro desconhecido ao salvar configuração';
       throw new HttpException(
         {
           success: false,
@@ -79,7 +82,8 @@ export class BravoConfigController {
       if (connected) {
         return {
           success: true,
-          message: '✅ Conexão com Bravo ERP estabelecida com sucesso! A configuração está correta.',
+          message:
+            '✅ Conexão com Bravo ERP estabelecida com sucesso! A configuração está correta.',
         };
       } else {
         return {
@@ -89,7 +93,8 @@ export class BravoConfigController {
         };
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido';
+      const errorMsg =
+        error instanceof Error ? error.message : 'Erro desconhecido';
       return {
         success: false,
         message:

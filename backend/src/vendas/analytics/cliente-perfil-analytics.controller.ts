@@ -33,10 +33,16 @@ export class ClientePerfilAnalyticsController {
     const filtros: FiltrosPerfilClienteDto = {};
 
     if (ano) {
-      filtros.ano = ano.split(',').map(Number).filter((n) => !isNaN(n));
+      filtros.ano = ano
+        .split(',')
+        .map(Number)
+        .filter((n) => !isNaN(n));
     }
     if (mes) {
-      filtros.mes = mes.split(',').map(Number).filter((n) => !isNaN(n));
+      filtros.mes = mes
+        .split(',')
+        .map(Number)
+        .filter((n) => !isNaN(n));
     }
     if (nomeFantasia) {
       filtros.nomeFantasia = nomeFantasia.split(',');
@@ -71,10 +77,16 @@ export class ClientePerfilAnalyticsController {
     const filtros: FiltrosPerfilClienteDto = {};
 
     if (ano) {
-      filtros.ano = ano.split(',').map(Number).filter((n) => !isNaN(n));
+      filtros.ano = ano
+        .split(',')
+        .map(Number)
+        .filter((n) => !isNaN(n));
     }
     if (mes) {
-      filtros.mes = mes.split(',').map(Number).filter((n) => !isNaN(n));
+      filtros.mes = mes
+        .split(',')
+        .map(Number)
+        .filter((n) => !isNaN(n));
     }
     if (nomeFantasia) {
       filtros.nomeFantasia = nomeFantasia.split(',');
@@ -95,9 +107,8 @@ export class ClientePerfilAnalyticsController {
       filtros.offset = parseInt(offset, 10);
     }
 
-    const relatorios = await this.clientePerfilService.gerarRelatoriosClientes(
-      filtros,
-    );
+    const relatorios =
+      await this.clientePerfilService.gerarRelatoriosClientes(filtros);
 
     // Aplicar paginação se necessário
     if (filtros.limit || filtros.offset) {
@@ -131,10 +142,16 @@ export class ClientePerfilAnalyticsController {
     const filtros: FiltrosPerfilClienteDto = {};
 
     if (ano) {
-      filtros.ano = ano.split(',').map(Number).filter((n) => !isNaN(n));
+      filtros.ano = ano
+        .split(',')
+        .map(Number)
+        .filter((n) => !isNaN(n));
     }
     if (mes) {
-      filtros.mes = mes.split(',').map(Number).filter((n) => !isNaN(n));
+      filtros.mes = mes
+        .split(',')
+        .map(Number)
+        .filter((n) => !isNaN(n));
     }
     if (empresaId) {
       filtros.empresaId = [empresaId];
@@ -163,10 +180,16 @@ export class ClientePerfilAnalyticsController {
     const filtros: FiltrosPerfilClienteDto = {};
 
     if (ano) {
-      filtros.ano = ano.split(',').map(Number).filter((n) => !isNaN(n));
+      filtros.ano = ano
+        .split(',')
+        .map(Number)
+        .filter((n) => !isNaN(n));
     }
     if (mes) {
-      filtros.mes = mes.split(',').map(Number).filter((n) => !isNaN(n));
+      filtros.mes = mes
+        .split(',')
+        .map(Number)
+        .filter((n) => !isNaN(n));
     }
     if (nomeFantasia) {
       filtros.nomeFantasia = nomeFantasia.split(',');

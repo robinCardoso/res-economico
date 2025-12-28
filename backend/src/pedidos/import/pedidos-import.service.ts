@@ -285,7 +285,10 @@ export class PedidosImportService {
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido';
       const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error(`Erro ao importar pedidos: ${errorMessage}`, errorStack);
+      this.logger.error(
+        `Erro ao importar pedidos: ${errorMessage}`,
+        errorStack,
+      );
 
       // Salvar log de erro
       try {
@@ -318,7 +321,9 @@ export class PedidosImportService {
         },
       });
 
-      throw new BadRequestException(`Erro ao importar pedidos: ${errorMessage}`);
+      throw new BadRequestException(
+        `Erro ao importar pedidos: ${errorMessage}`,
+      );
     }
   }
 
@@ -404,7 +409,10 @@ export class PedidosImportService {
 
       // Atualizar analytics em lotes durante a importação (não apenas no final)
       // Isso evita problemas de memória e timeout com grandes volumes de dados
-      if (linhasProcessadas % ANALYTICS_BATCH_SIZE === 0 || linhasProcessadas === totalLinhasParaProcessar) {
+      if (
+        linhasProcessadas % ANALYTICS_BATCH_SIZE === 0 ||
+        linhasProcessadas === totalLinhasParaProcessar
+      ) {
         try {
           const pedidosParaAnalytics = chunkComEmpresaId.map((p) => ({
             dataPedido: p.dataPedido,
@@ -416,11 +424,11 @@ export class PedidosImportService {
             valorTotal: p.valorTotal,
             quantidade: p.quantidade,
           }));
-          
+
           // Processar analytics de forma assíncrona para não bloquear a importação
           // Mas aguardar para garantir que não haja perda de dados
           await this.analyticsService.atualizarAnalytics(pedidosParaAnalytics);
-          
+
           this.logger.log(
             `Analytics atualizado para lote de ${pedidosParaAnalytics.length} pedidos (${linhasProcessadas}/${totalLinhasParaProcessar})`,
           );
@@ -911,4 +919,3 @@ export class PedidosImportService {
     return { sucesso, erros };
   }
 }
-

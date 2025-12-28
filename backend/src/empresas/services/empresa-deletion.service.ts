@@ -1,6 +1,10 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
-import { DeleteEmpresaDto, EmpresaDeleteResponseDto, ValidacaoDeletionDto } from '../dto/delete-empresa.dto';
+import {
+  DeleteEmpresaDto,
+  EmpresaDeleteResponseDto,
+  ValidacaoDeletionDto,
+} from '../dto/delete-empresa.dto';
 
 @Injectable()
 export class EmpresaDeletionService {
@@ -32,7 +36,12 @@ export class EmpresaDeletionService {
     };
   }
 
-  async deletarComForca(empresaId: string): Promise<{ vendas: number; pedidos: number; uploads: number; outros: number }> {
+  async deletarComForca(empresaId: string): Promise<{
+    vendas: number;
+    pedidos: number;
+    uploads: number;
+    outros: number;
+  }> {
     // Deletar em ordem de dependência
     const [vendas, pedidos, uploads] = await Promise.all([
       this.prisma.venda.deleteMany({ where: { empresaId } }),
@@ -58,7 +67,9 @@ export class EmpresaDeletionService {
     });
 
     if (!empresa) {
-      throw new BadRequestException(`Empresa com ID ${empresaId} não encontrada`);
+      throw new BadRequestException(
+        `Empresa com ID ${empresaId} não encontrada`,
+      );
     }
 
     // Validar deleção
@@ -97,7 +108,8 @@ export class EmpresaDeletionService {
       empresaNome: empresa.razaoSocial,
       deletado: true,
       dadosDeletados:
-        Object.values(dadosDeletados).some((v) => v > 0) || validacao.bloqueios.outrosDados > 0
+        Object.values(dadosDeletados).some((v) => v > 0) ||
+        validacao.bloqueios.outrosDados > 0
           ? {
               vendas: dadosDeletados.vendas,
               pedidos: dadosDeletados.pedidos,

@@ -17,9 +17,7 @@ import {
  */
 @Injectable()
 export class ClienteAlertasRecomendacoesService {
-  private readonly logger = new Logger(
-    ClienteAlertasRecomendacoesService.name,
-  );
+  private readonly logger = new Logger(ClienteAlertasRecomendacoesService.name);
 
   constructor(private prisma: PrismaService) {}
 
@@ -54,11 +52,13 @@ export class ClienteAlertasRecomendacoesService {
           select: { dataVenda: true },
           orderBy: { dataVenda: 'desc' }, // Mais recente primeiro para última compra
         });
-        
+
         clientesMap.set(chave, {
           nomeFantasia: venda.nomeFantasia,
           empresaId: venda.empresaId,
-          ultimaCompra: primeiraVendaReal ? new Date(primeiraVendaReal.dataVenda) : new Date(venda.ano, venda.mes, 0),
+          ultimaCompra: primeiraVendaReal
+            ? new Date(primeiraVendaReal.dataVenda)
+            : new Date(venda.ano, venda.mes, 0),
           valorTotal: 0,
           quantidadeCompras: 0,
         });
@@ -73,8 +73,7 @@ export class ClienteAlertasRecomendacoesService {
     // Gerar alertas de inatividade
     for (const [, dados] of clientesMap) {
       const diasSemCompra = Math.floor(
-        (hoje.getTime() - dados.ultimaCompra.getTime()) /
-          (1000 * 60 * 60 * 24),
+        (hoje.getTime() - dados.ultimaCompra.getTime()) / (1000 * 60 * 60 * 24),
       );
 
       // Alerta: Cliente inativo há mais de 30 dias

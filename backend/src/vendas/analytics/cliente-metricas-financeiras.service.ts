@@ -62,9 +62,7 @@ export class ClienteMetricasFinanceirasService {
     // Ordenar por receita total (maior para menor)
     metricas.sort((a, b) => b.receitaTotal - a.receitaTotal);
 
-    this.logger.log(
-      `Métricas calculadas para ${metricas.length} clientes`,
-    );
+    this.logger.log(`Métricas calculadas para ${metricas.length} clientes`);
 
     return metricas;
   }
@@ -72,7 +70,9 @@ export class ClienteMetricasFinanceirasService {
   /**
    * Calcula métricas financeiras para um cliente específico
    */
-  async calcularMetricasCliente(dados: any): Promise<MetricasFinanceirasCliente> {
+  async calcularMetricasCliente(
+    dados: any,
+  ): Promise<MetricasFinanceirasCliente> {
     const vendas = dados.vendas;
 
     // Receita total
@@ -115,15 +115,20 @@ export class ClienteMetricasFinanceirasService {
         inicio: new Date(v.ano, v.mes - 1, 1),
         fim: new Date(v.ano, v.mes, 0),
       }));
-      primeiraCompra = new Date(Math.min(...datasCompra.map(d => d.inicio.getTime())));
-      ultimaCompra = new Date(Math.max(...datasCompra.map(d => d.fim.getTime())));
+      primeiraCompra = new Date(
+        Math.min(...datasCompra.map((d) => d.inicio.getTime())),
+      );
+      ultimaCompra = new Date(
+        Math.max(...datasCompra.map((d) => d.fim.getTime())),
+      );
     }
 
     // Meses ativo
     const mesesAtivo = this.calcularMesesAtivo(primeiraCompra, ultimaCompra);
 
     // Receita média
-    const receitaMedia = quantidadeCompras > 0 ? receitaTotal / quantidadeCompras : 0;
+    const receitaMedia =
+      quantidadeCompras > 0 ? receitaTotal / quantidadeCompras : 0;
     const receitaMediaMensal = mesesAtivo > 0 ? receitaTotal / mesesAtivo : 0;
     const receitaMediaAnual = receitaMediaMensal * 12;
 
@@ -189,7 +194,7 @@ export class ClienteMetricasFinanceirasService {
       // Se nenhum ano foi especificado, usa apenas o ano atual
       where.ano = anoAtual;
     }
-    
+
     if (filtros.mes && filtros.mes.length > 0) {
       where.mes = { in: filtros.mes };
     }

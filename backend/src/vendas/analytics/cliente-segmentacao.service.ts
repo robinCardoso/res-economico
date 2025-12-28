@@ -69,14 +69,11 @@ export class ClienteSegmentacaoService {
     for (const [, dados] of dadosPorCliente) {
       // Recência: dias desde a última compra
       const recencia = Math.floor(
-        (hoje.getTime() - dados.ultimaCompra.getTime()) /
-          (1000 * 60 * 60 * 24),
+        (hoje.getTime() - dados.ultimaCompra.getTime()) / (1000 * 60 * 60 * 24),
       );
 
       // Frequência: número de meses com compras
-      const mesesUnicos = new Set(
-        dados.vendas.map((v) => `${v.ano}-${v.mes}`),
-      );
+      const mesesUnicos = new Set(dados.vendas.map((v) => `${v.ano}-${v.mes}`));
       const frequencia = mesesUnicos.size;
 
       // Valor Monetário: total gasto
@@ -112,9 +109,7 @@ export class ClienteSegmentacaoService {
     }>,
   ): SegmentacaoCliente[] {
     // Ordenar por cada métrica para calcular quartis
-    const recencias = metricasRFM
-      .map((m) => m.recencia)
-      .sort((a, b) => a - b);
+    const recencias = metricasRFM.map((m) => m.recencia).sort((a, b) => a - b);
     const frequencias = metricasRFM
       .map((m) => m.frequencia)
       .sort((a, b) => b - a); // Maior é melhor
@@ -131,17 +126,24 @@ export class ClienteSegmentacaoService {
 
     for (const metrica of metricasRFM) {
       // Score de recência (menor é melhor, então invertemos)
-      const scoreRecencia = 6 - this.obterScore(metrica.recencia, quintilRecencia);
+      const scoreRecencia =
+        6 - this.obterScore(metrica.recencia, quintilRecencia);
 
       // Score de frequência (maior é melhor)
-      const scoreFrequencia = this.obterScore(metrica.frequencia, quintilFrequencia);
+      const scoreFrequencia = this.obterScore(
+        metrica.frequencia,
+        quintilFrequencia,
+      );
 
       // Score de valor monetário (maior é melhor)
-      const scoreMonetario = this.obterScore(metrica.valorMonetario, quintilValor);
+      const scoreMonetario = this.obterScore(
+        metrica.valorMonetario,
+        quintilValor,
+      );
 
       // Score RFM combinado (média ponderada)
       const scoreRFM = Math.round(
-        (scoreRecencia * 0.3 + scoreFrequencia * 0.3 + scoreMonetario * 0.4),
+        scoreRecencia * 0.3 + scoreFrequencia * 0.3 + scoreMonetario * 0.4,
       );
 
       // Determinar segmento
@@ -227,11 +229,7 @@ export class ClienteSegmentacaoService {
     scoreMonetario: number,
   ): SegmentoCliente {
     // Campeões: Alta recência, frequência e valor
-    if (
-      scoreRecencia >= 4 &&
-      scoreFrequencia >= 4 &&
-      scoreMonetario >= 4
-    ) {
+    if (scoreRecencia >= 4 && scoreFrequencia >= 4 && scoreMonetario >= 4) {
       return 'campeoes';
     }
 
@@ -251,10 +249,7 @@ export class ClienteSegmentacaoService {
     }
 
     // Em risco: Gastavam muito, não compram recentemente
-    if (
-      scoreRecencia <= 2 &&
-      (scoreFrequencia >= 3 || scoreMonetario >= 3)
-    ) {
+    if (scoreRecencia <= 2 && (scoreFrequencia >= 3 || scoreMonetario >= 3)) {
       return 'em_risco';
     }
 
@@ -285,11 +280,9 @@ export class ClienteSegmentacaoService {
         'Clientes promissores: Novos clientes com potencial de crescimento',
       necessitam_atencao:
         'Necessitam atenção: Recência moderada, podem estar perdendo interesse',
-      em_risco:
-        'Em risco: Clientes valiosos que não compram há algum tempo',
+      em_risco: 'Em risco: Clientes valiosos que não compram há algum tempo',
       perdidos: 'Perdidos: Última compra há muito tempo, alto risco de churn',
-      hibernando:
-        'Hibernando: Baixa frequência e última compra antiga',
+      hibernando: 'Hibernando: Baixa frequência e última compra antiga',
     };
 
     return descricoes[segmento];
@@ -309,11 +302,7 @@ export class ClienteSegmentacaoService {
     }
 
     // Médio potencial: Scores medianos
-    if (
-      scoreRecencia >= 3 &&
-      scoreFrequencia >= 2 &&
-      scoreMonetario >= 2
-    ) {
+    if (scoreRecencia >= 3 && scoreFrequencia >= 2 && scoreMonetario >= 2) {
       return 'medio';
     }
 
@@ -368,7 +357,7 @@ export class ClienteSegmentacaoService {
     }
 
     // Ajustar pelo score de frequência
-    const ajusteFrequencia = 1 + (scoreFrequencia / 10);
+    const ajusteFrequencia = 1 + scoreFrequencia / 10;
 
     return valorAtual * multiplicador * ajusteFrequencia - valorAtual;
   }
@@ -387,7 +376,7 @@ export class ClienteSegmentacaoService {
       // Se nenhum ano foi especificado, usa apenas o ano atual
       where.ano = anoAtual;
     }
-    
+
     if (filtros.mes && filtros.mes.length > 0) {
       where.mes = { in: filtros.mes };
     }

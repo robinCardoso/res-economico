@@ -29,4 +29,3 @@ export class RecalcularDadosProdutoDto {
   @IsBoolean()
   atualizarSubgrupo?: boolean;
 }
-

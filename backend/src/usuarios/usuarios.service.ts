@@ -33,15 +33,7 @@ export class UsuariosService {
         ...dto,
         senha: hashedPassword,
       },
-      include: {
-        empresa: {
-          select: {
-            id: true,
-            razaoSocial: true,
-            filial: true,
-          },
-        },
-      },
+      include: {}, // Sem relacionamento de empresa
     });
 
     // Não retornar senha
@@ -66,7 +58,7 @@ export class UsuariosService {
   }
 
   async findAll(filters: FilterUsuariosDto) {
-    const { page = 1, limit = 20, search, roles, ativo, empresaId } = filters;
+    const { page = 1, limit = 20, search, roles, empresaId } = filters;
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -80,10 +72,6 @@ export class UsuariosService {
 
     if (roles && roles.length > 0) {
       where.roles = { hasSome: roles };
-    }
-
-    if (ativo !== undefined) {
-      where.ativo = ativo;
     }
 
     if (empresaId) {
@@ -100,23 +88,9 @@ export class UsuariosService {
           email: true,
           nome: true,
           roles: true,
-          ativo: true,
           empresaId: true,
-          ultimoAcesso: true,
           createdAt: true,
           updatedAt: true,
-          empresa: {
-            select: {
-              id: true,
-              razaoSocial: true,
-              filial: true,
-            },
-          },
-          _count: {
-            select: {
-              clientesAssociados: true,
-            },
-          },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -142,23 +116,9 @@ export class UsuariosService {
         email: true,
         nome: true,
         roles: true,
-        ativo: true,
         empresaId: true,
-        ultimoAcesso: true,
         createdAt: true,
         updatedAt: true,
-        empresa: {
-          select: {
-            id: true,
-            razaoSocial: true,
-            filial: true,
-          },
-        },
-        _count: {
-          select: {
-            clientesAssociados: true,
-          },
-        },
       },
     });
 
@@ -197,18 +157,9 @@ export class UsuariosService {
         email: true,
         nome: true,
         roles: true,
-        ativo: true,
         empresaId: true,
-        ultimoAcesso: true,
         createdAt: true,
         updatedAt: true,
-        empresa: {
-          select: {
-            id: true,
-            razaoSocial: true,
-            filial: true,
-          },
-        },
       },
     });
 
@@ -233,7 +184,9 @@ export class UsuariosService {
 
     // Não permitir deletar o próprio usuário
     if (id === deletedBy) {
-      throw new BadRequestException('Você não pode deletar seu próprio usuário');
+      throw new BadRequestException(
+        'Você não pode deletar seu próprio usuário',
+      );
     }
 
     await this.prisma.usuario.delete({
@@ -260,33 +213,11 @@ export class UsuariosService {
   async toggleStatus(id: string, updatedBy: string) {
     const usuario = await this.findOne(id);
 
-    const updated = await this.prisma.usuario.update({
-      where: { id },
-      data: { ativo: !usuario.ativo },
-      select: {
-        id: true,
-        email: true,
-        nome: true,
-        roles: true,
-        ativo: true,
-      },
-    });
-
-    // Log de auditoria
-    await this.prisma.logAuditoria.create({
-      data: {
-        recurso: 'Usuario',
-        acao: 'ALTERAR_STATUS',
-        usuarioId: updatedBy,
-        dados: {
-          usuarioId: updated.id,
-          statusAnterior: usuario.ativo,
-          statusNovo: updated.ativo,
-        },
-      },
-    });
-
-    return updated;
+    // Campo 'ativo' foi removido do modelo Usuario
+    // Este método não é mais necessário
+    throw new BadRequestException(
+      'Campo "ativo" foi removido do modelo Usuario',
+    );
   }
 
   async resetPassword(id: string, novaSenha: string, updatedBy: string) {
@@ -338,7 +269,9 @@ export class UsuariosService {
     }
 
     if (novaSenha.length < 6) {
-      throw new BadRequestException('A nova senha deve ter no mínimo 6 caracteres');
+      throw new BadRequestException(
+        'A nova senha deve ter no mínimo 6 caracteres',
+      );
     }
 
     const hashedPassword = await bcrypt.hash(novaSenha, 10);

@@ -144,4 +144,3 @@ export class PedidosAnalyticsFilterService {
     return { success: true, message: 'Filtro deletado com sucesso' };
   }
 }
-

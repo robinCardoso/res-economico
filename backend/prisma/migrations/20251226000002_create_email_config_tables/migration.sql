@@ -1,15 +1,17 @@
 -- =====================================================
 -- EMAIL CONFIGURATION TABLES
+-- Esta migração verifica se as tabelas já existem antes de criar
+-- pois a migração 20251224173928_add_configuracao_email já pode ter criado
 -- =====================================================
 
--- CreateEnum StatusEnvioEmail
+-- CreateEnum StatusEnvioEmail (se não existir)
 DO $$ BEGIN
   CREATE TYPE "StatusEnvioEmail" AS ENUM ('PENDENTE', 'ENVIADO', 'FALHA', 'CANCELADO');
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
 
--- CreateTable ConfiguracaoEmail
+-- CreateTable ConfiguracaoEmail (se não existir)
 CREATE TABLE IF NOT EXISTS "ConfiguracaoEmail" (
     "id" TEXT NOT NULL,
     "nome" TEXT NOT NULL,
@@ -26,10 +28,18 @@ CREATE TABLE IF NOT EXISTS "ConfiguracaoEmail" (
     CONSTRAINT "ConfiguracaoEmail_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE INDEX "ConfiguracaoEmail_ativo_idx" ON "ConfiguracaoEmail"("ativo");
+-- CreateIndex (se não existir)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes 
+    WHERE indexname = 'ConfiguracaoEmail_ativo_idx'
+  ) THEN
+    CREATE INDEX "ConfiguracaoEmail_ativo_idx" ON "ConfiguracaoEmail"("ativo");
+  END IF;
+END $$;
 
--- CreateTable LogEnvioEmail
+-- CreateTable LogEnvioEmail (se não existir)
 CREATE TABLE IF NOT EXISTS "LogEnvioEmail" (
     "id" TEXT NOT NULL,
     "configuracaoId" TEXT NOT NULL,
@@ -45,13 +55,39 @@ CREATE TABLE IF NOT EXISTS "LogEnvioEmail" (
     CONSTRAINT "LogEnvioEmail_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE INDEX "LogEnvioEmail_configuracaoId_idx" ON "LogEnvioEmail"("configuracaoId");
-CREATE INDEX "LogEnvioEmail_status_idx" ON "LogEnvioEmail"("status");
-CREATE INDEX "LogEnvioEmail_createdAt_idx" ON "LogEnvioEmail"("createdAt");
-CREATE INDEX "LogEnvioEmail_destinatario_idx" ON "LogEnvioEmail"("destinatario");
+-- CreateIndex (se não existir)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes 
+    WHERE indexname = 'LogEnvioEmail_configuracaoId_idx'
+  ) THEN
+    CREATE INDEX "LogEnvioEmail_configuracaoId_idx" ON "LogEnvioEmail"("configuracaoId");
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes 
+    WHERE indexname = 'LogEnvioEmail_status_idx'
+  ) THEN
+    CREATE INDEX "LogEnvioEmail_status_idx" ON "LogEnvioEmail"("status");
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes 
+    WHERE indexname = 'LogEnvioEmail_createdAt_idx'
+  ) THEN
+    CREATE INDEX "LogEnvioEmail_createdAt_idx" ON "LogEnvioEmail"("createdAt");
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes 
+    WHERE indexname = 'LogEnvioEmail_destinatario_idx'
+  ) THEN
+    CREATE INDEX "LogEnvioEmail_destinatario_idx" ON "LogEnvioEmail"("destinatario");
+  END IF;
+END $$;
 
--- AddForeignKey constraints
+-- AddForeignKey constraints (se não existir)
 DO $$ 
 BEGIN
   -- LogEnvioEmail -> ConfiguracaoEmail

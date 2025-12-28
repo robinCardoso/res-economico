@@ -48,25 +48,10 @@ export class PedidosAnalyticsService {
     >();
 
     pedidos.forEach((pedido) => {
-      // Garantir que a data seja tratada como UTC
-      // Se pedido.dataPedido já for Date, usar diretamente, senão converter
-      let data: Date;
-      if (pedido.dataPedido instanceof Date) {
-        data = pedido.dataPedido;
-      } else {
-        // Se for string, criar Date e garantir UTC
-        data = new Date(pedido.dataPedido);
-      }
-      
-      // Se a data for inválida, pular este pedido
-      if (isNaN(data.getTime())) {
-        this.logger.warn(`Data inválida para pedido: ${JSON.stringify(pedido)}`);
-        return;
-      }
-      
+      const data = new Date(pedido.dataPedido);
       // Usar UTC para garantir consistência com o banco de dados
       const ano = data.getUTCFullYear();
-      const mes = data.getUTCMonth() + 1; // 1-12 (getUTCMonth retorna 0-11)
+      const mes = data.getUTCMonth() + 1; // 1-12
       const nomeFantasia = pedido.nomeFantasia || 'DESCONHECIDO';
       const marca = pedido.marca || 'DESCONHECIDA';
       const grupo = pedido.grupo || 'DESCONHECIDO';
@@ -107,7 +92,7 @@ export class PedidosAnalyticsService {
 
       // Usar Promise.allSettled para garantir que erros em um item não parem o processamento
       const results = await Promise.allSettled(
-        batch.map((analytics) => this.upsertAnalytics(analytics))
+        batch.map((analytics) => this.upsertAnalytics(analytics)),
       );
 
       // Contar sucessos e erros para logging
@@ -129,7 +114,9 @@ export class PedidosAnalyticsService {
       }
     }
 
-    this.logger.log(`Analytics atualizado com sucesso: ${analyticsArray.length} entradas processadas`);
+    this.logger.log(
+      `Analytics atualizado com sucesso: ${analyticsArray.length} entradas processadas`,
+    );
   }
 
   /**
@@ -152,8 +139,6 @@ export class PedidosAnalyticsService {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         // Usar SQL raw com ON CONFLICT para fazer upsert atômico
-        // IMPORTANTE: Substituir valores em vez de somar para evitar duplicação
-        // Quando um pedido é reimportado, os analytics devem refletir o valor mais recente
         await this.prisma.$executeRaw`
           INSERT INTO "PedidoAnalytics" (
             "id", "ano", "mes", "nomeFantasia", "marca", "grupo", "subgrupo", "empresaId",
@@ -175,8 +160,8 @@ export class PedidosAnalyticsService {
           )
           ON CONFLICT ("ano", "mes", "nomeFantasia", "marca", "grupo", "subgrupo", "empresaId")
           DO UPDATE SET
-            "totalValor" = EXCLUDED."totalValor",
-            "totalQuantidade" = EXCLUDED."totalQuantidade",
+            "totalValor" = "PedidoAnalytics"."totalValor" + ${analytics.totalValor}::decimal,
+            "totalQuantidade" = "PedidoAnalytics"."totalQuantidade" + ${analytics.totalQuantidade}::decimal,
             "updatedAt" = NOW()
         `;
         // Sucesso - sair do loop de retry
@@ -207,8 +192,7 @@ export class PedidosAnalyticsService {
 
         // Se não for erro recuperável ou esgotou tentativas, lançar erro
         if (attempt === MAX_RETRIES) {
-          const errorStack =
-            error instanceof Error ? error.stack : undefined;
+          const errorStack = error instanceof Error ? error.stack : undefined;
           this.logger.error(
             `Erro ao fazer upsert de analytics após ${MAX_RETRIES} tentativas: ${errorMessage}. Dados: ${JSON.stringify(analytics)}`,
             errorStack,
@@ -290,84 +274,6 @@ export class PedidosAnalyticsService {
           typeof anoAtual === 'object' && 'gte' in (anoAtual || {})
             ? { ...anoAtual, lte: fim.getUTCFullYear() }
             : { lte: fim.getUTCFullYear() };
-      }
-    }
-
-    return this.prisma.pedidoAnalytics.findMany({
-      where,
-      orderBy: [{ ano: 'desc' }, { mes: 'desc' }, { nomeFantasia: 'asc' }],
-    });
-  }
-
-  /**
-   * Busca analytics com filtros múltiplos (arrays)
-   * IMPORTANTE: Este método aceita arrays para permitir seleção múltipla de filtros
-   */
-  async buscarAnalyticsComFiltros(filtros: {
-    ano?: number[];
-    mes?: number[];
-    nomeFantasia?: string[];
-    marca?: string[];
-    grupo?: string[];
-    subgrupo?: string[];
-    empresaId?: string[];
-    dataInicio?: Date;
-    dataFim?: Date;
-  }) {
-    const where: {
-      ano?: number | { in?: number[]; gte?: number; lte?: number };
-      mes?: { in: number[] };
-      nomeFantasia?: { in: string[] };
-      marca?: { in: string[] };
-      grupo?: { in: string[] };
-      subgrupo?: { in: string[] };
-      empresaId?: { in: string[] };
-    } = {};
-
-    // Filtros múltiplos (arrays)
-    if (filtros.ano && filtros.ano.length > 0) {
-      where.ano = { in: filtros.ano };
-    }
-
-    if (filtros.mes && filtros.mes.length > 0) {
-      where.mes = { in: filtros.mes };
-    }
-
-    if (filtros.nomeFantasia && filtros.nomeFantasia.length > 0) {
-      where.nomeFantasia = { in: filtros.nomeFantasia };
-    }
-
-    if (filtros.marca && filtros.marca.length > 0) {
-      where.marca = { in: filtros.marca };
-    }
-
-    if (filtros.grupo && filtros.grupo.length > 0) {
-      where.grupo = { in: filtros.grupo };
-    }
-
-    if (filtros.subgrupo && filtros.subgrupo.length > 0) {
-      where.subgrupo = { in: filtros.subgrupo };
-    }
-
-    if (filtros.empresaId && filtros.empresaId.length > 0) {
-      where.empresaId = { in: filtros.empresaId };
-    }
-
-    // Filtros de data (usando ano e mês) - sobrescreve filtro de ano se fornecido
-    if (filtros.dataInicio || filtros.dataFim) {
-      if (filtros.dataInicio && filtros.dataFim) {
-        const inicio = new Date(filtros.dataInicio);
-        const fim = new Date(filtros.dataFim);
-        where.ano = {
-          gte: inicio.getUTCFullYear(),
-          lte: fim.getUTCFullYear(),
-        };
-      } else if (filtros.dataInicio) {
-        const inicio = new Date(filtros.dataInicio);
-        where.ano = { ...((where.ano as object) || {}), gte: inicio.getUTCFullYear() } as { in?: number[]; gte?: number; lte?: number };
-      } else if (filtros.dataFim) {
-        const fim = new Date(filtros.dataFim);
-        where.ano = { ...((where.ano as object) || {}), lte: fim.getUTCFullYear() } as { in?: number[]; gte?: number; lte?: number };
       }
     }
 
@@ -489,12 +395,15 @@ export class PedidosAnalyticsService {
       this.recalculoStatus.etapa = 'limpeza';
       const registrosDeletados = await this.prisma.pedidoAnalytics.deleteMany({
         where: {
-          ano: dataInicio || dataFim
-            ? {
-                gte: dataInicio ? new Date(dataInicio).getUTCFullYear() : undefined,
-                lte: dataFim ? new Date(dataFim).getUTCFullYear() : undefined,
-              }
-            : undefined,
+          ano:
+            dataInicio || dataFim
+              ? {
+                  gte: dataInicio
+                    ? new Date(dataInicio).getUTCFullYear()
+                    : undefined,
+                  lte: dataFim ? new Date(dataFim).getUTCFullYear() : undefined,
+                }
+              : undefined,
         },
       });
       this.recalculoStatus.registrosDeletados = registrosDeletados.count;
@@ -538,7 +447,7 @@ export class PedidosAnalyticsService {
           subgrupo: p.subgrupo || 'DESCONHECIDO',
           empresaId: p.empresaId || undefined,
           valorTotal: p.valorTotal,
-          quantidade: p.quantidade,
+          quantidade: p.quantidade ?? new Decimal(0),
         }));
 
         // Atualizar analytics
@@ -792,4 +701,3 @@ export class PedidosAnalyticsService {
     return ((valorAtual - valorAnterior) / valorAnterior) * 100;
   }
 }
-

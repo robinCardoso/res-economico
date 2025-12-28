@@ -139,14 +139,13 @@ async function main() {
     const senhaHash = await bcrypt.hash('Admin@123456', 10);
     const adminUser = await prisma.usuario.upsert({
       where: { email: 'admin@painel.com.br' },
-      update: { ativo: true },
+      update: {},
       create: {
         email: 'admin@painel.com.br',
         senha: senhaHash,
         nome: 'Administrador do Sistema',
         roles: ['admin', 'user'],
         empresaId: empresaId,
-        ativo: true,
       },
     });
 
@@ -178,14 +177,13 @@ async function main() {
       const senhaHash = await bcrypt.hash(userData.senha, 10);
       const user = await prisma.usuario.upsert({
         where: { email: userData.email },
-        update: { ativo: true },
+        update: {},
         create: {
           email: userData.email,
           senha: senhaHash,
           nome: userData.nome,
           roles: userData.roles,
           empresaId: empresaId,
-          ativo: true,
         },
       });
 

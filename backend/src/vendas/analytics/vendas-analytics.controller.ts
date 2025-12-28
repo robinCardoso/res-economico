@@ -88,7 +88,8 @@ export class VendasAnalyticsController {
     // Iniciar recálculo assíncrono (não bloqueia)
     await this.analyticsService.recalculcarAnalytics(dataInicioUTC, dataFimUTC);
     return {
-      message: 'Recálculo de analytics iniciado. Use o endpoint /status para acompanhar o progresso.',
+      message:
+        'Recálculo de analytics iniciado. Use o endpoint /status para acompanhar o progresso.',
     };
   }
 

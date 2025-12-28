@@ -5,13 +5,13 @@ import { FiltrosPerfilClienteDto } from '../dto/cliente-perfil-analytics.dto';
 /**
  * Service para gerenciar caching de dados de analytics
  * Implementa estratégia de cache com invalidação inteligente
- * 
+ *
  * ESTRATÉGIA DE CACHING:
  * - Visão Geral: 1 hora (dados menos frequentes)
  * - Relatórios: 30 minutos (dados médios)
  * - Alertas: 5 minutos (dados críticos, devem ser frescos)
  * - Segmentação: 30 minutos
- * 
+ *
  * INVALIDAÇÃO:
  * - Ao importar vendas → invalida TODOS os caches
  * - Ao atualizar cliente → invalida cache daquele cliente
@@ -19,7 +19,7 @@ import { FiltrosPerfilClienteDto } from '../dto/cliente-perfil-analytics.dto';
 @Injectable()
 export class CacheAnalyticsService {
   private readonly logger = new Logger(CacheAnalyticsService.name);
-  
+
   // Armazenamento em memória (para projetos sem Redis)
   // Em produção, usar Redis
   private cache = new Map<string, { data: any; expiresAt: number }>();
@@ -31,7 +31,7 @@ export class CacheAnalyticsService {
 
   /**
    * ESTRATÉGIA 1: Cache com TTL (Time To Live)
-   * 
+   *
    * TTL recomendado:
    * - Visão Geral: 3600s (1 hora) - dados agregados, mudam pouco
    * - Relatórios: 1800s (30 min) - dados por cliente
@@ -66,7 +66,7 @@ export class CacheAnalyticsService {
 
   /**
    * ESTRATÉGIA 2: Invalidação de Cache
-   * 
+   *
    * Invalida todos os caches relacionados a um cliente
    */
   invalidateClientCache(nomeFantasia: string): void {
@@ -110,21 +110,24 @@ export class CacheAnalyticsService {
    * Limpar cache expirado a cada 5 minutos
    */
   private startCacheCleanup(): void {
-    setInterval(() => {
-      const now = Date.now();
-      let deleted = 0;
+    setInterval(
+      () => {
+        const now = Date.now();
+        let deleted = 0;
 
-      for (const [key, value] of this.cache.entries()) {
-        if (value.expiresAt < now) {
-          this.cache.delete(key);
-          deleted++;
+        for (const [key, value] of this.cache.entries()) {
+          if (value.expiresAt < now) {
+            this.cache.delete(key);
+            deleted++;
+          }
         }
-      }
 
-      if (deleted > 0) {
-        this.logger.debug(`🧹 Cache cleanup: ${deleted} entradas removidas`);
-      }
-    }, 5 * 60 * 1000); // A cada 5 minutos
+        if (deleted > 0) {
+          this.logger.debug(`🧹 Cache cleanup: ${deleted} entradas removidas`);
+        }
+      },
+      5 * 60 * 1000,
+    ); // A cada 5 minutos
   }
 
   /**

@@ -57,4 +57,3 @@ export class FilterPedidosDto {
   @IsUUID()
   empresaId?: string;
 }
-

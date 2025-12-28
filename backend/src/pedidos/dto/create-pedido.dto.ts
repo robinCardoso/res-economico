@@ -69,4 +69,3 @@ export class CreatePedidoDto {
   @IsObject()
   metadata?: Record<string, any>;
 }
-

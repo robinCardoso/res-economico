@@ -1,0 +1,310 @@
+-- CreateEnum for TipoReuniao
+DO $$ BEGIN
+  CREATE TYPE "TipoReuniao" AS ENUM ('ASSEMBLEIA_GERAL', 'CONSELHO_DIRETOR', 'REUNIAO_ORDINARIA', 'REUNIAO_EXTRAORDINARIA', 'COMISSAO', 'OUTRO');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- CreateEnum for StatusAta
+DO $$ BEGIN
+  CREATE TYPE "StatusAta" AS ENUM ('RASCUNHO', 'EM_PROCESSO', 'FINALIZADA', 'PUBLICADA', 'ARQUIVADA');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- CreateEnum for StatusPrazo
+DO $$ BEGIN
+  CREATE TYPE "StatusPrazo" AS ENUM ('PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDO', 'VENCIDO', 'CANCELADO');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- CreateEnum for TipoLembrete
+DO $$ BEGIN
+  CREATE TYPE "TipoLembrete" AS ENUM ('EMAIL', 'NOTIFICACAO_SISTEMA', 'AMBOS');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- CreateEnum for TipoArquivoAta
+DO $$ BEGIN
+  CREATE TYPE "TipoArquivoAta" AS ENUM ('DOCUMENTO', 'IMAGEM', 'PDF', 'PLANILHA', 'OUTRO');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- CreateEnum for TipoComentario
+DO $$ BEGIN
+  CREATE TYPE "TipoComentario" AS ENUM ('COMENTARIO', 'SUGESTAO', 'APROVACAO', 'REPROVACAO');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- CreateTable AtaReuniao
+CREATE TABLE IF NOT EXISTS "AtaReuniao" (
+    "id" TEXT NOT NULL,
+    "numero" TEXT NOT NULL,
+    "titulo" TEXT NOT NULL,
+    "tipo" "TipoReuniao" NOT NULL,
+    "dataReuniao" TIMESTAMP(3) NOT NULL,
+    "local" TEXT,
+    "status" "StatusAta" NOT NULL DEFAULT 'RASCUNHO',
+    "pauta" TEXT,
+    "conteudo" TEXT,
+    "descricao" TEXT,
+    "resumo" TEXT,
+    "pautas" JSONB,
+    "decisoes" JSONB,
+    "acoes" JSONB,
+    "observacoes" TEXT,
+    "geradoPorIa" BOOLEAN,
+    "iaUsada" TEXT,
+    "modeloIa" TEXT,
+    "custoIa" TEXT,
+    "tempoProcessamentoIa" INTEGER,
+    "arquivoOriginalUrl" TEXT,
+    "arquivoOriginalNome" TEXT,
+    "arquivoOriginalTipo" TEXT,
+    "dataAssinatura" TIMESTAMP(3),
+    "dataRegistro" TIMESTAMP(3),
+    "cartorioRegistro" TEXT,
+    "numeroRegistro" TEXT,
+    "pendenteAssinatura" BOOLEAN NOT NULL DEFAULT false,
+    "pendenteRegistro" BOOLEAN NOT NULL DEFAULT false,
+    "modeloAtaId" TEXT,
+    "criadoPor" TEXT NOT NULL,
+    "empresaId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "AtaReuniao_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "AtaReuniao_numero_key" ON "AtaReuniao"("numero");
+CREATE INDEX IF NOT EXISTS "AtaReuniao_dataReuniao_idx" ON "AtaReuniao"("dataReuniao");
+CREATE INDEX IF NOT EXISTS "AtaReuniao_status_idx" ON "AtaReuniao"("status");
+CREATE INDEX IF NOT EXISTS "AtaReuniao_empresaId_idx" ON "AtaReuniao"("empresaId");
+CREATE INDEX IF NOT EXISTS "AtaReuniao_criadoPor_idx" ON "AtaReuniao"("criadoPor");
+CREATE INDEX IF NOT EXISTS "AtaReuniao_tipo_idx" ON "AtaReuniao"("tipo");
+
+-- CreateTable AtaParticipante
+CREATE TABLE IF NOT EXISTS "AtaParticipante" (
+    "id" TEXT NOT NULL,
+    "ataId" TEXT NOT NULL,
+    "usuarioId" TEXT,
+    "nomeExterno" TEXT,
+    "email" TEXT,
+    "cargo" TEXT,
+    "presente" BOOLEAN NOT NULL DEFAULT true,
+    "observacoes" TEXT,
+    CONSTRAINT "AtaParticipante_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "AtaParticipante_ataId_idx" ON "AtaParticipante"("ataId");
+CREATE INDEX IF NOT EXISTS "AtaParticipante_usuarioId_idx" ON "AtaParticipante"("usuarioId");
+
+-- CreateTable AtaAnexo
+CREATE TABLE IF NOT EXISTS "AtaAnexo" (
+    "id" TEXT NOT NULL,
+    "ataId" TEXT NOT NULL,
+    "nomeArquivo" TEXT NOT NULL,
+    "urlArquivo" TEXT NOT NULL,
+    "tipoArquivo" "TipoArquivoAta" NOT NULL,
+    "tamanhoArquivo" INTEGER,
+    "mimeType" TEXT,
+    "uploadedBy" TEXT,
+    "descricao" TEXT,
+    "uploadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "AtaAnexo_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "AtaAnexo_ataId_idx" ON "AtaAnexo"("ataId");
+
+-- CreateTable AtaComentario
+CREATE TABLE IF NOT EXISTS "AtaComentario" (
+    "id" TEXT NOT NULL,
+    "ataId" TEXT NOT NULL,
+    "comentario" TEXT NOT NULL,
+    "tipo" "TipoComentario" NOT NULL,
+    "autorId" TEXT NOT NULL,
+    "comentarioPaiId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "AtaComentario_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "AtaComentario_ataId_idx" ON "AtaComentario"("ataId");
+CREATE INDEX IF NOT EXISTS "AtaComentario_autorId_idx" ON "AtaComentario"("autorId");
+CREATE INDEX IF NOT EXISTS "AtaComentario_comentarioPaiId_idx" ON "AtaComentario"("comentarioPaiId");
+
+-- CreateTable ModeloAta
+CREATE TABLE IF NOT EXISTS "ModeloAta" (
+    "id" TEXT NOT NULL,
+    "nome" TEXT NOT NULL,
+    "descricao" TEXT,
+    "tipoReuniao" "TipoReuniao" NOT NULL,
+    "estrutura" JSONB NOT NULL,
+    "exemplo" JSONB,
+    "instrucoes" TEXT,
+    "ativo" BOOLEAN NOT NULL DEFAULT true,
+    "criadoPor" TEXT NOT NULL,
+    "empresaId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "ModeloAta_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "ModeloAta_tipoReuniao_idx" ON "ModeloAta"("tipoReuniao");
+CREATE INDEX IF NOT EXISTS "ModeloAta_empresaId_idx" ON "ModeloAta"("empresaId");
+CREATE INDEX IF NOT EXISTS "ModeloAta_ativo_idx" ON "ModeloAta"("ativo");
+
+-- CreateTable HistoricoAndamento
+CREATE TABLE IF NOT EXISTS "HistoricoAndamento" (
+    "id" TEXT NOT NULL,
+    "ataId" TEXT NOT NULL,
+    "data" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "acao" TEXT NOT NULL,
+    "descricao" TEXT,
+    "responsavel" TEXT,
+    "criadoPor" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "HistoricoAndamento_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "HistoricoAndamento_ataId_idx" ON "HistoricoAndamento"("ataId");
+CREATE INDEX IF NOT EXISTS "HistoricoAndamento_data_idx" ON "HistoricoAndamento"("data");
+
+-- CreateTable PrazoAcao
+CREATE TABLE IF NOT EXISTS "PrazoAcao" (
+    "id" TEXT NOT NULL,
+    "ataId" TEXT NOT NULL,
+    "acaoId" TEXT,
+    "titulo" TEXT NOT NULL,
+    "descricao" TEXT,
+    "dataPrazo" TIMESTAMP(3) NOT NULL,
+    "dataConclusao" TIMESTAMP(3),
+    "status" "StatusPrazo" NOT NULL DEFAULT 'PENDENTE',
+    "concluido" BOOLEAN NOT NULL DEFAULT false,
+    "lembretesEnviados" INTEGER NOT NULL DEFAULT 0,
+    "ultimoLembrete" TIMESTAMP(3),
+    "criadoPor" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "PrazoAcao_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "PrazoAcao_ataId_idx" ON "PrazoAcao"("ataId");
+CREATE INDEX IF NOT EXISTS "PrazoAcao_dataPrazo_idx" ON "PrazoAcao"("dataPrazo");
+CREATE INDEX IF NOT EXISTS "PrazoAcao_status_idx" ON "PrazoAcao"("status");
+CREATE INDEX IF NOT EXISTS "PrazoAcao_concluido_idx" ON "PrazoAcao"("concluido");
+
+-- CreateTable LembretePrazo
+CREATE TABLE IF NOT EXISTS "LembretePrazo" (
+    "id" TEXT NOT NULL,
+    "prazoId" TEXT NOT NULL,
+    "usuarioId" TEXT NOT NULL,
+    "tipo" "TipoLembrete" NOT NULL,
+    "mensagem" TEXT NOT NULL,
+    "enviado" BOOLEAN NOT NULL DEFAULT false,
+    "dataEnvio" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "LembretePrazo_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "LembretePrazo_prazoId_idx" ON "LembretePrazo"("prazoId");
+CREATE INDEX IF NOT EXISTS "LembretePrazo_usuarioId_idx" ON "LembretePrazo"("usuarioId");
+CREATE INDEX IF NOT EXISTS "LembretePrazo_enviado_idx" ON "LembretePrazo"("enviado");
+
+-- AddForeignKey constraints
+DO $$
+BEGIN
+  -- AtaReuniao foreign keys
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'AtaReuniao_criadoPor_fkey') THEN
+    ALTER TABLE "AtaReuniao" ADD CONSTRAINT "AtaReuniao_criadoPor_fkey" FOREIGN KEY ("criadoPor") REFERENCES "Usuario"("id") ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'AtaReuniao_empresaId_fkey') THEN
+    ALTER TABLE "AtaReuniao" ADD CONSTRAINT "AtaReuniao_empresaId_fkey" FOREIGN KEY ("empresaId") REFERENCES "Empresa"("id") ON DELETE SET NULL;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'AtaReuniao_modeloAtaId_fkey') THEN
+    ALTER TABLE "AtaReuniao" ADD CONSTRAINT "AtaReuniao_modeloAtaId_fkey" FOREIGN KEY ("modeloAtaId") REFERENCES "ModeloAta"("id") ON DELETE SET NULL;
+  END IF;
+
+  -- AtaParticipante foreign keys
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'AtaParticipante_ataId_fkey') THEN
+    ALTER TABLE "AtaParticipante" ADD CONSTRAINT "AtaParticipante_ataId_fkey" FOREIGN KEY ("ataId") REFERENCES "AtaReuniao"("id") ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'AtaParticipante_usuarioId_fkey') THEN
+    ALTER TABLE "AtaParticipante" ADD CONSTRAINT "AtaParticipante_usuarioId_fkey" FOREIGN KEY ("usuarioId") REFERENCES "Usuario"("id") ON DELETE SET NULL;
+  END IF;
+
+  -- AtaAnexo foreign keys
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'AtaAnexo_ataId_fkey') THEN
+    ALTER TABLE "AtaAnexo" ADD CONSTRAINT "AtaAnexo_ataId_fkey" FOREIGN KEY ("ataId") REFERENCES "AtaReuniao"("id") ON DELETE CASCADE;
+  END IF;
+
+  -- AtaComentario foreign keys
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'AtaComentario_ataId_fkey') THEN
+    ALTER TABLE "AtaComentario" ADD CONSTRAINT "AtaComentario_ataId_fkey" FOREIGN KEY ("ataId") REFERENCES "AtaReuniao"("id") ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'AtaComentario_autorId_fkey') THEN
+    ALTER TABLE "AtaComentario" ADD CONSTRAINT "AtaComentario_autorId_fkey" FOREIGN KEY ("autorId") REFERENCES "Usuario"("id") ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'AtaComentario_comentarioPaiId_fkey') THEN
+    ALTER TABLE "AtaComentario" ADD CONSTRAINT "AtaComentario_comentarioPaiId_fkey" FOREIGN KEY ("comentarioPaiId") REFERENCES "AtaComentario"("id") ON DELETE CASCADE;
+  END IF;
+
+  -- ModeloAta foreign keys
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'ModeloAta_criadoPor_fkey') THEN
+    ALTER TABLE "ModeloAta" ADD CONSTRAINT "ModeloAta_criadoPor_fkey" FOREIGN KEY ("criadoPor") REFERENCES "Usuario"("id") ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'ModeloAta_empresaId_fkey') THEN
+    ALTER TABLE "ModeloAta" ADD CONSTRAINT "ModeloAta_empresaId_fkey" FOREIGN KEY ("empresaId") REFERENCES "Empresa"("id") ON DELETE SET NULL;
+  END IF;
+
+  -- HistoricoAndamento foreign keys
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'HistoricoAndamento_ataId_fkey') THEN
+    ALTER TABLE "HistoricoAndamento" ADD CONSTRAINT "HistoricoAndamento_ataId_fkey" FOREIGN KEY ("ataId") REFERENCES "AtaReuniao"("id") ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'HistoricoAndamento_criadoPor_fkey') THEN
+    ALTER TABLE "HistoricoAndamento" ADD CONSTRAINT "HistoricoAndamento_criadoPor_fkey" FOREIGN KEY ("criadoPor") REFERENCES "Usuario"("id") ON DELETE CASCADE;
+  END IF;
+
+  -- PrazoAcao foreign keys
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'PrazoAcao_ataId_fkey') THEN
+    ALTER TABLE "PrazoAcao" ADD CONSTRAINT "PrazoAcao_ataId_fkey" FOREIGN KEY ("ataId") REFERENCES "AtaReuniao"("id") ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'PrazoAcao_criadoPor_fkey') THEN
+    ALTER TABLE "PrazoAcao" ADD CONSTRAINT "PrazoAcao_criadoPor_fkey" FOREIGN KEY ("criadoPor") REFERENCES "Usuario"("id") ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'PrazoAcao_acaoId_fkey') THEN
+    ALTER TABLE "PrazoAcao" ADD CONSTRAINT "PrazoAcao_acaoId_fkey" FOREIGN KEY ("acaoId") REFERENCES "AtaComentario"("id") ON DELETE SET NULL;
+  END IF;
+
+  -- LembretePrazo foreign keys
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'LembretePrazo_prazoId_fkey') THEN
+    ALTER TABLE "LembretePrazo" ADD CONSTRAINT "LembretePrazo_prazoId_fkey" FOREIGN KEY ("prazoId") REFERENCES "PrazoAcao"("id") ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'LembretePrazo_usuarioId_fkey') THEN
+    ALTER TABLE "LembretePrazo" ADD CONSTRAINT "LembretePrazo_usuarioId_fkey" FOREIGN KEY ("usuarioId") REFERENCES "Usuario"("id") ON DELETE CASCADE;
+  END IF;
+
+  -- LogAlteracaoAta foreign key if table exists
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'LogAlteracaoAta') THEN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'LogAlteracaoAta_ataId_fkey') THEN
+      ALTER TABLE "LogAlteracaoAta" ADD CONSTRAINT "LogAlteracaoAta_ataId_fkey" FOREIGN KEY ("ataId") REFERENCES "AtaReuniao"("id") ON DELETE CASCADE;
+    END IF;
+  END IF;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE WARNING 'Error in foreign key constraints: %', SQLERRM;
+END $$;

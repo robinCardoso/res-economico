@@ -43,7 +43,9 @@ export class VendasAnalyticsDirectService {
             const startDate = new Date(Date.UTC(ano, mes - 1, 1, 0, 0, 0, 0));
             // Fim do mês: último dia do mês 23:59:59.999 UTC
             const lastDay = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
-            const endDate = new Date(Date.UTC(ano, mes - 1, lastDay, 23, 59, 59, 999));
+            const endDate = new Date(
+              Date.UTC(ano, mes - 1, lastDay, 23, 59, 59, 999),
+            );
             anoConditions.push({
               dataVenda: {
                 gte: startDate,
@@ -76,7 +78,9 @@ export class VendasAnalyticsDirectService {
         // Criar datas em UTC
         const startDate = new Date(Date.UTC(anoAtual, mes - 1, 1, 0, 0, 0, 0));
         const lastDay = new Date(Date.UTC(anoAtual, mes, 0)).getUTCDate();
-        const endDate = new Date(Date.UTC(anoAtual, mes - 1, lastDay, 23, 59, 59, 999));
+        const endDate = new Date(
+          Date.UTC(anoAtual, mes - 1, lastDay, 23, 59, 59, 999),
+        );
         mesConditions.push({
           dataVenda: {
             gte: startDate,
@@ -121,9 +125,7 @@ export class VendasAnalyticsDirectService {
    * Busca crescimento da empresa mês a mês e ano a ano
    * Calcula diretamente da tabela Venda
    */
-  async getCrescimentoEmpresa(
-    filtros?: FilterAnalyticsDto,
-  ): Promise<{
+  async getCrescimentoEmpresa(filtros?: FilterAnalyticsDto): Promise<{
     meses: Array<{
       mes: number;
       nomeMes: string;
@@ -275,9 +277,7 @@ export class VendasAnalyticsDirectService {
   /**
    * Busca crescimento por filial (UF)
    */
-  async getCrescimentoFilial(
-    filtros?: FilterAnalyticsDto,
-  ): Promise<{
+  async getCrescimentoFilial(filtros?: FilterAnalyticsDto): Promise<{
     filiais: Array<{
       uf: string;
       dados: {
@@ -395,9 +395,7 @@ export class VendasAnalyticsDirectService {
   /**
    * Busca crescimento por marca
    */
-  async getCrescimentoMarca(
-    filtros?: FilterAnalyticsDto,
-  ): Promise<{
+  async getCrescimentoMarca(filtros?: FilterAnalyticsDto): Promise<{
     marcas: Array<{
       marca: string;
       dados: {
@@ -710,10 +708,7 @@ export class VendasAnalyticsDirectService {
     });
 
     // Agrupar por UF, associado e mês
-    const dadosPorUf = new Map<
-      string,
-      Map<string, Map<number, number>>
-    >();
+    const dadosPorUf = new Map<string, Map<string, Map<number, number>>>();
 
     vendas.forEach((venda) => {
       const uf = venda.ufDestino || 'DESCONHECIDO';
@@ -801,4 +796,3 @@ export class VendasAnalyticsDirectService {
     };
   }
 }
-

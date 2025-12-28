@@ -1637,18 +1637,6 @@ IMPORTANTE: Analise o PDF anexado e extraia TODAS as informações estruturadas.
             email: true,
           },
         },
-        respostas: {
-          include: {
-            autor: {
-              select: {
-                id: true,
-                nome: true,
-                email: true,
-              },
-            },
-          },
-          orderBy: { createdAt: 'asc' },
-        },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -2915,17 +2903,6 @@ Retorne APENAS o JSON, sem texto adicional ou explicações.`;
             id: true,
             razaoSocial: true,
             filial: true,
-          },
-        },
-        modeloAta: {
-          include: {
-            criador: {
-              select: {
-                id: true,
-                nome: true,
-                email: true,
-              },
-            },
           },
         },
       },

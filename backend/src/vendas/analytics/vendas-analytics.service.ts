@@ -102,20 +102,20 @@ export class VendasAnalyticsService {
     // Aumentado para 200 para melhor performance com grandes volumes
     const analyticsArray = Array.from(analyticsMap.values());
     const BATCH_SIZE = 200; // Processar 200 por vez (otimizado para grandes volumes)
-    
+
     // Processar em lotes com tratamento de erro individual para não perder dados
     for (let i = 0; i < analyticsArray.length; i += BATCH_SIZE) {
       const batch = analyticsArray.slice(i, i + BATCH_SIZE);
-      
+
       // Usar Promise.allSettled para garantir que erros em um item não parem o processamento
       const results = await Promise.allSettled(
-        batch.map((analytics) => this.upsertAnalytics(analytics))
+        batch.map((analytics) => this.upsertAnalytics(analytics)),
       );
-      
+
       // Contar sucessos e erros para logging
       const sucessos = results.filter((r) => r.status === 'fulfilled').length;
       const erros = results.filter((r) => r.status === 'rejected').length;
-      
+
       if (erros > 0) {
         this.logger.warn(
           `Lote de analytics: ${sucessos} sucessos, ${erros} erros (lote ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(analyticsArray.length / BATCH_SIZE)})`,
@@ -131,7 +131,9 @@ export class VendasAnalyticsService {
       }
     }
 
-    this.logger.log(`Analytics atualizado com sucesso: ${analyticsArray.length} entradas processadas`);
+    this.logger.log(
+      `Analytics atualizado com sucesso: ${analyticsArray.length} entradas processadas`,
+    );
   }
 
   /**
@@ -153,7 +155,7 @@ export class VendasAnalyticsService {
   }): Promise<void> {
     const MAX_RETRIES = 3;
     let lastError: unknown;
-    
+
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         // Usar SQL raw com ON CONFLICT para fazer upsert atômico
@@ -193,72 +195,48 @@ export class VendasAnalyticsService {
           // Sucesso - sair do loop de retry
           return;
         } catch (error: unknown) {
-          // Se falhar por constraint antigo (sem grupo/subgrupo), buscar e consolidar registros
+          // Se falhar por constraint de chave única, atualizar o registro existente
           const conflictError = error as { code?: string; message?: string };
           if (
             conflictError?.code === '23505' &&
             typeof conflictError?.message === 'string' &&
             conflictError.message.includes('already exists')
           ) {
-            // Constraint antigo ou novo - buscar registros existentes
-            const registrosExistentes = await this.prisma.vendaAnalytics.findMany(
-              {
-                where: {
-                  ano: analytics.ano,
-                  mes: analytics.mes,
-                  nomeFantasia: analytics.nomeFantasia,
-                  marca: analytics.marca,
-                  uf: analytics.uf,
-                  // Não filtrar por grupo/subgrupo/tipoOperacao (podem estar incompletos nos dados antigos)
-                },
-              },
-            );
+            // Em vez de tentar encontrar com a chave única (que pode ter nome diferente),
+            // vamos tentar uma abordagem mais robusta com uma consulta direta
+            try {
+              // Atualizar o registro existente diretamente usando os campos da chave
+              const result = await this.prisma.$executeRaw`
+                UPDATE "VendaAnalytics" 
+                SET "totalValor" = "totalValor" + ${analytics.totalValor}::DECIMAL,
+                    "totalQuantidade" = "totalQuantidade" + ${analytics.totalQuantidade}::DECIMAL,
+                    "updatedAt" = NOW()
+                WHERE "ano" = ${analytics.ano}::INTEGER
+                  AND "mes" = ${analytics.mes}::INTEGER
+                  AND "nomeFantasia" = ${analytics.nomeFantasia}::TEXT
+                  AND "marca" = ${analytics.marca}::TEXT
+                  AND "grupo" = ${analytics.grupo || 'DESCONHECIDO'}::TEXT
+                  AND "subgrupo" = ${analytics.subgrupo || 'DESCONHECIDO'}::TEXT
+                  AND "tipoOperacao" = ${analytics.tipoOperacao || 'Venda'}::TEXT
+                  AND "uf" = ${analytics.uf}::TEXT
+                  AND "empresaId" = ${analytics.empresaId || 'SEM_EMPRESA'}::TEXT
+              `;
 
-            if (registrosExistentes.length > 0) {
-              // Consolidar todos os registros existentes + novo valor
-              let totalValorConsolidado = analytics.totalValor;
-              let totalQuantidadeConsolidado = analytics.totalQuantidade;
-
-              for (const reg of registrosExistentes) {
-                totalValorConsolidado += parseFloat(reg.totalValor.toString());
-                totalQuantidadeConsolidado += parseFloat(
-                  reg.totalQuantidade.toString(),
+              if (result > 0) {
+                this.logger.debug(
+                  `Registro existente atualizado: ${analytics.ano}-${analytics.mes} ${analytics.nomeFantasia} ${analytics.marca} ${analytics.grupo}/${analytics.subgrupo}/${analytics.tipoOperacao} ${analytics.uf}`,
                 );
+                return; // Sucesso após atualização
+              } else {
+                // Se nenhuma linha foi afetada, pode ser que o registro não existia
+                // Neste caso, lançamos o erro original
+                throw error;
               }
-
-              // Usar o primeiro registro como base e atualizar
-              const primeiroRegistro = registrosExistentes[0];
-              const outrosRegistros = registrosExistentes.slice(1);
-
-              // Atualizar o primeiro registro com valores consolidados e novo grupo/subgrupo/tipoOperacao
-              await this.prisma.vendaAnalytics.update({
-                where: { id: primeiroRegistro.id },
-                data: {
-                  grupo: analytics.grupo,
-                  subgrupo: analytics.subgrupo,
-                  tipoOperacao: analytics.tipoOperacao,
-                  totalValor: new Decimal(totalValorConsolidado.toString()),
-                  totalQuantidade: new Decimal(
-                    totalQuantidadeConsolidado.toString(),
-                  ),
-                },
-              });
-
-              // Deletar outros registros duplicados se houver
-              if (outrosRegistros.length > 0) {
-                await this.prisma.vendaAnalytics.deleteMany({
-                  where: {
-                    id: { in: outrosRegistros.map((r) => r.id) },
-                  },
-                });
-              }
-
+            } catch (updateError) {
+              // Se a atualização direta também falhar, lançamos o erro original
               this.logger.warn(
-                `Constraint detectado. Consolidados ${registrosExistentes.length} registro(s) existente(s) com novo grupo/subgrupo/tipoOperacao: ${analytics.grupo}/${analytics.subgrupo}/${analytics.tipoOperacao}`,
+                `Falha na atualização direta de analytics, usando erro original: ${updateError}`,
               );
-              return; // Sucesso após consolidação
-            } else {
-              // Se não encontrou, pode ser outro tipo de conflito - relançar erro
               throw error;
             }
           } else {
@@ -270,9 +248,11 @@ export class VendasAnalyticsService {
         // Tratar erros do SQL ou do tratamento de constraint antigo
         lastError = innerError;
         const errorMessage =
-          innerError instanceof Error ? innerError.message : 'Erro desconhecido';
+          innerError instanceof Error
+            ? innerError.message
+            : 'Erro desconhecido';
         const errorCode = (innerError as { code?: string })?.code;
-        
+
         // Verificar se é um erro recuperável (timeout, conexão, etc)
         const isRetryableError =
           errorCode === 'P1001' || // Connection timeout
@@ -280,7 +260,7 @@ export class VendasAnalyticsService {
           errorMessage.includes('timeout') ||
           errorMessage.includes('connection') ||
           errorMessage.includes('pool');
-        
+
         if (isRetryableError && attempt < MAX_RETRIES) {
           // Aguardar antes de tentar novamente (backoff exponencial)
           const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
@@ -290,7 +270,7 @@ export class VendasAnalyticsService {
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
-        
+
         // Se não for erro recuperável ou esgotou tentativas, lançar erro
         if (attempt === MAX_RETRIES) {
           const errorStack =
@@ -500,19 +480,19 @@ export class VendasAnalyticsService {
       // ETAPA 1: Limpar analytics existentes no período
       this.recalculoStatus.etapa = 'limpeza';
       this.logger.log('Iniciando limpeza da tabela VendaAnalytics...');
-      
+
       let registrosDeletados = 0;
-      
+
       if (dataInicio || dataFim) {
         // Se há filtro de data, calcular o período exato baseado nas datas
         // e deletar apenas os registros que correspondem exatamente ao período
         const inicio = dataInicio ? new Date(dataInicio) : null;
         const fim = dataFim ? new Date(dataFim) : null;
-        
+
         // Calcular anos e meses únicos do período filtrado
         const anos = new Set<number>();
         const meses = new Set<number>();
-        
+
         if (inicio && fim) {
           // Iterar por todos os meses no intervalo
           // Usar UTC para garantir consistência com o banco de dados
@@ -543,7 +523,7 @@ export class VendasAnalyticsService {
         if (anos.size > 0 && meses.size > 0) {
           const anosArray = Array.from(anos);
           const mesesArray = Array.from(meses);
-          
+
           // Contar registros antes de deletar para confirmar
           const countBefore = await this.prisma.vendaAnalytics.count({
             where: {
@@ -551,7 +531,7 @@ export class VendasAnalyticsService {
               mes: { in: mesesArray },
             },
           });
-          
+
           // Deletar e aguardar confirmação
           const deleteResult = await this.prisma.vendaAnalytics.deleteMany({
             where: {
@@ -559,13 +539,13 @@ export class VendasAnalyticsService {
               mes: { in: mesesArray },
             },
           });
-          
+
           registrosDeletados = deleteResult.count;
-          
+
           this.logger.log(
             `Limpeza de analytics concluída: ${registrosDeletados} registros deletados dos anos ${anosArray.join(', ')} e meses ${mesesArray.join(', ')} (esperado: ${countBefore})`,
           );
-          
+
           // Verificar se a limpeza foi bem-sucedida
           if (registrosDeletados !== countBefore) {
             this.logger.warn(
@@ -576,15 +556,15 @@ export class VendasAnalyticsService {
       } else {
         // Limpar tudo - contar antes de deletar
         const countBefore = await this.prisma.vendaAnalytics.count({});
-        
+
         // Deletar e aguardar confirmação
         const deleteResult = await this.prisma.vendaAnalytics.deleteMany({});
         registrosDeletados = deleteResult.count;
-        
+
         this.logger.log(
           `Limpeza de analytics concluída: ${registrosDeletados} registros deletados de toda a tabela (esperado: ${countBefore})`,
         );
-        
+
         // Verificar se a limpeza foi bem-sucedida
         if (registrosDeletados !== countBefore) {
           this.logger.warn(
@@ -592,11 +572,13 @@ export class VendasAnalyticsService {
           );
         }
       }
-      
+
       // Atualizar status com confirmação da limpeza
       this.recalculoStatus.registrosDeletados = registrosDeletados;
-      this.logger.log(`✅ Limpeza confirmada: ${registrosDeletados} registros removidos da tabela VendaAnalytics`);
-      
+      this.logger.log(
+        `✅ Limpeza confirmada: ${registrosDeletados} registros removidos da tabela VendaAnalytics`,
+      );
+
       // ETAPA 2: Iniciar processamento das vendas
       this.recalculoStatus.etapa = 'processamento';
       this.logger.log('Iniciando processamento das vendas...');
@@ -1366,8 +1348,7 @@ export class VendasAnalyticsService {
       }
 
       // Atualizar vendas mensais do associado
-      associado.monthlySales[mes] =
-        (associado.monthlySales[mes] || 0) + valor;
+      associado.monthlySales[mes] = (associado.monthlySales[mes] || 0) + valor;
       associado.totalGeral += valor;
     });
 
@@ -1460,7 +1441,12 @@ export class VendasAnalyticsService {
     }
 
     // Buscar totais
-    const [totalVendaResult, totalAnalyticsResult, vendasSemEmpresaId, analyticsComEmpresaIdNull] = await Promise.all([
+    const [
+      totalVendaResult,
+      totalAnalyticsResult,
+      vendasSemEmpresaId,
+      analyticsComEmpresaIdNull,
+    ] = await Promise.all([
       this.prisma.venda.aggregate({
         where: whereVenda,
         _sum: { valorTotal: true },
@@ -1483,21 +1469,26 @@ export class VendasAnalyticsService {
       }),
     ]);
 
-    const totalVenda = parseFloat((totalVendaResult._sum.valorTotal || new Decimal(0)).toString());
-    const totalAnalytics = parseFloat((totalAnalyticsResult._sum.totalValor || new Decimal(0)).toString());
+    const totalVenda = parseFloat(
+      (totalVendaResult._sum.valorTotal || new Decimal(0)).toString(),
+    );
+    const totalAnalytics = parseFloat(
+      (totalAnalyticsResult._sum.totalValor || new Decimal(0)).toString(),
+    );
     const diferenca = totalVenda - totalAnalytics;
 
     // Detalhes adicionais
-    const [totalVendas, totalAnalyticsCount, vendasComEmpresaId] = await Promise.all([
-      this.prisma.venda.count({ where: whereVenda }),
-      this.prisma.vendaAnalytics.count({ where: whereAnalytics }),
-      this.prisma.venda.count({
-        where: {
-          ...whereVenda,
-          empresaId: { not: null },
-        },
-      }),
-    ]);
+    const [totalVendas, totalAnalyticsCount, vendasComEmpresaId] =
+      await Promise.all([
+        this.prisma.venda.count({ where: whereVenda }),
+        this.prisma.vendaAnalytics.count({ where: whereAnalytics }),
+        this.prisma.venda.count({
+          where: {
+            ...whereVenda,
+            empresaId: { not: null },
+          },
+        }),
+      ]);
 
     const analyticsComEmpresaId = await this.prisma.vendaAnalytics.count({
       where: {

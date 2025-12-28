@@ -50,6 +50,7 @@ export class UsuariosClientesService {
         usuarioId,
         nomeFantasia: dto.nomeFantasia,
         tipoCliente: dto.tipoCliente,
+        razaoSocial: (dto as any).razaoSocial,
         permissoes: dto.permissoes || {
           vendas: true,
           pedidos: true,
@@ -194,6 +195,61 @@ export class UsuariosClientesService {
     return { message: 'Associação removida com sucesso' };
   }
 
+  async getClientesDisponiveis() {
+    // Buscar nomeFantasia únicos de Venda e Pedido
+    const [vendasClientes, pedidosClientes] = await Promise.all([
+      this.prisma.venda.findMany({
+        select: { nomeFantasia: true, razaoSocial: true },
+        distinct: ['nomeFantasia'],
+        orderBy: { nomeFantasia: 'asc' },
+      }),
+      this.prisma.pedido.findMany({
+        select: { nomeFantasia: true },
+        distinct: ['nomeFantasia'],
+        orderBy: { nomeFantasia: 'asc' },
+      }),
+    ]);
+
+    // Consolidar lista única
+    const clientesMap = new Map<
+      string,
+      { nomeFantasia: string; razaoSocial?: string; tipos: string[] }
+    >();
+
+    vendasClientes.forEach((v) => {
+      if (v.nomeFantasia && !clientesMap.has(v.nomeFantasia)) {
+        clientesMap.set(v.nomeFantasia, {
+          nomeFantasia: v.nomeFantasia,
+          razaoSocial: v.razaoSocial || undefined,
+          tipos: [],
+        });
+      }
+      if (v.nomeFantasia) {
+        const cliente = clientesMap.get(v.nomeFantasia);
+        if (cliente && !cliente.tipos.includes('VENDA')) {
+          cliente.tipos.push('VENDA');
+        }
+      }
+    });
+
+    pedidosClientes.forEach((p) => {
+      if (p.nomeFantasia && !clientesMap.has(p.nomeFantasia)) {
+        clientesMap.set(p.nomeFantasia, {
+          nomeFantasia: p.nomeFantasia,
+          tipos: [],
+        });
+      }
+      if (p.nomeFantasia) {
+        const cliente = clientesMap.get(p.nomeFantasia);
+        if (cliente && !cliente.tipos.includes('PEDIDO')) {
+          cliente.tipos.push('PEDIDO');
+        }
+      }
+    });
+
+    return Array.from(clientesMap.values());
+  }
+
   private async validateClienteExists(
     nomeFantasia: string,
     tipoCliente: string,
@@ -219,53 +275,5 @@ export class UsuariosClientesService {
         );
       }
     }
-  }
-
-  async getClientesDisponiveis() {
-    // Buscar nomeFantasia únicos de Venda e Pedido
-    const [vendasClientes, pedidosClientes] = await Promise.all([
-      this.prisma.venda.findMany({
-        select: { nomeFantasia: true, razaoSocial: true },
-        distinct: ['nomeFantasia'],
-        where: { nomeFantasia: { not: '' } },
-        orderBy: { nomeFantasia: 'asc' },
-      }),
-      this.prisma.pedido.findMany({
-        select: { nomeFantasia: true },
-        distinct: ['nomeFantasia'],
-        where: { nomeFantasia: { not: '' } },
-        orderBy: { nomeFantasia: 'asc' },
-      }),
-    ]);
-
-    // Merge e deduplicate
-    const clientesMap = new Map();
-
-    vendasClientes.forEach((v) => {
-      if (v.nomeFantasia) {
-        clientesMap.set(v.nomeFantasia, {
-          nomeFantasia: v.nomeFantasia,
-          razaoSocial: v.razaoSocial,
-          fontes: ['VENDA'],
-        });
-      }
-    });
-
-    pedidosClientes.forEach((p) => {
-      if (p.nomeFantasia) {
-        if (clientesMap.has(p.nomeFantasia)) {
-          clientesMap.get(p.nomeFantasia).fontes.push('PEDIDO');
-        } else {
-          clientesMap.set(p.nomeFantasia, {
-            nomeFantasia: p.nomeFantasia,
-            fontes: ['PEDIDO'],
-          });
-        }
-      }
-    });
-
-    return Array.from(clientesMap.values()).sort((a, b) =>
-      a.nomeFantasia.localeCompare(b.nomeFantasia),
-    );
   }
 }

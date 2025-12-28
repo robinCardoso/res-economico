@@ -180,4 +180,3 @@ export class ColumnMapperService {
     return 0; // Fallback para primeira linha
   }
 }
-

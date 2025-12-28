@@ -410,7 +410,10 @@ export class VendasImportService {
 
       // Atualizar analytics em lotes durante a importação (não apenas no final)
       // Isso evita problemas de memória e timeout com grandes volumes de dados
-      if (linhasProcessadas % ANALYTICS_BATCH_SIZE === 0 || linhasProcessadas === totalLinhasParaProcessar) {
+      if (
+        linhasProcessadas % ANALYTICS_BATCH_SIZE === 0 ||
+        linhasProcessadas === totalLinhasParaProcessar
+      ) {
         try {
           const vendasParaAnalytics = chunkComEmpresaId.map((v) => ({
             dataVenda: v.dataVenda,
@@ -424,11 +427,11 @@ export class VendasImportService {
             valorTotal: v.valorTotal,
             quantidade: v.quantidade,
           }));
-          
+
           // Processar analytics de forma assíncrona para não bloquear a importação
           // Mas aguardar para garantir que não haja perda de dados
           await this.analyticsService.atualizarAnalytics(vendasParaAnalytics);
-          
+
           this.logger.log(
             `Analytics atualizado para lote de ${vendasParaAnalytics.length} vendas (${linhasProcessadas}/${totalLinhasParaProcessar})`,
           );
@@ -665,14 +668,13 @@ export class VendasImportService {
     );
 
     const chaves = vendas.map((v) => ({
-      nfe: v.nfe,
-      idDoc: v.idDoc || '',
+      idProd: v.idProd || '',
       referencia: v.referencia || '',
     }));
 
     // PostgreSQL tem limite de 32767 parâmetros em prepared statements
     // Dividir em chunks menores (3000) para melhor performance e evitar timeout
-    // Cada chave usa 3 parâmetros (nfe, idDoc, referencia), então 3000 chaves = 9000 parâmetros
+    // Cada chave usa 2 parâmetros (idProd, referencia), então 3000 chaves = 6000 parâmetros
     const CHUNK_SIZE = 3000;
     const chavesExistentes = new Set<string>();
     const totalChunks = Math.ceil(chaves.length / CHUNK_SIZE);
@@ -714,14 +716,12 @@ export class VendasImportService {
       const existentes = await this.prisma.venda.findMany({
         where: {
           OR: chunk.map((chave) => ({
-            nfe: chave.nfe,
-            idDoc: chave.idDoc,
+            idProd: chave.idProd,
             referencia: chave.referencia,
           })),
         },
         select: {
-          nfe: true,
-          idDoc: true,
+          idProd: true,
           referencia: true,
         },
         // Limitar resultados (não deve ser necessário, mas ajuda em caso de muitos matches)
@@ -730,7 +730,7 @@ export class VendasImportService {
 
       // Adicionar chaves existentes ao Set
       existentes.forEach((e) => {
-        const key = `${e.nfe}|${e.idDoc || ''}|${e.referencia || ''}`;
+        const key = `${e.idProd || ''}|${e.referencia || ''}`;
         chavesExistentes.add(key);
       });
 
@@ -755,7 +755,7 @@ export class VendasImportService {
 
     // Contar duplicatas e novos
     chaves.forEach((chave) => {
-      const key = `${chave.nfe}|${chave.idDoc}|${chave.referencia}`;
+      const key = `${chave.idProd}|${chave.referencia}`;
       if (chavesExistentes.has(key)) {
         duplicatas++;
       } else {

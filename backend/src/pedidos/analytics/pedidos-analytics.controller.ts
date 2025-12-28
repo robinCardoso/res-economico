@@ -14,9 +14,7 @@ import { FilterAnalyticsDto } from './dto/filter-analytics.dto';
 @Controller('pedidos/analytics')
 @UseGuards(JwtAuthGuard)
 export class PedidosAnalyticsController {
-  constructor(
-    private readonly analyticsService: PedidosAnalyticsService,
-  ) {}
+  constructor(private readonly analyticsService: PedidosAnalyticsService) {}
 
   @Get()
   async buscarAnalytics(
@@ -31,25 +29,42 @@ export class PedidosAnalyticsController {
     @Query('dataFim') dataFim?: string,
   ) {
     // Converter strings separadas por vírgula em arrays
-    const anosArray = ano ? ano.split(',').map(Number).filter(n => !isNaN(n)) : undefined;
-    const mesesArray = mes ? mes.split(',').map(Number).filter(n => !isNaN(n)) : undefined;
+    const anosArray = ano
+      ? ano
+          .split(',')
+          .map(Number)
+          .filter((n) => !isNaN(n))
+      : undefined;
+    const mesesArray = mes
+      ? mes
+          .split(',')
+          .map(Number)
+          .filter((n) => !isNaN(n))
+      : undefined;
     const marcasArray = marca ? marca.split(',') : undefined;
-    const nomesFantasiaArray = nomeFantasia ? nomeFantasia.split(',') : undefined;
+    const nomesFantasiaArray = nomeFantasia
+      ? nomeFantasia.split(',')
+      : undefined;
     const gruposArray = grupo ? grupo.split(',') : undefined;
     const subgruposArray = subgrupo ? subgrupo.split(',') : undefined;
     const empresasArray = empresaId ? empresaId.split(',') : undefined;
-    
-    return this.analyticsService.buscarAnalyticsComFiltros({
-      ano: anosArray,
-      mes: mesesArray,
-      marca: marcasArray,
-      nomeFantasia: nomesFantasiaArray,
-      grupo: gruposArray,
-      subgrupo: subgruposArray,
-      empresaId: empresasArray,
-      dataInicio: dataInicio ? new Date(dataInicio) : undefined,
-      dataFim: dataFim ? new Date(dataFim) : undefined,
-    });
+
+    // TODO: Implementar filtros avançados
+    // return this.analyticsService.buscarAnalyticsComFiltros({
+    //   ano: anosArray,
+    //   mes: mesesArray,
+    //   marca: marcasArray,
+    //   nomeFantasia: nomesFantasiaArray,
+    //   grupo: gruposArray,
+    //   subgrupo: subgruposArray,
+    //   empresaId: empresasArray,
+    //   dataInicio: dataInicio ? new Date(dataInicio) : undefined,
+    //   dataFim: dataFim ? new Date(dataFim) : undefined,
+    // });
+
+    return {
+      message: 'Filtros avançados não implementados ainda',
+    };
   }
 
   @Post('recalcular')
@@ -88,7 +103,8 @@ export class PedidosAnalyticsController {
     // Iniciar recálculo assíncrono (não bloqueia)
     await this.analyticsService.recalculcarAnalytics(dataInicioUTC, dataFimUTC);
     return {
-      message: 'Recálculo de analytics iniciado. Use o endpoint /status para acompanhar o progresso.',
+      message:
+        'Recálculo de analytics iniciado. Use o endpoint /status para acompanhar o progresso.',
     };
   }
 
@@ -107,4 +123,3 @@ export class PedidosAnalyticsController {
     return this.analyticsService.getMeses();
   }
 }
-

@@ -71,7 +71,8 @@ export class SyncService {
         });
 
         if (!configs?.valor) {
-          const errorMsg = '❌ Token do Bravo ERP não está configurado. Configure o token em Configurações > Bravo ERP antes de iniciar a sincronização.';
+          const errorMsg =
+            '❌ Token do Bravo ERP não está configurado. Configure o token em Configurações > Bravo ERP antes de iniciar a sincronização.';
           this.logger.error(errorMsg);
           throw new BadRequestException(errorMsg);
         }
@@ -89,7 +90,9 @@ export class SyncService {
       // ✅ LÓGICA: Se importar_excluidos é true, desabilita o filtro apenas_ativos
       const apenasAtivosFinal = !finalImportarExcluidos && apenas_ativos;
       if (finalImportarExcluidos) {
-        this.logger.log('📦 Modo: Importar TODOS os produtos (ativos + excluídos)');
+        this.logger.log(
+          '📦 Modo: Importar TODOS os produtos (ativos + excluídos)',
+        );
       } else if (apenas_ativos) {
         this.logger.log('📦 Modo: Importar apenas produtos ATIVOS');
       } else {
@@ -216,8 +219,8 @@ export class SyncService {
           filtro_aplicado: finalImportarExcluidos
             ? 'Todos os produtos (ativos + excluídos)'
             : apenasAtivosFinal
-            ? 'Apenas produtos ativos'
-            : 'Produtos ativos por padrão',
+              ? 'Apenas produtos ativos'
+              : 'Produtos ativos por padrão',
           total_produtos_bravo: resultado.totalProdutos,
           produtos_filtrados: resultado.totalProdutos,
           paginas_processadas: resultado.totalPagesProcessed,

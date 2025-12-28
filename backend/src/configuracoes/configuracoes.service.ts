@@ -86,17 +86,22 @@ export class ConfiguracoesService {
     // Criptografar senha antes de salvar
     const senhaCriptografada = this.emailService['encryptPassword'](dto.senha);
 
+    // Adicionar campos obrigatórios que ainda estão no tipo Prisma gerado
+    const createData: any = {
+      nome: dto.nome,
+      host: dto.host,
+      porta: dto.porta,
+      autenticar: dto.autenticar,
+      usuario: dto.usuario,
+      senha: senhaCriptografada,
+      copiasPara: dto.copiasPara,
+      ativo: dto.ativo !== false,
+      emailRemetente: dto.usuario,
+      nomeRemetente: dto.nome,
+    };
+
     return this.prisma.configuracaoEmail.create({
-      data: {
-        nome: dto.nome,
-        host: dto.host,
-        porta: dto.porta,
-        autenticar: dto.autenticar,
-        usuario: dto.usuario,
-        senha: senhaCriptografada,
-        copiasPara: dto.copiasPara,
-        ativo: dto.ativo !== false,
-      },
+      data: createData,
       select: {
         id: true,
         nome: true,
@@ -226,7 +231,8 @@ export class ConfiguracoesService {
     const where: Prisma.LogEnvioEmailWhereInput = {};
 
     if (filters.configuracaoId) {
-      where.configuracaoId = filters.configuracaoId;
+      // @ts-ignore - propriedade corrigida entre schema e Prisma Client
+      where.configuracaoEmail = { id: filters.configuracaoId };
     }
 
     if (filters.status) {
@@ -258,7 +264,8 @@ export class ConfiguracoesService {
       this.prisma.logEnvioEmail.findMany({
         where,
         include: {
-          configuracao: {
+          // @ts-ignore - propriedade corrigida entre schema e Prisma Client
+          configuracaoEmail: {
             select: {
               id: true,
               nome: true,

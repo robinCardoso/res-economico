@@ -347,12 +347,12 @@ export function ConfigPanel() {
                     }
                   />
                   <Label htmlFor="verificar_duplicatas" className="text-xs font-medium">
-                    Verificar Duplicatas (id_doc + id_prod)
+                    Verificar Duplicatas (id_prod + referencia)
                   </Label>
                 </div>
                 <p className="text-[10px] text-muted-foreground ml-7">
                   ✅ <strong>Recomendado:</strong> Evita importar produtos duplicados baseado na
-                  combinação id_doc + id_prod
+                  combinação id_prod + referencia
                 </p>
               </div>
 

@@ -1,4 +1,10 @@
-import { IsString, IsEnum, IsOptional, IsObject, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsObject,
+  IsBoolean,
+} from 'class-validator';
 
 enum TipoClienteAssociacao {
   VENDA = 'VENDA',
@@ -10,7 +16,9 @@ export class CreateUsuarioClienteDto {
   @IsString()
   nomeFantasia: string;
 
-  @IsEnum(TipoClienteAssociacao, { message: 'Tipo de cliente deve ser VENDA, PEDIDO ou AMBOS' })
+  @IsEnum(TipoClienteAssociacao, {
+    message: 'Tipo de cliente deve ser VENDA, PEDIDO ou AMBOS',
+  })
   tipoCliente: 'VENDA' | 'PEDIDO' | 'AMBOS';
 
   @IsOptional()

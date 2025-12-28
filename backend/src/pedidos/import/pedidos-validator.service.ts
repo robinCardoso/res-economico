@@ -178,7 +178,8 @@ export class PedidosValidatorService {
     const dateStr = String(value).trim();
 
     // Tentar formato brasileiro com hora: DD/MM/YYYY HH:MM:SS
-    const brFormatWithTime = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})$/;
+    const brFormatWithTime =
+      /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})$/;
     const matchWithTime = dateStr.match(brFormatWithTime);
     if (matchWithTime) {
       const day = parseInt(matchWithTime[1], 10);
@@ -187,16 +188,11 @@ export class PedidosValidatorService {
       const hour = parseInt(matchWithTime[4], 10);
       const minute = parseInt(matchWithTime[5], 10);
       const second = parseInt(matchWithTime[6], 10);
-      // Criar data em UTC para evitar problemas de timezone
-      const date = new Date(Date.UTC(year, month, day, hour, minute, second));
-      // Verificar se a data é válida usando UTC
+      const date = new Date(year, month, day, hour, minute, second);
       if (
-        date.getUTCDate() === day &&
-        date.getUTCMonth() === month &&
-        date.getUTCFullYear() === year &&
-        date.getUTCHours() === hour &&
-        date.getUTCMinutes() === minute &&
-        date.getUTCSeconds() === second
+        date.getDate() === day &&
+        date.getMonth() === month &&
+        date.getFullYear() === year
       ) {
         return date;
       }
@@ -212,13 +208,11 @@ export class PedidosValidatorService {
       if (year < 100) {
         year += 2000; // Assumir anos 2000+
       }
-      // Criar data em UTC para evitar problemas de timezone
-      const date = new Date(Date.UTC(year, month, day));
-      // Verificar se a data é válida usando UTC
+      const date = new Date(year, month, day);
       if (
-        date.getUTCDate() === day &&
-        date.getUTCMonth() === month &&
-        date.getUTCFullYear() === year
+        date.getDate() === day &&
+        date.getMonth() === month &&
+        date.getFullYear() === year
       ) {
         return date;
       }
@@ -233,4 +227,3 @@ export class PedidosValidatorService {
     throw new Error(`Data inválida: ${dateStr}`);
   }
 }
-

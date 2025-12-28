@@ -81,4 +81,3 @@ export class EmpresasController {
     return this.deletionService.deletarEmpresa(id, dto);
   }
 }
-

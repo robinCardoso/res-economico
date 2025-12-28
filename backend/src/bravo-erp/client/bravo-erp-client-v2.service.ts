@@ -68,10 +68,10 @@ export class BravoErpClientV2Service {
         if (!this.config.baseUrl) missingFields.push('URL da API');
         if (!this.config.cliente) missingFields.push('Código do Cliente');
         if (!this.config.token) missingFields.push('Token de Autenticação');
-        
+
         throw new Error(
           `Configuração incompleta do Bravo ERP. Campos obrigatórios não preenchidos: ${missingFields.join(', ')}. ` +
-          `Acesse Configurações > Bravo ERP e preencha todos os campos obrigatórios.`,
+            `Acesse Configurações > Bravo ERP e preencha todos os campos obrigatórios.`,
         );
       }
 
