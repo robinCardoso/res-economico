@@ -30,14 +30,12 @@ model Empresa {
   resumos               ResumoEconomico[]
   templates             TemplateImportacao[]
   uploads               Upload[]
-  // usuarios removido - não há constraint com Usuario
+  usuarios              Usuario[]
   processos             Processo[]
   atas                  AtaReuniao[]
   modelosAtas           ModeloAta[]
   vendas                Venda[]
   vendasAnalytics       VendaAnalytics[]
-  pedidos               Pedido[]
-  pedidosAnalytics      PedidoAnalytics[]
 }
 
 model ConfiguracaoModeloNegocio {
@@ -61,8 +59,6 @@ model Usuario {
   nome                   String
   roles                  String[]                @default(["user"])
   empresaId              String?
-  ativo                  Boolean                 @default(true)
-  ultimoAcesso           DateTime?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   departamento           Departamento?
@@ -80,13 +76,9 @@ model Usuario {
   pushSubscriptions      PushSubscription[]
   logsAlteracoesAtas     LogAlteracaoAta[]
   vendasImportacaoLogs   VendaImportacaoLog[]
-  vendaColumnMappings    VendaColumnMapping[] // Mapeamentos de colunas de vendas criados pelo usuário
-  vendaAnalyticsFilters  VendaAnalyticsFilter[] // Filtros de analytics salvos pelo usuário
-  pedidosImportacaoLogs  PedidoImportacaoLog[]
-  pedidoColumnMappings   PedidoColumnMapping[] // Mapeamentos de colunas de pedidos criados pelo usuário
-  pedidoAnalyticsFilters PedidoAnalyticsFilter[] // Filtros de analytics salvos pelo usuário
-  clientesAssociados     UsuarioCliente[] // Clientes associados ao usuário
-  // empresaId removido de constraint - usuários não são deletados com empresa
+  vendaColumnMappings    VendaColumnMapping[]    // Mapeamentos de colunas de vendas criados pelo usuário
+  vendaAnalyticsFilters  VendaAnalyticsFilter[]  // Filtros de analytics salvos pelo usuário
+  empresa                Empresa?                @relation(fields: [empresaId], references: [id])
 }
 
 model TemplateImportacao {
@@ -918,8 +910,8 @@ model BravoSyncConfig {
 
 model BravoCampoMapeamento {
   id                 Int      @id @default(autoincrement())
-  campo_bravo        String // Nome do campo na API Bravo
-  campo_interno      String // Nome do campo na tabela produtos
+  campo_bravo        String   // Nome do campo na API Bravo
+  campo_interno      String   // Nome do campo na tabela produtos
   tipo_transformacao String   @default("direto") // direto, decimal, json, boolean, etc
   ativo              Boolean  @default(true)
   ordem              Int      @default(0)
@@ -935,31 +927,27 @@ model BravoCampoMapeamento {
 // =====================================================
 
 model Produto {
-  id         String  @id @default(uuid())
-  referencia String  @unique // Referência única do produto (obrigatório)
-  id_prod    String? // ID original do Bravo ERP
-  descricao  String?
-  marca      String?
-  grupo      String?
-  subgrupo   String?
-  ativo      Boolean @default(true)
-
+  id             String   @id @default(uuid())
+  referencia     String   @unique // Referência única do produto (obrigatório)
+  id_prod        String?  // ID original do Bravo ERP
+  descricao      String?
+  marca          String?
+  grupo          String?
+  subgrupo       String?
+  ativo          Boolean  @default(true)
+  
   // Campos adicionais
-  gtin         String? // Código GTIN/EAN
-  ncm          String? // Código NCM
-  cest         String? // Código CEST
-  dataUltModif DateTime? // Data da última modificação no Bravo
-
+  gtin           String?  // Código GTIN/EAN
+  ncm            String?  // Código NCM
+  cest           String?  // Código CEST
+  dataUltModif   DateTime? // Data da última modificação no Bravo
+  
   // Metadata JSONB para campos dinâmicos
-  metadata Json? // { bravo_id, tipo_produto, preco_venda, peso_bruto, etc }
-
+  metadata       Json?    // { bravo_id, tipo_produto, preco_venda, peso_bruto, etc }
+  
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relacionamentos
-  vendas  Venda[]
-  pedidos Pedido[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([referencia])
   @@index([id_prod])
@@ -967,6 +955,9 @@ model Produto {
   @@index([marca])
   @@index([grupo])
   @@index([dataUltModif])
+  
+  // Relacionamentos
+  vendas                Venda[]
 }
 
 // =====================================================
@@ -974,62 +965,62 @@ model Produto {
 // =====================================================
 
 model BravoSyncLog {
-  id               String  @id @default(uuid())
-  sync_type        String // 'complete' | 'quick' | 'automatica'
-  status           String  @default("running") // running, completed, failed, cancelled
-  status_detalhado String? // completed_successfully, completed_with_errors, etc
-
+  id                    String   @id @default(uuid())
+  sync_type             String   // 'complete' | 'quick' | 'automatica'
+  status                String   @default("running") // running, completed, failed, cancelled
+  status_detalhado      String?  // completed_successfully, completed_with_errors, etc
+  
   // Configuração da sincronização
-  apenas_ativos   Boolean @default(true)
-  limit_requested Int?
-  pages_requested Int?
-  effective_limit Int?
-
+  apenas_ativos         Boolean  @default(true)
+  limit_requested       Int?
+  pages_requested       Int?
+  effective_limit       Int?
+  
   // Progresso
-  current_page      Int? @default(1)
-  pages_processed   Int? @default(0)
-  total_pages_found Int?
-  resume_from_page  Int? // Para retomada de sincronização
-
+  current_page          Int?     @default(1)
+  pages_processed       Int?     @default(0)
+  total_pages_found     Int?
+  resume_from_page      Int?     // Para retomada de sincronização
+  
   // Estatísticas
-  total_produtos_bravo Int? @default(0)
-  produtos_filtrados   Int? @default(0)
-  produtos_analisados  Int? @default(0)
-  produtos_inseridos   Int? @default(0)
-  produtos_atualizados Int? @default(0)
-  produtos_ignorados   Int? @default(0)
-  produtos_com_erro    Int? @default(0)
-
+  total_produtos_bravo  Int?     @default(0)
+  produtos_filtrados    Int?     @default(0)
+  produtos_analisados   Int?     @default(0)
+  produtos_inseridos    Int?     @default(0)
+  produtos_atualizados  Int?     @default(0)
+  produtos_ignorados    Int?     @default(0)
+  produtos_com_erro     Int?     @default(0)
+  
   // Otimização
-  taxa_otimizacao  String? // Porcentagem de produtos ignorados
-  economia_queries Int?    @default(0)
-
+  taxa_otimizacao       String?  // Porcentagem de produtos ignorados
+  economia_queries      Int?     @default(0)
+  
   // Erros
-  error_message      String?
-  error_details      Json? // Detalhes do erro
-  tipos_erro         Json? // { duplicate_key: 5, foreign_key_violation: 2 }
-  sugestoes_correcao String[] // Sugestões de correção
-
+  error_message         String?
+  error_details         Json?    // Detalhes do erro
+  tipos_erro            Json?    // { duplicate_key: 5, foreign_key_violation: 2 }
+  sugestoes_correcao    String[] // Sugestões de correção
+  
   // Métricas
-  tempo_total_segundos Int?
-  percentual_sucesso   Int? // 0-100
-
+  tempo_total_segundos  Int?
+  percentual_sucesso    Int?     // 0-100
+  
   // Usuário
-  triggered_by String? // 'admin_user', 'cron', 'api'
-  user_agent   String?
-  userId       String? // ID do usuário que iniciou
-
+  triggered_by          String?  // 'admin_user', 'cron', 'api'
+  user_agent            String?
+  userId                String?  // ID do usuário que iniciou
+  
   // Retomada
-  can_resume   Boolean @default(false)
-  sync_details Json? // Detalhes adicionais da sincronização
-
+  can_resume            Boolean  @default(false)
+  sync_details          Json?    // Detalhes adicionais da sincronização
+  
   // Timestamps
-  started_at       DateTime  @default(now())
-  completed_at     DateTime?
-  last_activity_at DateTime?
+  started_at            DateTime @default(now())
+  completed_at          DateTime?
+  last_activity_at      DateTime?
 
   // Relacionamentos
-  progress BravoSyncProgress?
+  progress    BravoSyncProgress?
 
   @@index([status])
   @@index([sync_type])
@@ -1043,24 +1034,24 @@ model BravoSyncLog {
 // =====================================================
 
 model BravoSyncProgress {
-  id                             String  @id @default(uuid())
-  sync_log_id                    String  @unique
-  progress_percentage            Decimal @db.Decimal(5, 2) // 0.00 a 100.00
-  current_step                   String? // "Buscando produtos...", "Processando página 1..."
-  current_page                   Int?
-  total_pages                    Int?
-  products_processed             Int?    @default(0)
-  products_inserted_current_page Int?    @default(0)
-  total_produtos_bravo           Int?
-  estimated_time_remaining       String? // "5 páginas restantes"
-  current_product                String? // Referência do produto atual
-  status_atual                   String?
-  etapa_atual                    String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  syncLog BravoSyncLog @relation(fields: [sync_log_id], references: [id], onDelete: Cascade)
+  id                        String   @id @default(uuid())
+  sync_log_id               String   @unique
+  progress_percentage       Decimal  @db.Decimal(5, 2) // 0.00 a 100.00
+  current_step              String?  // "Buscando produtos...", "Processando página 1..."
+  current_page              Int?
+  total_pages               Int?
+  products_processed        Int?     @default(0)
+  products_inserted_current_page Int? @default(0)
+  total_produtos_bravo      Int?
+  estimated_time_remaining  String?  // "5 páginas restantes"
+  current_product           String?  // Referência do produto atual
+  status_atual              String?
+  etapa_atual               String?
+  
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  
+  syncLog                   BravoSyncLog @relation(fields: [sync_log_id], references: [id], onDelete: Cascade)
 
   @@index([sync_log_id])
 }
@@ -1073,7 +1064,7 @@ model Marca {
   id        String   @id @default(uuid())
   nome      String   @unique
   createdAt DateTime @default(now())
-
+  
   @@index([nome])
 }
 
@@ -1081,7 +1072,7 @@ model Grupo {
   id        String   @id @default(uuid())
   nome      String   @unique
   createdAt DateTime @default(now())
-
+  
   @@index([nome])
 }
 
@@ -1089,7 +1080,7 @@ model Subgrupo {
   id        String   @id @default(uuid())
   nome      String   @unique
   createdAt DateTime @default(now())
-
+  
   @@index([nome])
 }
 
@@ -1098,28 +1089,28 @@ model Subgrupo {
 // =====================================================
 
 model Venda {
-  id String @id @default(uuid())
-
+  id              String   @id @default(uuid())
+  
   // Identificação da Venda
-  nfe       String // Nota Fiscal Eletrônica (obrigatório)
-  idDoc     String? // ID do Documento no sistema origem
-  dataVenda DateTime // Data da Venda (obrigatório)
-
+  nfe             String   // Nota Fiscal Eletrônica (obrigatório)
+  idDoc           String?  // ID do Documento no sistema origem
+  dataVenda       DateTime  // Data da Venda (obrigatório)
+  
   // Cliente
-  razaoSocial  String // Razão Social do Cliente (obrigatório)
-  nomeFantasia String? // Nome Fantasia do Cliente
-  cnpjCliente  String? // CNPJ do Cliente
-  ufDestino    String? // UF de Destino
-  ufOrigem     String? // UF de Origem
-
+  razaoSocial     String   // Razão Social do Cliente (obrigatório)
+  nomeFantasia    String?  // Nome Fantasia do Cliente
+  cnpjCliente     String?  // CNPJ do Cliente
+  ufDestino       String?  // UF de Destino
+  ufOrigem        String?  // UF de Origem
+  
   // Produto
-  idProd           String? // ID do Produto no sistema origem
-  referencia       String? // Referência do Produto
-  prodCodMestre    String? // Prod Cod Mestre (Código Mestre do Produto)
+  idProd          String?  // ID do Produto no sistema origem
+  referencia      String?  // Referência do Produto
+  prodCodMestre   String?  // Prod Cod Mestre (Código Mestre do Produto)
   descricaoProduto String? // Descrição do Produto
-  marca            String? // Marca do Produto (denormalizada para performance em relatórios)
-  grupo            String? // Grupo do Produto (denormalizado para performance em relatórios)
-  subgrupo         String? // Subgrupo do Produto (denormalizado para performance em relatórios)
+  marca           String?  // Marca do Produto (denormalizada para performance em relatórios)
+  grupo           String?  // Grupo do Produto (denormalizado para performance em relatórios)
+  subgrupo        String?  // Subgrupo do Produto (denormalizado para performance em relatórios)
   // Nota: Marca, Grupo e Subgrupo são denormalizados para evitar JOINs em relatórios frequentes
   // Esses campos são capturados no momento da importação e representam os valores no momento da venda
   // Se esses valores mudarem no futuro, os valores históricos da venda são preservados
@@ -1127,38 +1118,32 @@ model Venda {
   // - marca: 'DESCONHECIDA'
   // - grupo: 'DESCONHECIDO'
   // - subgrupo: 'DESCONHECIDO'
-
+  
   // Operação
-  tipoOperacao String? // Tipo Operação
-
+  tipoOperacao    String?  // Tipo Operação
+  
   // Valores
-  quantidade    Decimal @db.Decimal(18, 3) // Quantidade vendida
-  valorUnitario Decimal @db.Decimal(18, 2) // Valor unitário
-  valorTotal    Decimal @db.Decimal(18, 2) // Valor total
-
+  quantidade      Decimal  @db.Decimal(18, 3) // Quantidade vendida
+  valorUnitario   Decimal  @db.Decimal(18, 2) // Valor unitário
+  valorTotal      Decimal  @db.Decimal(18, 2) // Valor total
+  
   // Relacionamentos
-  empresaId       String? // Empresa relacionada
-  produtoId       String? // Produto relacionado (se existir na tabela Produto)
-  importacaoLogId String? // ID da importação que criou esta venda
-
+  empresaId       String?  // Empresa relacionada
+  produtoId       String?  // Produto relacionado (se existir na tabela Produto)
+  importacaoLogId String?  // ID da importação que criou esta venda
+  
   // Metadata JSONB para campos dinâmicos
-  metadata Json? // { origem, tipo_venda, desconto, etc }
-
+  metadata        Json?    // { origem, tipo_venda, desconto, etc }
+  
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
   // Relacionamentos
-  empresa       Empresa?            @relation(fields: [empresaId], references: [id])
-  produto       Produto?            @relation(fields: [produtoId], references: [id])
-  importacaoLog VendaImportacaoLog? @relation(fields: [importacaoLogId], references: [id], onDelete: SetNull)
-
-  // Chave única composta para evitar duplicatas
-  // IMPORTANTE: Esta chave garante que não haverá duplicatas mesmo se:
-  // - O usuário carregar o mesmo arquivo duas vezes
-  // - O usuário carregar um arquivo antigo sem querer
-  // - Houver múltiplos produtos na mesma NFE
-  @@unique([nfe, idDoc, referencia])
+  empresa         Empresa? @relation(fields: [empresaId], references: [id])
+  produto         Produto? @relation(fields: [produtoId], references: [id])
+  importacaoLog   VendaImportacaoLog? @relation(fields: [importacaoLogId], references: [id], onDelete: SetNull)
+  
   @@index([nfe])
   @@index([dataVenda])
   @@index([empresaId, dataVenda])
@@ -1171,45 +1156,53 @@ model Venda {
   @@index([prodCodMestre])
   @@index([tipoOperacao])
   @@index([importacaoLogId]) // Índice para performance em deleção de importações
+  
+  // Chave única composta para evitar duplicatas
+  // IMPORTANTE: Esta chave garante que não haverá duplicatas mesmo se:
+  // - O usuário carregar o mesmo arquivo duas vezes
+  // - O usuário carregar um arquivo antigo sem querer
+  // - Houver múltiplos produtos na mesma NFE
+  @@unique([nfe, idDoc, referencia])
+  
   // Índice adicional para busca rápida de duplicatas potenciais
   @@index([nfe, dataVenda, referencia])
 }
 
 model VendaAnalytics {
-  id String @id @default(uuid())
-
+  id              String   @id @default(uuid())
+  
   // Agregação temporal
-  ano Int
-  mes Int // 1-12
-
+  ano              Int
+  mes              Int      // 1-12
+  
   // Agregação por empresa
-  empresaId String? // Empresa relacionada (opcional para compatibilidade com dados antigos)
-
+  empresaId        String?  // Empresa relacionada (opcional para compatibilidade com dados antigos)
+  
   // Agregação por cliente
-  nomeFantasia String // Nome fantasia do cliente
-
+  nomeFantasia     String   // Nome fantasia do cliente
+  
   // Agregação por produto
-  marca    String // Marca do produto (denormalizada da tabela Venda)
-  grupo    String? // Grupo do produto (denormalizado da tabela Venda, opcional)
-  subgrupo String? // Subgrupo do produto (denormalizado da tabela Venda, opcional)
-
+  marca            String   // Marca do produto (denormalizada da tabela Venda)
+  grupo            String?  // Grupo do produto (denormalizado da tabela Venda, opcional)
+  subgrupo         String?  // Subgrupo do produto (denormalizado da tabela Venda, opcional)
+  
   // Agregação por operação
-  tipoOperacao String? // Tipo de operação (denormalizado da tabela Venda, opcional)
-
+  tipoOperacao     String?  // Tipo de operação (denormalizado da tabela Venda, opcional)
+  
   // Agregação geográfica
-  uf String // UF
-
+  uf               String   // UF
+  
   // Valores agregados
-  totalValor      Decimal @db.Decimal(18, 2)
-  totalQuantidade Decimal @db.Decimal(18, 3)
-
+  totalValor       Decimal  @db.Decimal(18, 2)
+  totalQuantidade  Decimal  @db.Decimal(18, 3)
+  
   // Timestamps
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
-
+  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now())
+  
   // Relacionamentos
-  empresa Empresa? @relation(fields: [empresaId], references: [id], onDelete: SetNull)
-
+  empresa          Empresa? @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  
   @@unique([ano, mes, nomeFantasia, marca, grupo, subgrupo, tipoOperacao, uf, empresaId])
   @@index([ano, mes])
   @@index([empresaId, ano, mes])
@@ -1222,35 +1215,35 @@ model VendaAnalytics {
 }
 
 model VendaImportacaoLog {
-  id String @id @default(uuid())
-
+  id                String   @id @default(uuid())
+  
   // Informações do arquivo
-  nomeArquivo String
-  mappingName String? // Nome do mapeamento usado
-  totalLinhas Int
-
+  nomeArquivo       String
+  mappingName       String?  // Nome do mapeamento usado
+  totalLinhas       Int
+  
   // Resultados
-  sucessoCount           Int @default(0)
-  erroCount              Int @default(0)
+  sucessoCount      Int      @default(0)
+  erroCount         Int      @default(0)
   produtosNaoEncontrados Int @default(0) // Quantidade de produtos não encontrados na tabela Produto
-  duplicatasCount        Int @default(0) // Quantidade de registros que já existiam (foram atualizados)
-  novosCount             Int @default(0) // Quantidade de registros novos (foram criados)
-
+  duplicatasCount   Int      @default(0) // Quantidade de registros que já existiam (foram atualizados)
+  novosCount        Int      @default(0) // Quantidade de registros novos (foram criados)
+  
   // Progresso
-  progresso         Int @default(0) // Progresso da importação (0-100)
-  linhasProcessadas Int @default(0) // Quantidade de linhas já processadas
-
+  progresso         Int      @default(0) // Progresso da importação (0-100)
+  linhasProcessadas Int      @default(0) // Quantidade de linhas já processadas
+  
   // Usuário
-  usuarioEmail String
-  usuarioId    String?
-
+  usuarioEmail      String
+  usuarioId         String?
+  
   // Timestamps
-  createdAt DateTime @default(now())
-
+  createdAt         DateTime @default(now())
+  
   // Relacionamentos
-  usuario Usuario? @relation(fields: [usuarioId], references: [id])
-  vendas  Venda[] // Vendas criadas por esta importação
-
+  usuario           Usuario? @relation(fields: [usuarioId], references: [id])
+  vendas            Venda[]  // Vendas criadas por esta importação
+  
   @@index([createdAt])
   @@index([usuarioId])
 }
@@ -1260,20 +1253,20 @@ model VendaImportacaoLog {
 // =====================================================
 
 model VendaColumnMapping {
-  id            String  @id @default(uuid())
-  nome          String // Nome do mapeamento (ex: "Mapeamento Padrão", "Mapeamento Cliente X")
-  columnMapping Json // { nfe: "NNF", data: "DataE", razaoSocial: "Cliente", ... }
-  filters       Json? // Filtros salvos (opcional) - [{ column: "UF", condition: "equals", value: "SC" }]
-  descricao     String? // Descrição opcional do mapeamento
-  usuarioId     String? // Usuário que criou (opcional, para auditoria)
-
+  id            String   @id @default(uuid())
+  nome          String   // Nome do mapeamento (ex: "Mapeamento Padrão", "Mapeamento Cliente X")
+  columnMapping Json     // { nfe: "NNF", data: "DataE", razaoSocial: "Cliente", ... }
+  filters       Json?    // Filtros salvos (opcional) - [{ column: "UF", condition: "equals", value: "SC" }]
+  descricao     String?  // Descrição opcional do mapeamento
+  usuarioId     String?  // Usuário que criou (opcional, para auditoria)
+  
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
   // Relacionamentos
-  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
-
+  usuario       Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  
   @@index([usuarioId])
   @@index([createdAt])
 }
@@ -1283,236 +1276,19 @@ model VendaColumnMapping {
 // =====================================================
 
 model VendaAnalyticsFilter {
-  id        String  @id @default(uuid())
-  nome      String // Nome do filtro (ex: "Filtro Mensal 2025", "Filtro Por Marca X")
-  filters   Json // Filtros de analytics salvos: { tipoOperacao?: string[], filial?: string[], ano?: number[], ... }
-  descricao String? // Descrição opcional do filtro
-  usuarioId String? // Usuário que criou (opcional, para auditoria)
-
+  id            String   @id @default(uuid())
+  nome          String   // Nome do filtro (ex: "Filtro Mensal 2025", "Filtro Por Marca X")
+  filters       Json     // Filtros de analytics salvos: { tipoOperacao?: string[], filial?: string[], ano?: number[], ... }
+  descricao     String?  // Descrição opcional do filtro
+  usuarioId     String?  // Usuário que criou (opcional, para auditoria)
+  
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
   // Relacionamentos
-  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
-
+  usuario       Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  
   @@index([usuarioId])
   @@index([createdAt])
-}
-
-// =====================================================
-// PEDIDOS
-// =====================================================
-
-model Pedido {
-  id String @id @default(uuid())
-
-  // Identificação do Pedido
-  numeroPedido String // Número do Pedido (obrigatório)
-  idDoc        String? // ID do Documento no sistema origem
-  dataPedido   DateTime // Data do Pedido (obrigatório)
-
-  // Cliente
-  nomeFantasia String // Nome Fantasia do Cliente (obrigatório)
-
-  // Produto
-  idProd           String? // ID do Produto no sistema origem
-  referencia       String? // Referência do Produto
-  descricaoProduto String? // Descrição do Produto
-  marca            String? // Marca do Produto (denormalizada para performance em relatórios)
-  grupo            String? // Grupo do Produto (denormalizado para performance em relatórios)
-  subgrupo         String? // Subgrupo do Produto (denormalizado para performance em relatórios)
-  // Nota: Marca, Grupo e Subgrupo são denormalizados para evitar JOINs em relatórios frequentes
-  // Esses campos são capturados no momento da importação e representam os valores no momento do pedido
-  // Se esses valores mudarem no futuro, os valores históricos do pedido são preservados
-  // Tratamento de erros: Se produto não existir ou campos estiverem null, usar valores padrão:
-  // - marca: 'DESCONHECIDA'
-  // - grupo: 'DESCONHECIDO'
-  // - subgrupo: 'DESCONHECIDO'
-
-  // Valores
-  quantidade    Decimal @db.Decimal(18, 3) // Quantidade do pedido
-  valorUnitario Decimal @db.Decimal(18, 2) // Valor unitário
-  valorTotal    Decimal @db.Decimal(18, 2) // Valor total
-
-  // Relacionamentos
-  empresaId       String? // Empresa relacionada
-  produtoId       String? // Produto relacionado (se existir na tabela Produto)
-  importacaoLogId String? // ID da importação que criou este pedido
-
-  // Metadata JSONB para campos dinâmicos
-  metadata Json? // { origem, tipo_pedido, desconto, etc }
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relacionamentos
-  empresa       Empresa?             @relation(fields: [empresaId], references: [id])
-  produto       Produto?             @relation(fields: [produtoId], references: [id])
-  importacaoLog PedidoImportacaoLog? @relation(fields: [importacaoLogId], references: [id], onDelete: SetNull)
-
-  // Chave única composta para evitar duplicatas
-  // IMPORTANTE: Esta chave garante que não haverá duplicatas mesmo se:
-  // - O usuário carregar o mesmo arquivo duas vezes
-  // - O usuário carregar um arquivo antigo sem querer
-  // - Houver múltiplos produtos no mesmo pedido
-  @@unique([numeroPedido, idDoc, referencia])
-  @@index([numeroPedido])
-  @@index([dataPedido])
-  @@index([empresaId, dataPedido])
-  @@index([referencia])
-  @@index([nomeFantasia])
-  @@index([idDoc])
-  @@index([marca])
-  @@index([grupo])
-  @@index([subgrupo])
-  @@index([importacaoLogId]) // Índice para performance em deleção de importações
-  // Índice adicional para busca rápida de duplicatas potenciais
-  @@index([numeroPedido, dataPedido, referencia])
-}
-
-model PedidoAnalytics {
-  id String @id @default(uuid())
-
-  // Agregação temporal
-  ano Int
-  mes Int // 1-12
-
-  // Agregação por empresa
-  empresaId String? // Empresa relacionada (opcional para compatibilidade com dados antigos)
-
-  // Agregação por cliente
-  nomeFantasia String // Nome fantasia do cliente
-
-  // Agregação por produto
-  marca    String // Marca do produto (denormalizada da tabela Pedido)
-  grupo    String? // Grupo do produto (denormalizado da tabela Pedido, opcional)
-  subgrupo String? // Subgrupo do produto (denormalizado da tabela Pedido, opcional)
-
-  // Valores agregados
-  totalValor      Decimal @db.Decimal(18, 2)
-  totalQuantidade Decimal @db.Decimal(18, 3)
-
-  // Timestamps
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
-
-  // Relacionamentos
-  empresa Empresa? @relation(fields: [empresaId], references: [id], onDelete: SetNull)
-
-  @@unique([ano, mes, nomeFantasia, marca, grupo, subgrupo, empresaId])
-  @@index([ano, mes])
-  @@index([empresaId, ano, mes])
-  @@index([marca])
-  @@index([grupo])
-  @@index([subgrupo])
-  @@index([nomeFantasia])
-}
-
-model PedidoImportacaoLog {
-  id String @id @default(uuid())
-
-  // Informações do arquivo
-  nomeArquivo String
-  mappingName String? // Nome do mapeamento usado
-  totalLinhas Int
-
-  // Resultados
-  sucessoCount           Int @default(0)
-  erroCount              Int @default(0)
-  produtosNaoEncontrados Int @default(0) // Quantidade de produtos não encontrados na tabela Produto
-  duplicatasCount        Int @default(0) // Quantidade de registros que já existiam (foram atualizados)
-  novosCount             Int @default(0) // Quantidade de registros novos (foram criados)
-
-  // Progresso
-  progresso         Int @default(0) // Progresso da importação (0-100)
-  linhasProcessadas Int @default(0) // Quantidade de linhas já processadas
-
-  // Usuário
-  usuarioEmail String
-  usuarioId    String?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-
-  // Relacionamentos
-  usuario Usuario? @relation(fields: [usuarioId], references: [id])
-  pedidos Pedido[] // Pedidos criados por esta importação
-
-  @@index([createdAt])
-  @@index([usuarioId])
-}
-
-// =====================================================
-// PEDIDOS - MAPEAMENTO DE COLUNAS
-// =====================================================
-
-model PedidoColumnMapping {
-  id            String  @id @default(uuid())
-  nome          String // Nome do mapeamento (ex: "Mapeamento Padrão", "Mapeamento Cliente X")
-  columnMapping Json // { numeroPedido: "Número", dataPedido: "Data", nomeFantasia: "Cliente", ... }
-  filters       Json? // Filtros salvos (opcional) - [{ column: "Grupo", condition: "equals", value: "X" }]
-  descricao     String? // Descrição opcional do mapeamento
-  usuarioId     String? // Usuário que criou (opcional, para auditoria)
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relacionamentos
-  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
-
-  @@index([usuarioId])
-  @@index([createdAt])
-}
-
-// =====================================================
-// PEDIDOS - FILTROS DE ANALYTICS SALVOS
-// =====================================================
-
-model PedidoAnalyticsFilter {
-  id        String  @id @default(uuid())
-  nome      String // Nome do filtro (ex: "Filtro Mensal 2025", "Filtro Por Marca X")
-  filters   Json // Filtros de analytics salvos: { marca?: string[], grupo?: string[], ano?: number[], ... }
-  descricao String? // Descrição opcional do filtro
-  usuarioId String? // Usuário que criou (opcional, para auditoria)
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relacionamentos
-  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
-
-  @@index([usuarioId])
-  @@index([createdAt])
-}
-
-// =====================================================
-// USUÁRIOS - ASSOCIAÇÃO COM CLIENTES
-// =====================================================
-
-model UsuarioCliente {
-  id           String                 @id @default(uuid())
-  usuarioId    String
-  nomeFantasia String // Identificador do cliente (de Venda/Pedido)
-  tipoCliente  TipoClienteAssociacao // VENDA, PEDIDO ou AMBOS
-  permissoes   Json? // Permissões granulares: { vendas: true, pedidos: true, analytics: true }
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
-  createdBy    String? // Quem criou a associação
-
-  // Relacionamentos
-  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-
-  @@unique([usuarioId, nomeFantasia, tipoCliente])
-  @@index([usuarioId])
-  @@index([nomeFantasia])
-}
-
-enum TipoClienteAssociacao {
-  VENDA
-  PEDIDO
-  AMBOS
 }

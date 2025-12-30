@@ -23,8 +23,6 @@ import { LogAlteracoesModule } from './log-alteracoes/log-alteracoes.module';
 import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 import { BravoErpModule } from './bravo-erp/bravo-erp.module';
 import { VendasModule } from './vendas/vendas.module';
-import { PedidosModule } from './pedidos/pedidos.module';
-import { UsuariosModule } from './usuarios/usuarios.module';
 
 @Module({
   imports: [
@@ -52,8 +50,6 @@ import { UsuariosModule } from './usuarios/usuarios.module';
     PushNotificationsModule,
     BravoErpModule,
     VendasModule,
-    PedidosModule,
-    UsuariosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

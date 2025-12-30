@@ -302,7 +302,7 @@ export class SyncProcessorService {
       new Set(
         produtos
           .map((p: Record<string, unknown>) => {
-            const idProd = p.id_prod; // Corrigido: usar id_prod em vez de id_produto
+            const idProd = p.id_produto;
             if (idProd == null) return null;
             if (typeof idProd === 'string') return idProd.trim();
             if (typeof idProd === 'number' || typeof idProd === 'boolean') {
@@ -322,7 +322,6 @@ export class SyncProcessorService {
           id: true,
           referencia: true,
           id_prod: true,
-          descricao: true, // Adicionado para a nova lógica de duplicatas
           dataUltModif: true,
         },
       });
@@ -334,16 +333,12 @@ export class SyncProcessorService {
         const idProdKey = produto.id_prod
           ? String(produto.id_prod).trim()
           : null;
-        const descricaoKey = produto.descricao
-          ? String(produto.descricao).trim()
-          : null;
 
         if (refKey) {
           mapaProdutosExistentes.set(refKey, {
             id: produto.id,
             data_modificacao: produto.dataUltModif,
             id_prod: idProdKey,
-            descricao: descricaoKey,
           });
         }
 
@@ -352,35 +347,7 @@ export class SyncProcessorService {
             id: produto.id,
             data_modificacao: produto.dataUltModif,
             referencia: refKey,
-            descricao: descricaoKey,
           });
-        }
-
-        // Adicionando chave combinada id_prod:referencia para verificação de duplicatas
-        if (idProdKey && refKey) {
-          mapaProdutosExistentes.set(
-            `id_prod:${idProdKey}:referencia:${refKey}`,
-            {
-              id: produto.id,
-              data_modificacao: produto.dataUltModif,
-              referencia: refKey,
-              descricao: descricaoKey,
-              id_prod: idProdKey,
-            },
-          );
-        }
-
-        // Adicionando chave combinada id_prod:descricao para verificação de duplicatas
-        if (idProdKey && descricaoKey) {
-          mapaProdutosExistentes.set(
-            `id_prod:${idProdKey}:descricao:${descricaoKey}`,
-            {
-              id: produto.id,
-              data_modificacao: produto.dataUltModif,
-              referencia: refKey,
-              descricao: descricaoKey,
-            },
-          );
         }
       });
     }
@@ -393,7 +360,6 @@ export class SyncProcessorService {
           id: true,
           referencia: true,
           id_prod: true,
-          descricao: true, // Adicionado para a nova lógica de duplicatas
           dataUltModif: true,
         },
       });
@@ -405,16 +371,12 @@ export class SyncProcessorService {
         const idProdKey = produto.id_prod
           ? String(produto.id_prod).trim()
           : null;
-        const descricaoKey = produto.descricao
-          ? String(produto.descricao).trim()
-          : null;
 
         if (refKey) {
           mapaProdutosExistentes.set(refKey, {
             id: produto.id,
             data_modificacao: produto.dataUltModif,
             id_prod: idProdKey,
-            descricao: descricaoKey,
           });
         }
 
@@ -423,35 +385,7 @@ export class SyncProcessorService {
             id: produto.id,
             data_modificacao: produto.dataUltModif,
             referencia: refKey,
-            descricao: descricaoKey,
           });
-        }
-
-        // Adicionando chave combinada id_prod:referencia para verificação de duplicatas
-        if (idProdKey && refKey) {
-          mapaProdutosExistentes.set(
-            `id_prod:${idProdKey}:referencia:${refKey}`,
-            {
-              id: produto.id,
-              data_modificacao: produto.dataUltModif,
-              referencia: refKey,
-              descricao: descricaoKey,
-              id_prod: idProdKey,
-            },
-          );
-        }
-
-        // Adicionando chave combinada id_prod:descricao para verificação de duplicatas
-        if (idProdKey && descricaoKey) {
-          mapaProdutosExistentes.set(
-            `id_prod:${idProdKey}:descricao:${descricaoKey}`,
-            {
-              id: produto.id,
-              data_modificacao: produto.dataUltModif,
-              referencia: refKey,
-              descricao: descricaoKey,
-            },
-          );
         }
       });
     }
@@ -467,23 +401,11 @@ export class SyncProcessorService {
     mapaProdutosExistentes: Map<string, Record<string, unknown>>,
   ): Record<string, unknown> | undefined {
     const referencia = dadosTransformados.referencia as string | undefined;
-    const idProd = dadosTransformados.id_prod as string | undefined;
-
-    // Verificar duplicata pela combinação id_prod + referencia
-    if (referencia && idProd) {
-      const produtoExistentePorComb = mapaProdutosExistentes.get(
-        `id_prod:${idProd}:referencia:${referencia}`,
-      );
-      if (produtoExistentePorComb) {
-        return produtoExistentePorComb;
-      }
-    }
-
-    // Caso não encontre pela combinação, verificar individualmente como fallback
     const produtoExistentePorRef = referencia
       ? mapaProdutosExistentes.get(referencia)
       : undefined;
 
+    const idProd = dadosTransformados.id_prod as string | undefined;
     const produtoExistentePorId = idProd
       ? mapaProdutosExistentes.get(`id_prod:${idProd}`)
       : undefined;

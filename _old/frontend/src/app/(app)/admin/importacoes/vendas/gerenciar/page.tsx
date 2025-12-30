@@ -288,7 +288,7 @@ export default function GerenciarVendasPage() {
                 <SelectTrigger id="empresa">
                   <SelectValue placeholder="Todas as empresas" />
                 </SelectTrigger>
-                <SelectContent className="[&>div]:max-h-[17rem]">
+                <SelectContent>
                   <SelectItem value="all">Todas as empresas</SelectItem>
                   {empresas?.map((empresa) => {
                     const displayText = empresa.razaoSocial && empresa.filial

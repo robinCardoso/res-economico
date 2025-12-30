@@ -25,6 +25,7 @@ export class AuthService {
   async validateUser(email: string, password: string) {
     const user = await this.prisma.usuario.findUnique({
       where: { email },
+      include: { empresa: true },
     });
 
     if (!user) {
@@ -49,6 +50,7 @@ export class AuthService {
       nome: user.nome,
       roles: user.roles,
       empresaId: user.empresaId,
+      empresa: user.empresa,
     };
   }
 

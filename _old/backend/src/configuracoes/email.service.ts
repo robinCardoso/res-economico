@@ -121,15 +121,15 @@ export class EmailService {
       const { transporter, configuracao } =
         await this.createTransporter(configuracaoId);
 
-      // @ts-ignore
+      // Criar log de envio
       const log = await this.prisma.logEnvioEmail.create({
         data: {
-          configuracao: { connect: { id: configuracaoId } },
+          configuracaoId: configuracao.id,
           destinatario: Array.isArray(options.to)
             ? options.to.join('; ')
             : options.to,
           assunto: options.subject,
-          corpo: options.html || options.text || '',
+          corpo: options.html || options.text,
           status: StatusEnvioEmail.PENDENTE,
           tentativas: 0,
         },
@@ -214,7 +214,6 @@ export class EmailService {
         await this.prisma.logEnvioEmail.update({
           where: { id: logId },
           data: {
-            // @ts-ignore - FALHA é o enum correto do banco
             status: StatusEnvioEmail.FALHA,
             erro: errorMessage,
             tentativas: { increment: 1 },

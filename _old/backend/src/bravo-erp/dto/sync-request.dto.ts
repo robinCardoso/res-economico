@@ -27,10 +27,6 @@ export class SyncRequestDto {
 
   @IsBoolean()
   @IsOptional()
-  importar_excluidos?: boolean;
-
-  @IsBoolean()
-  @IsOptional()
   modo_teste?: boolean;
 
   @IsBoolean()

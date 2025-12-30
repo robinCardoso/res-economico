@@ -7,10 +7,8 @@ import {
   useVendasMappingFields,
   useVendaColumnMappings,
   useCreateVendaColumnMapping,
-  useUpdateVendaColumnMapping,
   useDeleteVendaColumnMapping,
   useVendasImportLogs,
-  useDeleteImportLog,
 } from '@/hooks/use-vendas';
 import { vendasService } from '@/services/vendas.service';
 import { ImportStepper } from '@/components/imports/import-stepper';
@@ -44,7 +42,6 @@ export default function ImportarVendasPage() {
   // Hooks para mapeamentos no banco de dados
   const { data: columnMappings } = useVendaColumnMappings();
   const createMappingMutation = useCreateVendaColumnMapping();
-  const updateMappingMutation = useUpdateVendaColumnMapping();
   const deleteMappingMutation = useDeleteVendaColumnMapping();
   
   // Buscar logs de importação para verificar se há importações em andamento
@@ -238,7 +235,7 @@ export default function ImportarVendasPage() {
               <SelectTrigger id="empresaId">
                 <SelectValue placeholder="Selecione uma empresa" />
               </SelectTrigger>
-              <SelectContent className="[&>div]:max-h-[17rem]">
+              <SelectContent>
                 {isLoadingEmpresas ? (
                   <SelectItem value="loading" disabled>
                     Carregando...
@@ -293,17 +290,7 @@ export default function ImportarVendasPage() {
           dataTypes={dataTypes}
           createInitialMappings={createInitialMappings}
           importAction={handleImportAction}
-          historyTableComponent={
-            <ImportHistoryTable
-              useImportLogs={useVendasImportLogs}
-              useDeleteImportLog={useDeleteImportLog}
-              labels={{
-                entityName: 'venda',
-                entityNamePlural: 'vendas',
-                entityNameCapitalized: 'Vendas',
-              }}
-            />
-          }
+          historyTableComponent={<ImportHistoryTable />}
           requiredFields={requiredFields}
           formatValueForPreview={formatValue}
           convertValue={convertValue}
@@ -378,22 +365,6 @@ export default function ImportarVendasPage() {
             });
             
             return { id: result.id };
-          }}
-          onUpdateMapping={async (id, mappings, filters) => {
-            const columnMapping: Record<string, string> = {};
-            Object.entries(mappings).forEach(([dbField, mappingInfo]) => {
-              if (mappingInfo.fileColumn) {
-                columnMapping[dbField] = mappingInfo.fileColumn;
-              }
-            });
-            
-            await updateMappingMutation.mutateAsync({
-              id,
-              dto: {
-                columnMapping,
-                filters: filters.length > 0 ? filters : undefined,
-              },
-            });
           }}
           onDeleteMapping={async (id: string) => {
             await deleteMappingMutation.mutateAsync(id);

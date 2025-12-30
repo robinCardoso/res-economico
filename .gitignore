@@ -1,54 +1,50 @@
-# Node/NPM
+# dependencies
 node_modules/
+.pnp
+.pnp.js
+
+# testing
+coverage/
+
+# next.js
+.next/
+out/
+build/
+dist/
+
+# production
+*.log*
+
+# misc
+.DS_Store
+*.pem
+
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-package-lock.json
-yarn.lock
 
-# Build outputs
-.next/
-out/
-dist/
-build/
-coverage/
-backup/
-scripts/
-docs/
-scr
-painel-completo/
-arquivos-exemplos/
-
-# Arquivos Excel
-arquivos-excel/
-
-# Environment & config
+# local env files
 .env
-.env.*
-.vercel/
-supabase/
+.env.local
+.env.example
+.env.development.local
+.env.test.local
+.env.production.local
+BACKUP.text
 
-# Editor tooling
-.idea/
-.vscode/
-*.swp
-*.swo
+# vercel
+.vercel
 
-# Logs & temp
-*.log
-*.tmp
-tmp/
-temp/
+# typescript
+*.tsbuildinfo
+next-env.d.ts
 
-# Python helpers (scripts de suporte)
-__pycache__/
-*.pyc
+# supabase
+.supabase/
 
-# System
-Thumbs.db
-.DS_Store
-
-# Assets temporários do Cursor
-assets/
-
+# old directories (to be removed after migration)
+backend/
+frontend/
+painel-completo/
+_old/

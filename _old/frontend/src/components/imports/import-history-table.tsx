@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useVendasImportLogs, useDeleteImportLog } from '@/hooks/use-vendas';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,38 +21,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Trash2, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-// Interface genérica para um log de importação
-interface ImportLog {
-  id: string;
-  nomeArquivo: string;
-  mappingName?: string | null;
-  totalLinhas: number;
-  novosCount?: number | null;
-  duplicatasCount?: number | null;
-  erroCount: number;
-  sucessoCount: number;
-  createdAt: string;
-}
 
-interface ImportHistoryTableProps<TLog extends ImportLog> {
-  // Hook para buscar logs - deve retornar um objeto com { data, isLoading }
-  useImportLogs: () => { data: TLog[] | undefined; isLoading: boolean };
-  // Hook para deletar log - deve retornar um objeto com mutateAsync
-  useDeleteImportLog: () => { mutateAsync: (id: string) => Promise<void> };
-  // Labels para personalizar as mensagens
-  labels: {
-    entityName: string; // "venda" ou "pedido"
-    entityNamePlural: string; // "vendas" ou "pedidos"
-    entityNameCapitalized: string; // "Vendas" ou "Pedidos"
-  };
-}
-
-export function ImportHistoryTable<TLog extends ImportLog>({
-  useImportLogs,
-  useDeleteImportLog,
-  labels,
-}: ImportHistoryTableProps<TLog>) {
-  const { data: logs, isLoading } = useImportLogs();
+export function ImportHistoryTable() {
+  const { data: logs, isLoading } = useVendasImportLogs();
   const deleteMutation = useDeleteImportLog();
   const { toast } = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -62,7 +34,7 @@ export function ImportHistoryTable<TLog extends ImportLog>({
       await deleteMutation.mutateAsync(logId);
       toast({
         title: 'Importação deletada',
-        description: `A importação "${nomeArquivo}" e ${sucessoCount} ${labels.entityNamePlural} foram removidas com sucesso.`,
+        description: `A importação "${nomeArquivo}" e ${sucessoCount} vendas foram removidas com sucesso.`,
       });
     } catch (error) {
       toast({
@@ -103,7 +75,7 @@ export function ImportHistoryTable<TLog extends ImportLog>({
       <CardHeader>
         <CardTitle>Histórico de Importações</CardTitle>
         <CardDescription>
-          Últimas importações de {labels.entityNamePlural} realizadas
+          Últimas importações de vendas realizadas
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -181,11 +153,11 @@ export function ImportHistoryTable<TLog extends ImportLog>({
                               locale: ptBR,
                             })}
                             <br />
-                            <strong>Total de {labels.entityNamePlural}:</strong> {log.sucessoCount}
+                            <strong>Total de vendas:</strong> {log.sucessoCount}
                             <br />
                             <br />
                             <span className="text-red-600 font-semibold">
-                              ⚠️ Esta ação irá deletar {log.sucessoCount} {labels.entityNamePlural} e não pode ser desfeita!
+                              ⚠️ Esta ação irá deletar {log.sucessoCount} vendas e não pode ser desfeita!
                             </span>
                           </AlertDialogDescription>
                         </AlertDialogHeader>

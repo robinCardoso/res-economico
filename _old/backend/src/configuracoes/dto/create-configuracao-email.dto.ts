@@ -30,14 +30,6 @@ export class CreateConfiguracaoEmailDto {
   senha: string;
 
   @IsOptional()
-  @IsEmail()
-  emailRemetente?: string;
-
-  @IsOptional()
-  @IsString()
-  nomeRemetente?: string;
-
-  @IsOptional()
   @IsString()
   copiasPara?: string;
 

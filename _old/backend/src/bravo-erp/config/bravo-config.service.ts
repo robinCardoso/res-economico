@@ -87,8 +87,7 @@ export class BravoConfigService {
       console.error('Erro ao buscar configuração:', error);
       return {
         success: false,
-        error:
-          'Não foi possível carregar as configurações do Bravo ERP do banco de dados',
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
       };
     }
   }
@@ -103,15 +102,9 @@ export class BravoConfigService {
       console.log('🔄 Iniciando salvamento de configuração...');
 
       // Validar dados obrigatórios
-      if (!dto.baseUrl || !dto.cliente || !dto.token) {
-        const missingFields: string[] = [];
-        if (!dto.baseUrl) missingFields.push('URL Base');
-        if (!dto.cliente) missingFields.push('Código do Cliente');
-        if (!dto.token) missingFields.push('Token');
-
-        const errorMsg = `Campos obrigatórios não preenchidos: ${missingFields.join(', ')}. Todos os campos marcados com * são obrigatórios para configurar o Bravo ERP.`;
-        console.error('❌ ' + errorMsg);
-        throw new BadRequestException(errorMsg);
+      if (!dto.baseUrl || !dto.cliente) {
+        console.error('❌ Campos obrigatórios não preenchidos');
+        throw new BadRequestException('URL Base e Cliente são obrigatórios');
       }
 
       // Preparar configurações para inserir/atualizar
@@ -173,7 +166,7 @@ export class BravoConfigService {
         {
           chave: 'bravo_verificar_duplicatas',
           valor: (dto.verificar_duplicatas ?? true).toString(),
-          descricao: 'Verificar duplicatas (id_prod + referencia)',
+          descricao: 'Verificar duplicatas (id_doc + id_prod)',
           tipo: 'boolean',
         },
         {
@@ -185,8 +178,7 @@ export class BravoConfigService {
         {
           chave: 'bravo_importar_excluidos',
           valor: (dto.importar_excluidos ?? false).toString(),
-          descricao:
-            'Importar produtos excluídos (incluir todos os produtos, não apenas ativos)',
+          descricao: 'Importar produtos excluídos (incluir todos os produtos, não apenas ativos)',
           tipo: 'boolean',
         },
       ];
@@ -218,18 +210,12 @@ export class BravoConfigService {
 
       return {
         success: true,
-        message:
-          '✅ Configuração salva com sucesso! O TOKEN foi registrado no sistema. Agora você pode usar a sincronização com Bravo ERP. Acesse o menu de sincronização para importar dados de produtos.',
+        message: 'Configuração salva com sucesso',
       };
     } catch (error) {
-      const errorMsg =
-        error instanceof Error
-          ? error.message
-          : 'Erro desconhecido ao salvar configuração';
-      console.error('❌ Erro ao salvar configuração:', errorMsg);
+      console.error('❌ Erro ao salvar configuração:', error);
       throw new BadRequestException(
-        errorMsg ||
-          'Não foi possível salvar as configurações do Bravo ERP. Tente novamente.',
+        error instanceof Error ? error.message : 'Erro desconhecido',
       );
     }
   }

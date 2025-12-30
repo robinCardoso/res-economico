@@ -7,7 +7,13 @@ import { PrismaService } from '../core/prisma/prisma.service';
 import { CreateProcessoDto } from './dto/create-processo.dto';
 import { UpdateProcessoDto } from './dto/update-processo.dto';
 import { FilterProcessosDto } from './dto/filter-processos.dto';
-import { Prisma } from '@prisma/client';
+import {
+  Prisma,
+  TipoProcesso,
+  SituacaoProcesso as PrismaSituacaoProcesso,
+  CategoriaReclamacao,
+  PrioridadeProcesso,
+} from '@prisma/client';
 
 @Injectable()
 export class ProcessosService {
@@ -90,7 +96,8 @@ export class ProcessosService {
     // Validar se é Garantia/Devolução e tem itens
     const tipoProcesso = this.mapTipoProcesso(createDto.tipo);
     if (
-      (tipoProcesso === 'GARANTIA' || tipoProcesso === 'DEVOLUCAO') &&
+      (tipoProcesso === TipoProcesso.GARANTIA ||
+        tipoProcesso === TipoProcesso.DEVOLUCAO) &&
       (!createDto.itens || createDto.itens.length === 0)
     ) {
       throw new BadRequestException(
@@ -99,7 +106,7 @@ export class ProcessosService {
     }
 
     // Validar se é Reclamação e tem título/descrição
-    if (tipoProcesso === 'RECLAMACAO') {
+    if (tipoProcesso === TipoProcesso.RECLAMACAO) {
       if (!createDto.titulo || !createDto.descricao || !createDto.categoria) {
         throw new BadRequestException(
           'Processos de Reclamação devem ter título, descrição e categoria',
@@ -108,7 +115,7 @@ export class ProcessosService {
     }
 
     // Validar imagens para garantias
-    if (tipoProcesso === 'GARANTIA') {
+    if (tipoProcesso === TipoProcesso.GARANTIA) {
       const allItemsHaveImages = createDto.itens?.every(
         (item) => item.imagesDataUri && item.imagesDataUri.length > 0,
       );
@@ -129,17 +136,17 @@ export class ProcessosService {
         protocolo,
         userId,
         empresaId: createDto.entidadeId,
-        tipo: this.mapTipoProcesso(createDto.tipo) as any,
+        tipo: this.mapTipoProcesso(createDto.tipo),
         situacao: 'AGUARDANDO_ANALISE',
         nomeClienteAssociado: createDto.nomeClienteAssociado,
         razaoSocial: createDto.razaoSocial,
         titulo: createDto.titulo,
         descricao: createDto.descricao,
         categoria: createDto.categoria
-          ? (this.mapCategoriaReclamacao(createDto.categoria) as any)
+          ? this.mapCategoriaReclamacao(createDto.categoria)
           : undefined,
         prioridade: createDto.prioridade
-          ? (this.mapPrioridadeProcesso(createDto.prioridade) as any)
+          ? this.mapPrioridadeProcesso(createDto.prioridade)
           : undefined,
         contatoRetorno: createDto.contatoRetorno,
         uf: createDto.uf,
@@ -221,8 +228,10 @@ export class ProcessosService {
    * Busca processos com filtros e paginação
    */
   async findAll(filterDto: FilterProcessosDto) {
-    const where: any = {
-      userId: filterDto.userEmail,
+    const where: Prisma.ProcessoWhereInput = {
+      usuario: {
+        email: filterDto.userEmail,
+      },
     };
 
     // Aplicar filtros
@@ -326,7 +335,9 @@ export class ProcessosService {
     const processo = await this.prisma.processo.findFirst({
       where: {
         id,
-        userId: userEmail,
+        usuario: {
+          email: userEmail,
+        },
       },
       include: {
         itens: true,
@@ -371,7 +382,9 @@ export class ProcessosService {
     const processo = await this.prisma.processo.findFirst({
       where: {
         id: updateDto.processoId,
-        userId: updateDto.userEmail,
+        usuario: {
+          email: updateDto.userEmail,
+        },
       },
     });
 
@@ -390,7 +403,7 @@ export class ProcessosService {
     const updateData: Prisma.ProcessoUpdateInput = {};
 
     if (updateDto.situacao) {
-      updateData.situacao = this.mapSituacaoProcesso(updateDto.situacao) as any;
+      updateData.situacao = this.mapSituacaoProcesso(updateDto.situacao);
     }
 
     if (updateDto.responsavel !== undefined) {
@@ -438,18 +451,18 @@ export class ProcessosService {
   }
 
   // Métodos auxiliares de mapeamento
-  private mapTipoProcesso(tipo: string): string {
-    const mapping: Record<string, string> = {
+  private mapTipoProcesso(tipo: string): TipoProcesso {
+    const mapping: Record<string, TipoProcesso> = {
       Garantia: 'GARANTIA',
       Devolução: 'DEVOLUCAO',
       Reclamação: 'RECLAMACAO',
     };
-    const mapped = mapping[tipo] || tipo.toUpperCase();
+    const mapped = mapping[tipo] || (tipo.toUpperCase() as TipoProcesso);
     return mapped;
   }
 
-  private mapSituacaoProcesso(situacao: string): string {
-    const mapping: Record<string, string> = {
+  private mapSituacaoProcesso(situacao: string): PrismaSituacaoProcesso {
+    const mapping: Record<string, PrismaSituacaoProcesso> = {
       'Aguardando Análise': 'AGUARDANDO_ANALISE',
       'Em Análise': 'EM_ANALISE',
       Aprovado: 'APROVADO',
@@ -458,12 +471,13 @@ export class ProcessosService {
       Concluído: 'CONCLUIDO',
       Cancelado: 'CANCELADO',
     };
-    const mapped = mapping[situacao] || situacao.toUpperCase();
+    const mapped =
+      mapping[situacao] || (situacao.toUpperCase() as PrismaSituacaoProcesso);
     return mapped;
   }
 
-  private mapCategoriaReclamacao(categoria: string): string {
-    const mapping: Record<string, string> = {
+  private mapCategoriaReclamacao(categoria: string): CategoriaReclamacao {
+    const mapping: Record<string, CategoriaReclamacao> = {
       atendimento: 'ATENDIMENTO',
       produtos: 'PRODUTOS',
       logistica: 'LOGISTICA',
@@ -471,22 +485,37 @@ export class ProcessosService {
       tecnico: 'TECNICO',
       comunicacao: 'COMUNICACAO',
     };
-    const mapped = mapping[categoria.toLowerCase()] || categoria.toUpperCase();
+    const mapped =
+      mapping[categoria.toLowerCase()] ||
+      (categoria.toUpperCase() as CategoriaReclamacao);
     return mapped;
   }
 
-  private mapPrioridadeProcesso(prioridade: string): string {
-    const mapping: Record<string, string> = {
+  private mapPrioridadeProcesso(prioridade: string): PrioridadeProcesso {
+    const mapping: Record<string, PrioridadeProcesso> = {
       baixa: 'BAIXA',
       media: 'MEDIA',
       alta: 'ALTA',
     };
     const mapped =
-      mapping[prioridade.toLowerCase()] || prioridade.toUpperCase();
+      mapping[prioridade.toLowerCase()] ||
+      (prioridade.toUpperCase() as PrioridadeProcesso);
     return mapped;
   }
 
-  private mapProcessoCompleto(processo: any) {
+  private mapProcessoCompleto(
+    processo: Prisma.ProcessoGetPayload<{
+      include: {
+        itens: true;
+        anexos: true;
+        historico: true;
+        usuario: { select: { id: true; nome: true; email: true } };
+        empresa: {
+          select: { id: true; razaoSocial: true; filial: true; uf: true };
+        };
+      };
+    }>,
+  ) {
     return {
       id: processo.id,
       numeroControle: processo.numeroControle,

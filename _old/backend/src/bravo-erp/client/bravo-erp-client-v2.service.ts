@@ -64,14 +64,8 @@ export class BravoErpClientV2Service {
 
       // Validar configurações essenciais
       if (!this.config.baseUrl || !this.config.cliente || !this.config.token) {
-        const missingFields: string[] = [];
-        if (!this.config.baseUrl) missingFields.push('URL da API');
-        if (!this.config.cliente) missingFields.push('Código do Cliente');
-        if (!this.config.token) missingFields.push('Token de Autenticação');
-
         throw new Error(
-          `Configuração incompleta do Bravo ERP. Campos obrigatórios não preenchidos: ${missingFields.join(', ')}. ` +
-            `Acesse Configurações > Bravo ERP e preencha todos os campos obrigatórios.`,
+          'Token ou dados do Bravo ERP não configurados. Configure na aba Bravo ERP.',
         );
       }
 
@@ -147,7 +141,7 @@ export class BravoErpClientV2Service {
     // Verificar token
     if (!this.config || !this.config.token) {
       throw new Error(
-        'Token do Bravo ERP não configurado. Acesse Configurações > Bravo ERP e configure o token antes de fazer requisições.',
+        'Token não configurado. Configure o token em /admin/bravo-erp',
       );
     }
 
