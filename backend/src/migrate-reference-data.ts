@@ -16,239 +16,52 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Cliente do Supabase
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Dados de referência padrão
-const referenceData = {
-  marcas: [
-    { nome: 'FIAT' },
-    { nome: 'VOLKSWAGEN' },
-    { nome: 'CHEVROLET' },
-    { nome: 'FORD' },
-    { nome: 'HONDA' },
-    { nome: 'TOYOTA' },
-    { nome: 'HYUNDAI' },
-    { nome: 'NISSAN' },
-    { nome: 'RENAULT' },
-    { nome: 'PEUGEOT' },
-    { nome: 'CITROEN' },
-    { nome: 'MERCEDES-BENZ' },
-    { nome: 'BMW' },
-    { nome: 'AUDI' },
-    { nome: 'VOLVO' },
-    { nome: 'JAC' },
-    { nome: 'JEEP' },
-    { nome: 'MITSUBISHI' },
-    { nome: 'SUBARU' },
-    { nome: 'KIA' },
-    { nome: 'BYD' },
-    { nome: 'CHERY' },
-    { nome: 'GEELY' },
-    { nome: 'DONGFENG' },
-    { nome: 'OUTRAS' },
-    { nome: 'DESCONHECIDA' }
-  ],
+// Função para verificar e migrar dados de referência que são automaticamente atualizados pelo sistema
+async function migrateReferenceData() {
+  console.log('📦 Iniciando verificação de dados de referência...');
   
-  grupos: [
-    { nome: 'ACESSORIOS' },
-    { nome: 'ACESSORIOS ESPECIAIS' },
-    { nome: 'ACESSORIOS INTERIORES' },
-    { nome: 'ACESSORIOS PERSONALIZADOS' },
-    { nome: 'ACESSORIOS PERFORMANCE' },
-    { nome: 'ACESSORIOS PROTECAO' },
-    { nome: 'ACESSORIOS TECNOLOGIA' },
-    { nome: 'ALIMENTOS' },
-    { nome: 'ALIMENTOS BEBIDAS' },
-    { nome: 'ALIMENTOS CONGELADOS' },
-    { nome: 'ALIMENTOS DOCES' },
-    { nome: 'ALIMENTOS EMBALAGENS' },
-    { nome: 'ALIMENTOS FRIOS' },
-    { nome: 'ALIMENTOS HIGIENE' },
-    { nome: 'ALIMENTOS LATICINIOS' },
-    { nome: 'ALIMENTOS MASSAS' },
-    { nome: 'ALIMENTOS PRONTOS' },
-    { nome: 'ALIMENTOS PRODUTOS FRESCOS' },
-    { nome: 'ALIMENTOS SALGADOS' },
-    { nome: 'ALIMENTOS SUCOS' },
-    { nome: 'ALIMENTOS SUPLEMENTOS' },
-    { nome: 'ALIMENTOS TEMPEROS' },
-    { nome: 'ALIMENTOS VEGANOS' },
-    { nome: 'ALIMENTOS VEGETARIANOS' },
-    { nome: 'ALIMENTOS VITAMINAS' },
-    { nome: 'ALIMENTOS OUTROS' },
-    { nome: 'AUTOMOTIVO' },
-    { nome: 'AUTOMOTIVO ACESSORIOS' },
-    { nome: 'AUTOMOTIVO ELETRONICOS' },
-    { nome: 'AUTOMOTIVO LUBRIFICANTES' },
-    { nome: 'AUTOMOTIVO MANUTENCAO' },
-    { nome: 'AUTOMOTIVO PECAS' },
-    { nome: 'AUTOMOTIVO PNEUS' },
-    { nome: 'AUTOMOTIVO REFRIGERACAO' },
-    { nome: 'AUTOMOTIVO SISTEMAS' },
-    { nome: 'AUTOMOTIVO VESTUARIO' },
-    { nome: 'AUTOMOTIVO OUTROS' },
-    { nome: 'BEBIDAS' },
-    { nome: 'BEBIDAS ALCOOLICAS' },
-    { nome: 'BEBIDAS NAO ALCOOLICAS' },
-    { nome: 'BEBIDAS SUCOS' },
-    { nome: 'BEBIDAS OUTRAS' },
-    { nome: 'CASA E JARDIM' },
-    { nome: 'CASA E JARDIM DECORACAO' },
-    { nome: 'CASA E JARDIM ELETRICOS' },
-    { nome: 'CASA E JARDIM ELETRONICOS' },
-    { nome: 'CASA E JARDIM FERRAGENS' },
-    { nome: 'CASA E JARDIM ILUMINACAO' },
-    { nome: 'CASA E JARDIM JARDINAGEM' },
-    { nome: 'CASA E JARDIM LIMPEZA' },
-    { nome: 'CASA E JARDIM MOVEIS' },
-    { nome: 'CASA E JARDIM PISCINAS' },
-    { nome: 'CASA E JARDIM SEGURANCA' },
-    { nome: 'CASA E JARDIM VESTUARIO' },
-    { nome: 'CASA E JARDIM OUTROS' },
-    { nome: 'COSMETICOS' },
-    { nome: 'COSMETICOS CUIDADOS CORPORAIS' },
-    { nome: 'COSMETICOS CUIDADOS FACIAIS' },
-    { nome: 'COSMETICOS CUIDADOS INFANTIS' },
-    { nome: 'COSMETICOS CUIDADOS PERSONAIS' },
-    { nome: 'COSMETICOS PERFUMES' },
-    { nome: 'COSMETICOS TRATAMENTOS' },
-    { nome: 'COSMETICOS VESTUARIO' },
-    { nome: 'COSMETICOS OUTROS' },
-    { nome: 'ELETRONICOS' },
-    { nome: 'ELETRONICOS ACESSORIOS' },
-    { nome: 'ELETRONICOS AUDIO' },
-    { nome: 'ELETRONICOS COMPUTADORES' },
-    { nome: 'ELETRONICOS CONECTIVIDADE' },
-    { nome: 'ELETRONICOS FOTOGRAFIA' },
-    { nome: 'ELETRONICOS GAMING' },
-    { nome: 'ELETRONICOS ILUMINACAO' },
-    { nome: 'ELETRONICOS IMAGEM' },
-    { nome: 'ELETRONICOS MOBILIDADE' },
-    { nome: 'ELETRONICOS REFRIGERACAO' },
-    { nome: 'ELETRONICOS SEGURANCA' },
-    { nome: 'ELETRONICOS TELEFONIA' },
-    { nome: 'ELETRONICOS TV' },
-    { nome: 'ELETRONICOS VESTUARIO' },
-    { nome: 'ELETRONICOS OUTROS' },
-    { nome: 'ESPORTES' },
-    { nome: 'ESPORTES ACESSORIOS' },
-    { nome: 'ESPORTES CICLISMO' },
-    { nome: 'ESPORTES CONDICOES FISICAS' },
-    { nome: 'ESPORTES ESPORTES COLETIVOS' },
-    { nome: 'ESPORTES ESPORTES INDIVIDUAIS' },
-    { nome: 'ESPORTES FUTEBOL' },
-    { nome: 'ESPORTES LUTAS' },
-    { nome: 'ESPORTES NATACAO' },
-    { nome: 'ESPORTES TECNICOS' },
-    { nome: 'ESPORTES VESTUARIO' },
-    { nome: 'ESPORTES OUTROS' },
-    { nome: 'FERRAGENS' },
-    { nome: 'FERRAGENS CONSTRUCAO' },
-    { nome: 'FERRAGENS ELETRICOS' },
-    { nome: 'FERRAGENS FERRAMENTAS' },
-    { nome: 'FERRAGENS HIDRAULICA' },
-    { nome: 'FERRAGENS JARDINAGEM' },
-    { nome: 'FERRAGENS LIMPEZA' },
-    { nome: 'FERRAGENS PINTURA' },
-    { nome: 'FERRAGENS REFRIGERACAO' },
-    { nome: 'FERRAGENS SEGURANCA' },
-    { nome: 'FERRAGENS SOLDAGEM' },
-    { nome: 'FERRAGENS VESTUARIO' },
-    { nome: 'FERRAGENS OUTROS' },
-    { nome: 'HIGIENE' },
-    { nome: 'HIGIENE CORPORAL' },
-    { nome: 'HIGIENE DOMESTICA' },
-    { nome: 'HIGIENE FEMININA' },
-    { nome: 'HIGIENE INFANTIL' },
-    { nome: 'HIGIENE MASCULINA' },
-    { nome: 'HIGIENE ORAL' },
-    { nome: 'HIGIENE PESSOAL' },
-    { nome: 'HIGIENE VESTUARIO' },
-    { nome: 'HIGIENE OUTROS' },
-    { nome: 'ILUMINACAO' },
-    { nome: 'ILUMINACAO LED' },
-    { nome: 'ILUMINACAO TRADICIONAL' },
-    { nome: 'ILUMINACAO VESTUARIO' },
-    { nome: 'ILUMINACAO OUTROS' },
-    { nome: 'INFORMATICA' },
-    { nome: 'INFORMATICA ACESSORIOS' },
-    { nome: 'INFORMATICA HARDWARE' },
-    { nome: 'INFORMATICA PERIFERICOS' },
-    { nome: 'INFORMATICA SOFTWARE' },
-    { nome: 'INFORMATICA VESTUARIO' },
-    { nome: 'INFORMATICA OUTROS' },
-    { nome: 'LIMPEZA' },
-    { nome: 'LIMPEZA DOMESTICA' },
-    { nome: 'LIMPEZA INDUSTRIAL' },
-    { nome: 'LIMPEZA PROFISSIONAL' },
-    { nome: 'LIMPEZA VESTUARIO' },
-    { nome: 'LIMPEZA OUTROS' },
-    { nome: 'LIVROS' },
-    { nome: 'LIVROS ACADEMICOS' },
-    { nome: 'LIVROS EDUCATIVOS' },
-    { nome: 'LIVROS INFANTIS' },
-    { nome: 'LIVROS LITERATURA' },
-    { nome: 'LIVROS TECNICOS' },
-    { nome: 'LIVROS VESTUARIO' },
-    { nome: 'LIVROS OUTROS' },
-    { nome: 'MATERIAIS' },
-    { nome: 'MATERIAIS CONSTRUCAO' },
-    { nome: 'MATERIAIS ELETRICOS' },
-    { nome: 'MATERIAIS ELETRONICOS' },
-    { nome: 'MATERIAIS HIDRAULICA' },
-    { nome: 'MATERIAIS PINTURA' },
-    { nome: 'MATERIAIS SOLDAGEM' },
-    { nome: 'MATERIAIS VESTUARIO' },
-    { nome: 'MATERIAIS OUTROS' },
-    { nome: 'MERCADORIAS' },
-    { nome: 'MERCADORIAS AGRICOLAS' },
-    { nome: 'MERCADORIAS ALIMENTOS' },
-    { nome: 'MERCADORIAS BEBIDAS' },
-    { nome: 'MERCADORIAS CEREAL' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS ELETRONICOS' },
-    { nome: 'MERCADORIAS FERRAGENS' },
-    { nome: 'MERCADORIAS HIDRAULICA' },
-    { nome: 'MERCADORIAS INDUSTRIAIS' },
-    { nome: 'MERCADORIAS METALURGICAS' },
-    { nome: 'MERCADORIAS PECAS' },
-    { nome: 'MERCADORIAS PETROQUIMICAS' },
-    { nome: 'MERCADORIAS TEXTIL' },
-    { nome: 'MERCADORIAS VESTUARIO' },
-    { nome: 'MERCADORIAS OUTRAS' },
-    { nome: 'MERCADORIAS OUTRAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: 'MERCADORIAS DIVERSAS' },
-    { nome: '
+  try {
+    console.log('⚠️  AVISO: marcas, grupos e subgrupos são atualizados automaticamente pelo sistema');
+    console.log('💡 Estas tabelas NÃO devem receber valores manuais, pois são sincronizadas automaticamente');
+    console.log('📋 Verificando integridade das tabelas de referência...');
+    
+    // Verificar se as tabelas existem
+    const tablesToCheck = ['marcas', 'grupos', 'subgrupos'];
+    
+    for (const table of tablesToCheck) {
+      try {
+        const { error: checkError } = await supabase
+          .from(table)
+          .select('id', { count: 'exact', head: true });
+        
+        if (checkError && checkError.code === '42P01') {
+          console.log(`⚠️  Tabela "${table}" não existe no Supabase (aguardando criação do schema)`);
+        } else if (checkError) {
+          console.log(`⚠️  Erro ao verificar tabela "${table}":`, checkError.message);
+        } else {
+          console.log(`✅ Tabela "${table}" está pronta para sincronização automática`);
+        }
+      } catch (checkError) {
+        console.log(`⚠️  Erro ao verificar tabela "${table}":`, checkError.message);
+      }
+    }
+    
+    console.log('\n✅ Verificação de tabelas de referência concluída!');
+    console.log('📋 Próximos passos:');
+    console.log('   1. As tabelas marcas, grupos e subgrupos serão mantidas vazias para sincronização automática');
+    console.log('   2. O sistema de sincronização (como o Bravo ERP) atualizará essas tabelas automaticamente');
+    console.log('   3. Prossiga com a migração dos dados principais (empresas e usuários)');
+    
+  } catch (error) {
+    console.error('❌ Erro durante a verificação de dados de referência:', error.message);
+    process.exit(1);
+  }
+}
+
+// Exportar função para uso em outros módulos
+export { migrateReferenceData };
+
+// Executar a função principal se este arquivo for executado diretamente
+if (require.main === module) {
+  migrateReferenceData();
+}
