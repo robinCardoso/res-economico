@@ -154,12 +154,6 @@ async function main() {
     // Create additional system users
     const usuarios = [
       {
-        email: 'analista@painel.com.br',
-        nome: 'Analista Financeiro',
-        roles: ['analista', 'user'],
-        senha: 'Analista@123456',
-      },
-      {
         email: 'gerente@painel.com.br',
         nome: 'Gerente de Projetos',
         roles: ['gerente', 'user'],
