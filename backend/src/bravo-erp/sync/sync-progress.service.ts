@@ -1,0 +1,160 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../../../core/prisma/prisma.service';
+import { Decimal } from '@prisma/client/runtime/library';
+
+/**
+ * Serviço para gerenciar progresso de sincronização
+ */
+@Injectable()
+export class SyncProgressService {
+  private readonly logger = new Logger(SyncProgressService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Atualiza ou cria progresso de sincronização
+   */
+  async updateProgress(
+    syncLogId: string,
+    progress: {
+      progress_percentage?: number;
+      current_step?: string;
+      current_page?: number;
+      total_pages?: number;
+      products_processed?: number;
+      total_produtos_bravo?: number;
+      current_product?: string | null;
+      estimated_time_remaining?: string | null;
+      status_atual?: string;
+      etapa_atual?: string;
+    },
+  ): Promise<void> {
+    try {
+      const existingProgress = await this.prisma.bravoSyncProgress.findUnique({
+        where: { sync_log_id: syncLogId },
+      });
+
+      // Preparar dados de atualização, preservando valores existentes
+      const progressData: {
+        updatedAt: Date;
+        progress_percentage?: Decimal;
+        current_step?: string;
+        current_page?: number;
+        total_pages?: number;
+        products_processed?: number;
+        total_produtos_bravo?: number;
+        current_product?: string | null;
+        estimated_time_remaining?: string | null;
+        status_atual?: string;
+        etapa_atual?: string;
+      } = {
+        updatedAt: new Date(),
+      };
+
+      // Atualizar apenas os campos fornecidos (preservando os existentes)
+      const progressPercentage = progress.progress_percentage;
+      if (progressPercentage !== undefined) {
+        progressData.progress_percentage = new Decimal(progressPercentage);
+      }
+      const currentStep = progress.current_step;
+      if (currentStep !== undefined) {
+        progressData.current_step = currentStep;
+      }
+      const currentPage = progress.current_page;
+      if (currentPage !== undefined) {
+        progressData.current_page = currentPage;
+      }
+      const totalPages = progress.total_pages;
+      if (totalPages !== undefined) {
+        progressData.total_pages = totalPages;
+      }
+      const productsProcessed = progress.products_processed;
+      if (productsProcessed !== undefined) {
+        progressData.products_processed = productsProcessed;
+      }
+      const totalProdutosBravo = progress.total_produtos_bravo;
+      if (totalProdutosBravo !== undefined) {
+        progressData.total_produtos_bravo = totalProdutosBravo;
+      }
+      const currentProduct = progress.current_product;
+      if (currentProduct !== undefined) {
+        progressData.current_product = currentProduct;
+      }
+      const estimatedTimeRemaining = progress.estimated_time_remaining;
+      if (estimatedTimeRemaining !== undefined) {
+        progressData.estimated_time_remaining = estimatedTimeRemaining;
+      }
+      const statusAtual = progress.status_atual;
+      if (statusAtual !== undefined) {
+        progressData.status_atual = statusAtual;
+      }
+      const etapaAtual = progress.etapa_atual;
+      if (etapaAtual !== undefined) {
+        progressData.etapa_atual = etapaAtual;
+      }
+
+      if (existingProgress) {
+        await this.prisma.bravoSyncProgress.update({
+          where: { sync_log_id: syncLogId },
+          data: progressData,
+        });
+
+        this.logger.debug(
+          `✅ Progresso atualizado (preservando valores existentes): sync_log_id=${syncLogId}`,
+        );
+      } else {
+        // Ao criar, incluir todos os campos fornecidos
+        await this.prisma.bravoSyncProgress.create({
+          data: {
+            sync_log_id: syncLogId,
+            ...progressData,
+            progress_percentage:
+              progress.progress_percentage !== undefined
+                ? new Decimal(progress.progress_percentage)
+                : new Decimal(0),
+            createdAt: new Date(),
+          },
+        });
+
+        this.logger.debug(`✅ Progresso criado: sync_log_id=${syncLogId}`);
+      }
+
+      // Buscar valores atuais do banco para o log (para não mostrar 0 quando não passa os valores)
+      let currentProgress = existingProgress;
+      if (!currentProgress) {
+        currentProgress = await this.prisma.bravoSyncProgress.findUnique({
+          where: { sync_log_id: syncLogId },
+        });
+      }
+
+      const logPage =
+        progress.current_page !== undefined
+          ? progress.current_page
+          : (currentProgress?.current_page ?? null);
+      const logProcessed =
+        progress.products_processed !== undefined
+          ? progress.products_processed
+          : (currentProgress?.products_processed ?? null);
+      const logTotal =
+        progress.total_produtos_bravo !== undefined
+          ? progress.total_produtos_bravo
+          : (currentProgress?.total_produtos_bravo ?? null);
+
+      this.logger.log(
+        `📊 Progresso atualizado: ${progress.current_step || currentProgress?.current_step || 'N/A'} | Página: ${logPage ?? 'mantida'} | Processados: ${logProcessed ?? 'mantidos'} | Total: ${logTotal ?? 'mantido'}`,
+      );
+    } catch (error) {
+      this.logger.error('Erro ao atualizar progresso de sincronização:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Busca progresso de sincronização
+   */
+  async getProgress(syncLogId: string) {
+    return this.prisma.bravoSyncProgress.findUnique({
+      where: { sync_log_id: syncLogId },
+    });
+  }
+}

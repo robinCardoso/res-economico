@@ -1,0 +1,777 @@
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { PrismaService } from '../../../core/prisma/prisma.service';
+import { CampoMapeamentoDto, CreateMappingDto } from '../dto/mapping.dto';
+import { BravoErpClientV2Service } from '../client/bravo-erp-client-v2.service';
+
+@Injectable()
+export class MappingService {
+  private readonly logger = new Logger(MappingService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly bravoClient: BravoErpClientV2Service,
+  ) {}
+
+  /**
+   * Limpar cache de transformação após salvar mapeamentos
+   * O cache do ProductTransformService expira em 5 minutos (CACHE_TTL)
+   * Então os novos mapeamentos serão usados na próxima sincronização
+   */
+  private limparCacheTransformacao(): void {
+    // O cache será limpo automaticamente após 5 minutos
+    // Ou pode ser limpo manualmente na próxima sincronização
+    this.logger.log(
+      '💡 Mapeamentos atualizados. Cache será renovado na próxima sincronização (TTL 5min)',
+    );
+  }
+
+  /**
+   * Buscar mapeamentos de campos
+   */
+  async getMapeamentos(): Promise<{
+    success: boolean;
+    mapeamentos?: any[];
+    error?: string;
+  }> {
+    try {
+      const mapeamentos = await this.prisma.bravoCampoMapeamento.findMany({
+        orderBy: {
+          ordem: 'asc',
+        },
+      });
+
+      return {
+        success: true,
+        mapeamentos: mapeamentos || [],
+      };
+    } catch (error) {
+      console.error('❌ Erro ao buscar mapeamentos:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
+      };
+    }
+  }
+
+  /**
+   * Salvar mapeamentos de campos
+   */
+  async saveMapeamentos(
+    dto: CreateMappingDto,
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      console.log('💾 Salvando mapeamentos:', dto.mapeamentos.length);
+
+      // Deletar mapeamentos existentes
+      await this.prisma.bravoCampoMapeamento.deleteMany({});
+
+      // Inserir novos mapeamentos
+      await this.prisma.bravoCampoMapeamento.createMany({
+        data: dto.mapeamentos.map((m, index) => ({
+          campo_bravo: m.campo_bravo,
+          campo_interno: m.campo_interno,
+          tipo_transformacao: m.tipo_transformacao,
+          ativo: m.ativo,
+          ordem: index + 1,
+        })),
+      });
+
+      console.log('✅ Mapeamentos salvos com sucesso');
+
+      // Limpar cache de transformação para usar novos mapeamentos
+      this.limparCacheTransformacao();
+
+      return {
+        success: true,
+        message: 'Mapeamentos salvos com sucesso',
+      };
+    } catch (error) {
+      console.error('❌ Erro ao salvar mapeamentos:', error);
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Erro desconhecido',
+      );
+    }
+  }
+
+  /**
+   * MELHORIA 1: Obter campos da tabela produtos do schema Prisma
+   */
+  getInternalFields(): {
+    success: boolean;
+    fields?: Array<{
+      nome: string;
+      tipo: string;
+      obrigatorio: boolean;
+      descricao: string;
+    }>;
+    error?: string;
+  } {
+    try {
+      // Definir campos da tabela produtos baseado no schema
+      const fields = [
+        // Campos obrigatórios e básicos
+        {
+          nome: 'referencia',
+          tipo: 'varchar',
+          obrigatorio: true,
+          descricao: 'Referência única do produto (obrigatório)',
+        },
+        {
+          nome: 'id_prod',
+          tipo: 'varchar',
+          obrigatorio: false,
+          descricao: 'ID do produto (campo existente)',
+        },
+        {
+          nome: 'descricao',
+          tipo: 'text',
+          obrigatorio: false,
+          descricao: 'Descrição do produto',
+        },
+        {
+          nome: 'marca',
+          tipo: 'varchar',
+          obrigatorio: false,
+          descricao: 'Marca do produto',
+        },
+        {
+          nome: 'grupo',
+          tipo: 'varchar',
+          obrigatorio: false,
+          descricao: 'Grupo/categoria do produto',
+        },
+        {
+          nome: 'subgrupo',
+          tipo: 'varchar',
+          obrigatorio: false,
+          descricao: 'Subgrupo do produto',
+        },
+        {
+          nome: 'ativo',
+          tipo: 'boolean',
+          obrigatorio: false,
+          descricao: 'Produto ativo no sistema',
+        },
+        // Campos adicionais
+        {
+          nome: 'gtin',
+          tipo: 'varchar',
+          obrigatorio: false,
+          descricao: 'Código GTIN/EAN do produto',
+        },
+        {
+          nome: 'ncm',
+          tipo: 'varchar',
+          obrigatorio: false,
+          descricao: 'Código NCM do produto',
+        },
+        {
+          nome: 'cest',
+          tipo: 'varchar',
+          obrigatorio: false,
+          descricao: 'Código CEST do produto',
+        },
+        {
+          nome: 'dataUltModif',
+          tipo: 'timestamp',
+          obrigatorio: false,
+          descricao: 'Data da última modificação',
+        },
+        // Campos de metadata (JSONB)
+        {
+          nome: 'metadata->tipo_produto',
+          tipo: 'jsonb',
+          obrigatorio: false,
+          descricao: 'Tipo do produto (prod, serv, etc)',
+        },
+        {
+          nome: 'metadata->unidade_venda',
+          tipo: 'jsonb',
+          obrigatorio: false,
+          descricao: 'Unidade de venda (UND, KG, etc)',
+        },
+      ];
+
+      return {
+        success: true,
+        fields,
+      };
+    } catch (error) {
+      this.logger.error('❌ Erro ao obter campos internos:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
+      };
+    }
+  }
+
+  /**
+   * MELHORIA 2: Flatten object recursivamente para extrair campos aninhados
+   * CORRIGIDO: Ignora chaves numéricas (IDs) em objetos _ref, criando caminhos genéricos
+   * Exemplo: _ref.unidade.abreviacao ao invés de _ref.unidade.1806.abreviacao
+   */
+  private flattenObject(
+    obj: Record<string, unknown>,
+    prefix = '',
+    result: Array<{
+      nome: string;
+      tipo: string;
+      valor_exemplo: unknown;
+      caminho: string;
+    }> = [],
+  ): Array<{
+    nome: string;
+    tipo: string;
+    valor_exemplo: unknown;
+    caminho: string;
+  }> {
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const value = obj[key];
+        const caminho = prefix ? `${prefix}.${key}` : key;
+
+        if (value === null || value === undefined) {
+          result.push({
+            nome: caminho,
+            tipo: 'null',
+            valor_exemplo: null,
+            caminho,
+          });
+        } else if (Array.isArray(value)) {
+          if (value.length > 0) {
+            // Para arrays, usar primeiro item
+            const firstItem = value[0] as unknown;
+            if (
+              firstItem !== undefined &&
+              typeof firstItem === 'object' &&
+              firstItem !== null
+            ) {
+              this.flattenObject(
+                firstItem as Record<string, unknown>,
+                caminho,
+                result,
+              );
+            } else {
+              result.push({
+                nome: caminho,
+                tipo: 'array',
+                valor_exemplo: value[0],
+                caminho,
+              });
+            }
+          } else {
+            result.push({
+              nome: caminho,
+              tipo: 'array',
+              valor_exemplo: [],
+              caminho,
+            });
+          }
+        } else if (typeof value === 'object') {
+          // CORREÇÃO: Verificar se é um objeto com chaves numéricas (ex: _ref.unidade = { 1806: {...}, 18: {...} })
+          // Se for, ignorar as chaves numéricas e pegar diretamente os campos do primeiro item
+          const keys = Object.keys(value);
+          const isObjectWithNumericKeys =
+            keys.length > 0 && keys[0].match(/^_?\d+$/);
+
+          if (isObjectWithNumericKeys && keys.length > 0) {
+            // Pegar o primeiro item como exemplo (qualquer um serve, pois têm a mesma estrutura)
+            const primeiroItem = (value as Record<string, unknown>)[keys[0]];
+
+            if (typeof primeiroItem === 'object' && primeiroItem !== null) {
+              // Continuar o flatten do primeiro item, mas SEM incluir a chave numérica no caminho
+              // Exemplo: caminho = "_ref.unidade", primeiroItem = { abreviacao: "PC", ... }
+              // Resultado: "_ref.unidade.abreviacao" (sem o .1806)
+              this.flattenObject(
+                primeiroItem as Record<string, unknown>,
+                caminho,
+                result,
+              );
+            }
+          } else {
+            // Objeto normal - recursão padrão
+            this.flattenObject(
+              value as Record<string, unknown>,
+              caminho,
+              result,
+            );
+          }
+        } else {
+          // Valor primitivo
+          const tipo =
+            typeof value === 'string'
+              ? 'string'
+              : typeof value === 'number'
+                ? value % 1 === 0
+                  ? 'integer'
+                  : 'decimal'
+                : typeof value === 'boolean'
+                  ? 'boolean'
+                  : 'unknown';
+
+          result.push({
+            nome: caminho,
+            tipo,
+            valor_exemplo: value,
+            caminho,
+          });
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * MELHORIA 2: Obter campos do Bravo ERP do primeiro produto da API
+   */
+  async getBravoFields(): Promise<{
+    success: boolean;
+    fields?: Array<{
+      nome: string;
+      tipo: string;
+      valor_exemplo: any;
+      caminho: string;
+    }>;
+    product_sample?: any;
+    error?: string;
+  }> {
+    try {
+      // Buscar primeira página (1 produto) ordenado por id_produto ASC para pegar o menor ID
+      const produtos = await this.bravoClient.consultarProdutos({
+        page: 1,
+        limit: 1,
+        sortCol: 'id_produto',
+        sortOrder: 'ASC',
+      });
+
+      if (!produtos || produtos.length === 0) {
+        return {
+          success: false,
+          error: 'Nenhum produto encontrado na API do Bravo ERP',
+        };
+      }
+
+      const primeiroProduto = produtos[0];
+
+      // Extrair campos usando flatten
+      const campos = this.flattenObject(
+        primeiroProduto as Record<string, unknown>,
+      );
+
+      return {
+        success: true,
+        fields: campos,
+        product_sample: primeiroProduto,
+      };
+    } catch (error) {
+      this.logger.error('❌ Erro ao obter campos do Bravo ERP:', error);
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Erro desconhecido ao buscar campos',
+      };
+    }
+  }
+
+  /**
+   * MELHORIA 1: Obter produto de exemplo para visualização no mapeamento
+   */
+  async getSampleProduct(): Promise<{
+    success: boolean;
+    product?: any;
+    error?: string;
+  }> {
+    try {
+      // Buscar primeiro produto ordenado por id_produto ASC
+      const produtos = await this.bravoClient.consultarProdutos({
+        page: 1,
+        limit: 1,
+        sortCol: 'id_produto',
+        sortOrder: 'ASC',
+      });
+
+      if (!produtos || produtos.length === 0) {
+        return {
+          success: false,
+          error: 'Nenhum produto encontrado na API do Bravo ERP',
+        };
+      }
+
+      return {
+        success: true,
+        product: produtos[0],
+      };
+    } catch (error) {
+      this.logger.error('❌ Erro ao obter produto de exemplo:', error);
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Erro desconhecido ao buscar produto de exemplo',
+      };
+    }
+  }
+
+  /**
+   * MELHORIA 3: Preview do mapeamento aplicado ao primeiro produto
+   */
+  async previewMapping(mapeamentos: CampoMapeamentoDto[]): Promise<{
+    success: boolean;
+    original?: any;
+    mapped?: any;
+    metadata?: any;
+    mapping_details?: Array<{
+      campo_bravo: string;
+      campo_interno: string;
+      valor_original: any;
+      valor_mapeado: any;
+      transformacao: string;
+      sucesso: boolean;
+      erro?: string;
+    }>;
+    unmapped_fields?: Array<{
+      campo: string;
+      valor: any;
+      tipo: string;
+    }>;
+    error?: string;
+  }> {
+    try {
+      // Buscar primeiro produto ordenado por id_produto ASC para pegar o menor ID
+      const produtos = await this.bravoClient.consultarProdutos({
+        page: 1,
+        limit: 1,
+        sortCol: 'id_produto',
+        sortOrder: 'ASC',
+      });
+
+      if (!produtos || produtos.length === 0) {
+        return {
+          success: false,
+          error: 'Nenhum produto encontrado na API do Bravo ERP',
+        };
+      }
+
+      const produtoOriginal = produtos[0];
+
+      // Temporariamente salvar mapeamentos para aplicar transformação
+      const mapeamentosAtivos = mapeamentos.filter((m) => m.ativo);
+
+      // Criar map temporário de mapeamentos para usar na transformação
+      const mapeamentoMapTemporario = new Map();
+      mapeamentosAtivos.forEach((m) => {
+        mapeamentoMapTemporario.set(m.campo_bravo, {
+          campo_interno: m.campo_interno,
+          tipo_transformacao: m.tipo_transformacao,
+        });
+      });
+
+      // Aplicar transformação manualmente (simular ProductTransformService)
+      const produtoMapeado: Record<string, unknown> = {
+        updatedAt: new Date(),
+      };
+      const metadata: Record<string, unknown> = {};
+      const mappingDetails: Array<{
+        campo_bravo: string;
+        campo_interno: string;
+        valor_original: unknown;
+        valor_mapeado: unknown;
+        transformacao: string;
+        sucesso: boolean;
+        erro?: string;
+      }> = [];
+
+      // Função auxiliar para obter valor aninhado
+      // Suporta caminhos genéricos como _ref.unidade.abreviacao (resolvendo pelo ID correto)
+      const obterValorCampo = (
+        obj: Record<string, unknown>,
+        caminho: string,
+      ): unknown => {
+        // Tratamento especial para campos _ref que precisam buscar pelo ID correto
+        const objRef = obj._ref as
+          | {
+              marca?: Record<string, unknown>;
+              categoria?: Record<string, unknown>;
+              unidade?: Record<string, unknown>;
+            }
+          | undefined;
+        const idMarca = obj.id_marca as string | undefined;
+        const idCategoria = obj.id_produto_categoria as string | undefined;
+        const idUnidade = obj.id_unidade_padrao_venda as string | undefined;
+
+        if (caminho === '_ref.marca.titulo' && idMarca && objRef?.marca) {
+          const marcaObj = objRef.marca[idMarca] as
+            | { titulo?: unknown }
+            | undefined;
+          return marcaObj?.titulo ?? null;
+        }
+        if (caminho.startsWith('_ref.marca.') && idMarca && objRef?.marca) {
+          const campo = caminho.replace('_ref.marca.', '');
+          const marcaObj = objRef.marca[idMarca] as
+            | Record<string, unknown>
+            | undefined;
+          return marcaObj?.[campo] ?? null;
+        }
+
+        if (
+          caminho === '_ref.categoria.titulo' &&
+          idCategoria &&
+          objRef?.categoria
+        ) {
+          const categoriaObj = objRef.categoria[idCategoria] as
+            | { titulo?: unknown }
+            | undefined;
+          return categoriaObj?.titulo ?? null;
+        }
+        if (
+          caminho.startsWith('_ref.categoria.') &&
+          idCategoria &&
+          objRef?.categoria
+        ) {
+          const campo = caminho.replace('_ref.categoria.', '');
+          const categoriaObj = objRef.categoria[idCategoria] as
+            | Record<string, unknown>
+            | undefined;
+          return categoriaObj?.[campo] ?? null;
+        }
+
+        if (
+          caminho === '_ref.unidade.abreviacao' &&
+          idUnidade &&
+          objRef?.unidade
+        ) {
+          const unidadeObj = objRef.unidade[idUnidade] as
+            | { abreviacao?: unknown }
+            | undefined;
+          return unidadeObj?.abreviacao ?? null;
+        }
+        if (
+          caminho === '_ref.unidade.descricao' &&
+          idUnidade &&
+          objRef?.unidade
+        ) {
+          const unidadeObj = objRef.unidade[idUnidade] as
+            | { descricao?: unknown }
+            | undefined;
+          return unidadeObj?.descricao ?? null;
+        }
+        if (
+          caminho === '_ref.unidade.qtde_unit_emba' &&
+          idUnidade &&
+          objRef?.unidade
+        ) {
+          const unidadeObj = objRef.unidade[idUnidade] as
+            | { qtde_unit_emba?: unknown }
+            | undefined;
+          return unidadeObj?.qtde_unit_emba ?? null;
+        }
+        if (
+          caminho.startsWith('_ref.unidade.') &&
+          idUnidade &&
+          objRef?.unidade
+        ) {
+          const campo = caminho.replace('_ref.unidade.', '');
+          const unidadeObj = objRef.unidade[idUnidade] as
+            | Record<string, unknown>
+            | undefined;
+          return unidadeObj?.[campo] ?? null;
+        }
+
+        // Tratamento para gtin.gtin (gtin é um objeto indexado por ID)
+        const gtinValue = obj.gtin;
+        if (caminho === 'gtin.gtin') {
+          if (Array.isArray(gtinValue)) {
+            if (gtinValue.length > 0) {
+              const primeiroGtin = gtinValue[0] as { gtin?: unknown };
+              if (
+                typeof primeiroGtin === 'object' &&
+                primeiroGtin !== null &&
+                'gtin' in primeiroGtin
+              ) {
+                return (primeiroGtin as { gtin: unknown }).gtin ?? null;
+              }
+              return primeiroGtin ?? null;
+            }
+            return null;
+          }
+          if (typeof gtinValue === 'object' && gtinValue !== null) {
+            const gtinKeys = Object.keys(gtinValue);
+            if (gtinKeys.length > 0) {
+              const primeiroGtin = (gtinValue as Record<string, unknown>)[
+                gtinKeys[0]
+              ];
+              if (
+                typeof primeiroGtin === 'object' &&
+                primeiroGtin !== null &&
+                'gtin' in primeiroGtin
+              ) {
+                return (primeiroGtin as { gtin: unknown }).gtin ?? null;
+              }
+              return primeiroGtin ?? null;
+            }
+          }
+          return gtinValue ?? null;
+        }
+        if (caminho.startsWith('gtin.')) {
+          const campo = caminho.replace('gtin.', '');
+          if (Array.isArray(gtinValue)) {
+            if (gtinValue.length > 0) {
+              const primeiroItem = gtinValue[0] as Record<string, unknown>;
+              return primeiroItem?.[campo] ?? null;
+            }
+            return null;
+          }
+          if (typeof gtinValue === 'object' && gtinValue !== null) {
+            const gtinKeys = Object.keys(gtinValue);
+            if (gtinKeys.length > 0) {
+              const primeiroItem = (gtinValue as Record<string, unknown>)[
+                gtinKeys[0]
+              ] as Record<string, unknown>;
+              return primeiroItem?.[campo] ?? null;
+            }
+          }
+          return null;
+        }
+
+        // Para outros campos, usar acesso direto padrão
+        const partes = caminho.split('.');
+        let resultado: unknown = obj;
+
+        for (let i = 0; i < partes.length; i++) {
+          const parte = partes[i];
+
+          if (resultado === null || resultado === undefined) {
+            return undefined;
+          }
+
+          // Se a parte é um número, pode ser índice de array
+          if (!isNaN(Number(parte))) {
+            const index = Number(parte);
+            if (Array.isArray(resultado)) {
+              resultado = resultado[index];
+            } else {
+              return undefined;
+            }
+          } else if (
+            typeof resultado === 'object' &&
+            resultado !== null &&
+            !Array.isArray(resultado)
+          ) {
+            resultado = (resultado as Record<string, unknown>)[parte];
+          } else {
+            return undefined;
+          }
+        }
+
+        return resultado;
+      };
+
+      // Aplicar cada mapeamento
+      mapeamentosAtivos.forEach((mapeamento) => {
+        try {
+          const valorOriginal = obterValorCampo(
+            produtoOriginal as Record<string, unknown>,
+            mapeamento.campo_bravo,
+          );
+          let valorMapeado: unknown = null;
+
+          if (mapeamento.tipo_transformacao === 'direto') {
+            valorMapeado = valorOriginal || null;
+            produtoMapeado[mapeamento.campo_interno] = valorMapeado;
+          } else if (mapeamento.tipo_transformacao === 'boolean_invertido') {
+            valorMapeado = valorOriginal === 'N';
+            produtoMapeado[mapeamento.campo_interno] = valorMapeado;
+          } else if (mapeamento.tipo_transformacao === 'json') {
+            const campoMeta = mapeamento.campo_interno.replace(
+              'metadata->',
+              '',
+            );
+            if (valorOriginal !== null && valorOriginal !== undefined) {
+              metadata[campoMeta] = valorOriginal;
+              valorMapeado = valorOriginal;
+            }
+          } else if (mapeamento.tipo_transformacao === 'decimal') {
+            let valorStr = '';
+            if (typeof valorOriginal === 'string') {
+              valorStr = valorOriginal;
+            } else if (typeof valorOriginal === 'number') {
+              valorStr = String(valorOriginal);
+            } else if (typeof valorOriginal === 'boolean') {
+              valorStr = String(valorOriginal);
+            }
+            valorMapeado = valorStr ? parseFloat(valorStr) : null;
+            produtoMapeado[mapeamento.campo_interno] = valorMapeado;
+          } else if (mapeamento.tipo_transformacao === 'datetime') {
+            const dateValue =
+              typeof valorOriginal === 'string' || valorOriginal instanceof Date
+                ? new Date(valorOriginal)
+                : null;
+            valorMapeado = dateValue;
+            produtoMapeado[mapeamento.campo_interno] = valorMapeado;
+          }
+
+          mappingDetails.push({
+            campo_bravo: mapeamento.campo_bravo,
+            campo_interno: mapeamento.campo_interno,
+            valor_original: valorOriginal,
+            valor_mapeado: valorMapeado,
+            transformacao: mapeamento.tipo_transformacao,
+            sucesso: true,
+          });
+        } catch (error) {
+          mappingDetails.push({
+            campo_bravo: mapeamento.campo_bravo,
+            campo_interno: mapeamento.campo_interno,
+            valor_original: null,
+            valor_mapeado: null,
+            transformacao: mapeamento.tipo_transformacao,
+            sucesso: false,
+            erro: error instanceof Error ? error.message : 'Erro desconhecido',
+          });
+        }
+      });
+
+      // Adicionar metadata se houver campos
+      if (Object.keys(metadata).length > 0) {
+        produtoMapeado.metadata = metadata;
+      }
+
+      // Identificar campos não mapeados
+      const camposOriginais = this.flattenObject(
+        produtoOriginal as Record<string, unknown>,
+      );
+      const camposMapeados = new Set(
+        mapeamentosAtivos.map((m) => m.campo_bravo),
+      );
+      const unmappedFields = camposOriginais
+        .filter((campo) => !camposMapeados.has(campo.caminho))
+        .map((campo) => ({
+          campo: campo.caminho,
+          valor: campo.valor_exemplo,
+          tipo: campo.tipo,
+        }));
+
+      return {
+        success: true,
+        original: produtoOriginal,
+        mapped: produtoMapeado,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+        mapping_details: mappingDetails,
+        unmapped_fields: unmappedFields,
+      };
+    } catch (error) {
+      this.logger.error('❌ Erro ao gerar preview do mapeamento:', error);
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Erro desconhecido ao gerar preview',
+      };
+    }
+  }
+}
