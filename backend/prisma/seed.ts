@@ -1,4 +1,4 @@
-import { PrismaClient, TipoEmpresa } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -11,105 +11,105 @@ async function main() {
     const empresas: Array<{
       cnpj: string;
       razaoSocial: string;
-      tipo: TipoEmpresa;
+      tipo: 'MATRIZ' | 'FILIAL';
       filial?: string;
       uf: string;
     }> = [
       {
         cnpj: '11139968000209',
         razaoSocial: 'REDE UNIAO - RS',
-        tipo: 'FILIAL' as TipoEmpresa,
+        tipo: 'FILIAL',
         filial: 'Filial 02',
         uf: 'RS',
       },
       {
         cnpj: '11139968000110',
         razaoSocial: 'REDE UNIAO - SC',
-        tipo: 'MATRIZ' as TipoEmpresa,
+        tipo: 'MATRIZ',
         filial: 'Matriz',
         uf: 'SC',
       },
       {
         cnpj: '11139968000381',
         razaoSocial: 'REDE UNIAO - PR',
-        tipo: 'FILIAL' as TipoEmpresa,
+        tipo: 'FILIAL',
         filial: 'Filial 03',
         uf: 'PR',
       },
       {
         cnpj: '11139968000624',
         razaoSocial: 'REDE UNIAO - SP',
-        tipo: 'FILIAL' as TipoEmpresa,
+        tipo: 'FILIAL',
         filial: 'Filial 06',
         uf: 'SP',
       },
       {
         cnpj: '11139968000462',
         razaoSocial: 'REDE UNIAO - MT',
-        tipo: 'FILIAL' as TipoEmpresa,
+        tipo: 'FILIAL',
         filial: 'Filial 04',
         uf: 'MT',
       },
       {
         cnpj: '11139968000543',
         razaoSocial: 'REDE UNIAO - MG',
-        tipo: 'FILIAL' as TipoEmpresa,
+        tipo: 'FILIAL',
         filial: 'Filial 05',
         uf: 'MG',
       },
       {
         cnpj: '11139968000705',
         razaoSocial: 'REDE UNIAO - GO',
-        tipo: 'FILIAL' as TipoEmpresa,
+        tipo: 'FILIAL',
         filial: 'Filial 07',
         uf: 'GO',
       },
       {
         cnpj: '11139968000896',
         razaoSocial: 'REDE UNIAO - PE',
-        tipo: 'FILIAL' as TipoEmpresa,
+        tipo: 'FILIAL',
         filial: 'Filial 08',
         uf: 'PE',
       },
       {
         cnpj: '11139968000977',
         razaoSocial: 'REDE UNIAO - RN',
-        tipo: 'FILIAL' as TipoEmpresa,
+        tipo: 'FILIAL',
         filial: 'Filial 09',
         uf: 'RN',
       },
       {
         cnpj: '11139968001191',
         razaoSocial: 'REDE UNIAO - ES',
-        tipo: 'FILIAL' as TipoEmpresa,
+        tipo: 'FILIAL',
         filial: 'Filial 11',
         uf: 'ES',
       },
       {
         cnpj: '11139968001272',
         razaoSocial: 'REDE UNIAO - BA',
-        tipo: 'FILIAL' as TipoEmpresa,
+        tipo: 'FILIAL',
         filial: 'Filial 12',
         uf: 'BA',
       },
       {
         cnpj: '11139968001353',
         razaoSocial: 'REDE UNIAO - MA',
-        tipo: 'FILIAL' as TipoEmpresa,
+        tipo: 'FILIAL',
         filial: 'Filial 13',
         uf: 'MA',
       },
       {
         cnpj: '11139968001434',
         razaoSocial: 'REDE UNIAO - RJ',
-        tipo: 'FILIAL' as TipoEmpresa,
+        tipo: 'FILIAL',
         filial: 'Filial 14',
         uf: 'RJ',
       },
       {
         cnpj: '11139968001515',
         razaoSocial: 'REDE UNIAO - RO',
-        tipo: 'FILIAL' as TipoEmpresa,
+        tipo: 'FILIAL',
         filial: 'Filial 15',
         uf: 'RO',
       },

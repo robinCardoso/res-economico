@@ -36,7 +36,7 @@ async function aplicarIndices() {
 
     // Verificar índices criados
     console.log('=== Verificando Índices Criados ===\n');
-    const indices = await prisma.$queryRawUnsafe<Array<{ indexname: string; indexdef: string }>>(`
+    const indices = await prisma.$queryRawUnsafe(`
       SELECT 
         indexname, 
         indexdef 

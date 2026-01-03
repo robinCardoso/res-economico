@@ -1,4 +1,4 @@
-import { PrismaClient, Departamento } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -17,7 +17,7 @@ async function main() {
     process.exit(1);
   }
 
-  const departamento = departamentoStr as Departamento;
+  const departamento = departamentoStr as 'FINANCEIRO' | 'COMPRAS' | 'GESTOR' | 'FATURAMENTO';
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const user = await prisma.usuario.upsert({

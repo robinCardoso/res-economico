@@ -1,7 +1,12 @@
-# Script para iniciar todo o ambiente de desenvolvimento
+# Script para iniciar ambiente de desenvolvimento LEGADO
 # Backend NestJS, Frontend Next.js e Docker (PostgreSQL + Redis)
+# ATENÇÃO: Este script é para ambiente local com PostgreSQL local
+# Para ambiente com Supabase Cloud, use start-supabase.ps1
 
-Write-Host "Iniciando ambiente de desenvolvimento..." -ForegroundColor Cyan
+Write-Host "ATENCAO: Este script usa PostgreSQL local (LEGADO)" -ForegroundColor Red
+Write-Host "Para usar o ambiente com Supabase Cloud, execute start-supabase.ps1" -ForegroundColor Yellow
+
+Write-Host "`nIniciando ambiente de desenvolvimento LEGADO..." -ForegroundColor Cyan
 
 # Verificar se Docker está rodando
 Write-Host "`nVerificando Docker..." -ForegroundColor Yellow
@@ -64,11 +69,19 @@ Write-Host "`nIniciando frontend (Next.js)..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\frontend'; npm run dev" -WindowStyle Normal
 Write-Host "OK: Frontend iniciado em nova janela (http://localhost:3001)" -ForegroundColor Green
 
-Write-Host "`nAmbiente iniciado com sucesso!" -ForegroundColor Cyan
-Write-Host "`nServicos disponiveis:" -ForegroundColor White
+Write-Host "`nAmbiente LEGADO iniciado com sucesso!" -ForegroundColor Cyan
+Write-Host "`nServicos disponiveis (LEGADO):" -ForegroundColor White
 Write-Host "   - Backend:  http://localhost:3000" -ForegroundColor Gray
 Write-Host "   - Frontend: http://localhost:3001" -ForegroundColor Gray
 Write-Host "   - Postgres: localhost:5432" -ForegroundColor Gray
 Write-Host "   - Redis:    localhost:6379" -ForegroundColor Gray
 Write-Host "`nPara parar os servicos, feche as janelas do PowerShell ou use Ctrl+C" -ForegroundColor Yellow
+
+Write-Host "`n--- MIGRAÇÃO PARA SUPABASE CLOUD ---" -ForegroundColor Magenta
+Write-Host "Este ambiente usa PostgreSQL local (LEGADO)" -ForegroundColor Yellow
+Write-Host "Para usar o ambiente com Supabase Cloud (ATUALIZADO):" -ForegroundColor Green
+Write-Host "   1. Execute: .\start-supabase.ps1" -ForegroundColor Gray
+Write-Host "   2. Ou faça deploy na Vercel: .\deploy-vercel.sh" -ForegroundColor Gray
+Write-Host "   3. E deploy no backend: .\deploy-railway.sh" -ForegroundColor Gray
+Write-Host "   4. Ver mais informações: docs/guia-deploy-vercel-railway.md" -ForegroundColor Gray
 

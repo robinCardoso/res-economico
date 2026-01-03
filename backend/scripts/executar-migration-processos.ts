@@ -59,13 +59,13 @@ async function executarMigration() {
     console.log('\nVerificando se as tabelas foram criadas...\n');
 
     // Verificar se as tabelas foram criadas
-    const tabelas = await prisma.$queryRawUnsafe<Array<{ table_name: string }>>(`
-      SELECT table_name 
+    const tabelas = await prisma.$queryRawUnsafe(
+      `SELECT table_name 
       FROM information_schema.tables 
       WHERE table_schema = 'public' 
       AND table_name IN ('Processo', 'ProcessoItem', 'ProcessoAnexo', 'ProcessoHistorico')
-      ORDER BY table_name;
-    `);
+      ORDER BY table_name;`
+    );
 
     console.log(`Tabelas encontradas: ${tabelas.length}/4`);
     tabelas.forEach(t => console.log(`  ✅ ${t.table_name}`));
@@ -77,12 +77,12 @@ async function executarMigration() {
     }
 
     // Verificar enums
-    const enums = await prisma.$queryRawUnsafe<Array<{ typname: string }>>(`
-      SELECT typname 
+    const enums = await prisma.$queryRawUnsafe(
+      `SELECT typname 
       FROM pg_type 
       WHERE typname IN ('TipoProcesso', 'SituacaoProcesso', 'CategoriaReclamacao', 'PrioridadeProcesso', 'TipoArquivoProcesso')
-      ORDER BY typname;
-    `);
+      ORDER BY typname;`
+    );
 
     console.log(`\nEnums encontrados: ${enums.length}/5`);
     enums.forEach(e => console.log(`  ✅ ${e.typname}`));
