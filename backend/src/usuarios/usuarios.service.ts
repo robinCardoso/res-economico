@@ -5,7 +5,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../../core/prisma/prisma.service';
+import { PrismaService } from '../core/prisma/prisma.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { FilterUsuariosDto } from './dto/filter-usuarios.dto';
