@@ -22,7 +22,7 @@ async function aplicarMigrationResumo() {
     const checksum = 'a1b2c3d4e5f6'; // Checksum fictício, o Prisma vai gerar o correto
 
     // Verificar se já existe
-    const existing = await prisma.$queryRawUnsafe(
+    const existing: any[] = await prisma.$queryRawUnsafe(
       `SELECT migration_name FROM _prisma_migrations WHERE migration_name = $1`,
       migrationName,
     );

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { PrismaService } from '../../core/prisma/prisma.service';
+import { PrismaService } from '../core/prisma/prisma.service';
 import { CreateHistoricoAndamentoDto } from './dto/create-historico-andamento.dto';
 import { UpdateHistoricoAndamentoDto } from './dto/update-historico-andamento.dto';
 import { Prisma } from '@prisma/client';

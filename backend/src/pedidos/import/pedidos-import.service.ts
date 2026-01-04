@@ -1,5 +1,5 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../../core/prisma/prisma.service';
+import { PrismaService } from '../../core/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { ImportPedidosDto } from '../dto/import-pedidos.dto';
 import { ColumnMapperService } from './column-mapper.service';

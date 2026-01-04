@@ -1,7 +1,7 @@
 import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { SyncService } from './sync.service';
 import { SyncRequestDto, SyncResponseDto } from '../dto/sync-request.dto';
-import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { Request } from 'express';
 
 interface AuthenticatedRequest extends Request {

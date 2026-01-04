@@ -4,7 +4,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { PrismaService } from '../../core/prisma/prisma.service';
+import { PrismaService } from '../core/prisma/prisma.service';
 import { CreateModeloAtaDto } from './dto/create-modelo-ata.dto';
 import { UpdateModeloAtaDto } from './dto/update-modelo-ata.dto';
 import { FilterModeloAtaDto } from './dto/filter-modelo-ata.dto';

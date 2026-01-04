@@ -14,7 +14,7 @@ import { ProcessosService } from './processos.service';
 import { CreateProcessoDto } from './dto/create-processo.dto';
 import { UpdateProcessoDto } from './dto/update-processo.dto';
 import { FilterProcessosDto } from './dto/filter-processos.dto';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('processos')
 @UseGuards(JwtAuthGuard)

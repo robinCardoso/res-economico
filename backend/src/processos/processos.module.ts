@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ProcessosController } from './processos.controller';
 import { ProcessosService } from './processos.service';
-import { CoreModule } from '../../core/core.module';
+import { CoreModule } from '../core/core.module';
 
 @Module({
   imports: [CoreModule],

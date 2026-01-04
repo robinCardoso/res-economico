@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../core/prisma/prisma.service';
+import { PrismaService } from '../core/prisma/prisma.service';
 import { PedidosAnalyticsService } from './analytics/pedidos-analytics.service';
 
 export interface RecalcularDadosProdutoOptions {
@@ -64,10 +64,8 @@ export class PedidosUpdateService {
       // Buscar produto por referência com id_prod null (única combinação possível)
       produto = await this.prisma.produto.findUnique({
         where: {
-          referencia_id_prod: {
-            referencia: opcoes.referencia,
-            id_prod: null as any,
-          },
+          referencia: opcoes.referencia,
+          id_prod: null as any,
         },
         select: {
           id: true,

@@ -4,7 +4,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { PrismaService } from '../../core/prisma/prisma.service';
+import { PrismaService } from '../core/prisma/prisma.service';
 import { CreatePrazoAcaoDto } from './dto/create-prazo-acao.dto';
 import { UpdatePrazoAcaoDto } from './dto/update-prazo-acao.dto';
 import { Prisma, StatusPrazo } from '@prisma/client';

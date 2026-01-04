@@ -15,7 +15,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ResumosService } from './resumos.service';
 import { CreateResumoDto } from './dto/create-resumo.dto';
 import { UpdateResumoDto } from './dto/update-resumo.dto';

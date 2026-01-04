@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { PrismaService } from '../core/prisma/prisma.service';
+import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateVendaDto } from './dto/create-venda.dto';
 import { FilterVendasDto } from './dto/filter-vendas.dto';
 import { UpdateVendaDto } from './dto/update-venda.dto';

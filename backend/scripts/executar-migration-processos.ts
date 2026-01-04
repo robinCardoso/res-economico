@@ -59,7 +59,7 @@ async function executarMigration() {
     console.log('\nVerificando se as tabelas foram criadas...\n');
 
     // Verificar se as tabelas foram criadas
-    const tabelas = await prisma.$queryRawUnsafe(
+    const tabelas: any[] = await prisma.$queryRawUnsafe(
       `SELECT table_name 
       FROM information_schema.tables 
       WHERE table_schema = 'public' 
@@ -77,7 +77,7 @@ async function executarMigration() {
     }
 
     // Verificar enums
-    const enums = await prisma.$queryRawUnsafe(
+    const enums: any[] = await prisma.$queryRawUnsafe(
       `SELECT typname 
       FROM pg_type 
       WHERE typname IN ('TipoProcesso', 'SituacaoProcesso', 'CategoriaReclamacao', 'PrioridadeProcesso', 'TipoArquivoProcesso')

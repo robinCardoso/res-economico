@@ -3,7 +3,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { PrismaService } from '../../core/prisma/prisma.service';
+import { PrismaService } from '../core/prisma/prisma.service';
 import { CreateConfiguracaoModeloNegocioDto } from './dto/create-configuracao.dto';
 import { UpdateConfiguracaoModeloNegocioDto } from './dto/update-configuracao.dto';
 import { TestarConfiguracaoDto } from './dto/testar-configuracao.dto';

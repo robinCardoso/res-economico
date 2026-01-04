@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ResumosController } from './resumos.controller';
 import { ResumosService } from './resumos.service';
-import { CoreModule } from '../../core/core.module';
+import { CoreModule } from '../core/core.module';
 import { AiModule } from '../ai/ai.module';
 
 @Module({

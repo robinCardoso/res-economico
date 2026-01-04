@@ -50,7 +50,7 @@ export class UsuariosClientesService {
         usuarioId,
         nomeFantasia: dto.nomeFantasia,
         tipoCliente: dto.tipoCliente,
-        razaoSocial: (dto as any).razaoSocial,
+        // razaoSocial: (dto as any).razaoSocial // Campo não existe no schema,
         permissoes: dto.permissoes || {
           vendas: true,
           pedidos: true,

@@ -20,7 +20,7 @@ import {
   CancelSyncDto,
   ResumeSyncDto,
 } from '../dto/sync-status.dto';
-import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { Request } from 'express';
 
 interface AuthenticatedRequest extends Request {

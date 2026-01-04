@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { EmpresasService } from './empresas.service';
 import { EmpresaDeletionService } from './services/empresa-deletion.service';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
 import { DeleteEmpresaDto } from './dto/delete-empresa.dto';

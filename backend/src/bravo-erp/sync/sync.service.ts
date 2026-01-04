@@ -5,7 +5,7 @@ import {
   ConflictException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { PrismaService } from '../../../core/prisma/prisma.service';
+import { PrismaService } from '../../core/prisma/prisma.service';
 import { BravoErpClientV2Service } from '../client/bravo-erp-client-v2.service';
 import { SyncLockManager } from './sync-lock.manager';
 import { SyncLogService } from './sync-log.service';

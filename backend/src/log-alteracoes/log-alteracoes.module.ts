@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { LogAlteracoesService } from './log-alteracoes.service';
 import { LogAlteracoesController } from './log-alteracoes.controller';
-import { PrismaService } from '../../core/prisma/prisma.service';
+import { PrismaService } from '../core/prisma/prisma.service';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LogAlteracaoInterceptor } from './interceptors/log-alteracao.interceptor';
 

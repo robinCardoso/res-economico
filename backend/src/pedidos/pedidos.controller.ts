@@ -15,7 +15,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PedidosService } from './pedidos.service';
 import { PedidosImportService } from './import/pedidos-import.service';
 import { PedidosImportDeleteService } from './import/pedidos-import-delete.service';

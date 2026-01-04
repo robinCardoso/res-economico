@@ -4,7 +4,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { PrismaService } from '../../core/prisma/prisma.service';
+import { PrismaService } from '../core/prisma/prisma.service';
 import { CreateConfiguracaoEmailDto } from './dto/create-configuracao-email.dto';
 import { UpdateConfiguracaoEmailDto } from './dto/update-configuracao-email.dto';
 import { FilterLogsEmailDto } from './dto/filter-logs-email.dto';

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../../core/prisma/prisma.service';
+import { PrismaService } from '../../core/prisma/prisma.service';
 import { ProductTransformService } from './product-transform.service';
 import { SyncLogService } from './sync-log.service';
 import { BravoProduto } from '../client/bravo-erp-client.interface';

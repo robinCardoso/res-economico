@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BravoErpClientV2Service } from './bravo-erp-client-v2.service';
-import { CoreModule } from '../../../core/core.module';
+import { CoreModule } from '../../core/core.module';
 
 @Module({
   imports: [CoreModule],

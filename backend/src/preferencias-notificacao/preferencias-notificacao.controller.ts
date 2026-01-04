@@ -7,7 +7,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PreferenciasNotificacaoService } from './preferencias-notificacao.service';
 import { CreatePreferenciaNotificacaoDto } from './dto/create-preferencia-notificacao.dto';
 import { UpdatePreferenciaNotificacaoDto } from './dto/update-preferencia-notificacao.dto';

@@ -8,7 +8,7 @@ import { ProductTransformService } from './product-transform.service';
 import { SyncLockManager } from './sync-lock.manager';
 import { SyncController } from './sync.controller';
 import { SyncStatusController } from './sync-status.controller';
-import { CoreModule } from '../../../core/core.module';
+import { CoreModule } from '../../core/core.module';
 import { BravoErpClientModule } from '../client/client.module';
 import { VendasModule } from '../../../vendas/vendas.module';
 

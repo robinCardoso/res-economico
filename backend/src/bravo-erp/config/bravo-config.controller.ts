@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { BravoConfigService } from './bravo-config.service';
 import { CreateConfigDto, ConfigResponseDto } from '../dto/config.dto';
-import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { BravoErpClientV2Service } from '../client/bravo-erp-client-v2.service';
 
 @Controller('bravo-erp/config')

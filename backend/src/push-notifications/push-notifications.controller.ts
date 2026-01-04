@@ -7,9 +7,9 @@ import {
   Request,
   Get,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import { RolesGuard } from '../../auth/roles.guard';
-import { Roles } from '../../auth/roles.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { PushNotificationsService } from './push-notifications.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { SendNotificationDto } from './dto/send-notification.dto';

@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../../core/prisma/prisma.service';
+import { PrismaService } from '../core/prisma/prisma.service';
 import { CreatePedidoAnalyticsFilterDto } from './dto/create-pedido-analytics-filter.dto';
 import { Prisma } from '@prisma/client';
 

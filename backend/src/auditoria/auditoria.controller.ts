@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { AuditoriaLogService } from './auditoria.service';
 import { FilterAuditoriaDto } from './dto/filter-auditoria.dto';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('auditoria')
 @UseGuards(JwtAuthGuard)

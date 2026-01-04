@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { PrismaService } from '../../core/prisma/prisma.service';
-import { CacheService } from '../../core/cache/cache.service';
+import { PrismaService } from '../core/prisma/prisma.service';
+import { CacheService } from '../core/cache/cache.service';
 import type {
   RelatorioResultado,
   ContaRelatorio,

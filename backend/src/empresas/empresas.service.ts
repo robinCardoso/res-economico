@@ -3,8 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../../core/prisma/prisma.service';
-import { AuditoriaService } from '../../core/auditoria/auditoria.service';
+import { PrismaService } from '../core/prisma/prisma.service';
+import { AuditoriaService } from '../core/auditoria/auditoria.service';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
 import { Prisma } from '@prisma/client';

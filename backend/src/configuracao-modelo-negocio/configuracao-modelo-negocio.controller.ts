@@ -15,7 +15,7 @@ import { ConfiguracaoModeloNegocioService } from './configuracao-modelo-negocio.
 import { CreateConfiguracaoModeloNegocioDto } from './dto/create-configuracao.dto';
 import { UpdateConfiguracaoModeloNegocioDto } from './dto/update-configuracao.dto';
 import { TestarConfiguracaoDto } from './dto/testar-configuracao.dto';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('configuracao-modelo-negocio')
 @UseGuards(JwtAuthGuard)

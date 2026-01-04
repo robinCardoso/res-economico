@@ -13,7 +13,7 @@ import {
   MappingResponseDto,
   CampoMapeamentoDto,
 } from '../dto/mapping.dto';
-import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @Controller('bravo-erp')
 @UseGuards(JwtAuthGuard)

@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import { PrismaService } from '../../../core/prisma/prisma.service';
+import { PrismaService } from '../../core/prisma/prisma.service';
 import { CampoMapeamentoDto, CreateMappingDto } from '../dto/mapping.dto';
 import { BravoErpClientV2Service } from '../client/bravo-erp-client-v2.service';
 

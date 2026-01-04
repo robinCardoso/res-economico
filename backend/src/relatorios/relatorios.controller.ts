@@ -12,7 +12,7 @@ import {
   TipoComparacao,
   TipoValor,
 } from './dto/gerar-relatorio-comparativo.dto';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('relatorios')
 @UseGuards(JwtAuthGuard)

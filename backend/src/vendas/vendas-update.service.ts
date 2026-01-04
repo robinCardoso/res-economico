@@ -64,10 +64,8 @@ export class VendasUpdateService {
       // Buscar produto por referência com id_prod null (única combinação possível)
       produto = await this.prisma.produto.findUnique({
         where: {
-          referencia_id_prod: {
-            referencia: opcoes.referencia,
-            id_prod: null as any,
-          },
+          referencia: opcoes.referencia,
+          id_prod: null as any,
         },
         select: {
           id: true,

@@ -7,7 +7,7 @@ import {
   Body,
   ParseIntPipe,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PedidosAnalyticsService } from './pedidos-analytics.service';
 import { FilterAnalyticsDto } from './dto/filter-analytics.dto';
 

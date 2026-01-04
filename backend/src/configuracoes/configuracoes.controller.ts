@@ -10,9 +10,9 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import { RolesGuard } from '../../auth/roles.guard';
-import { Roles } from '../../auth/roles.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { ConfiguracoesService } from './configuracoes.service';
 import { CreateConfiguracaoEmailDto } from './dto/create-configuracao-email.dto';
 import { UpdateConfiguracaoEmailDto } from './dto/update-configuracao-email.dto';

@@ -8,7 +8,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { LogAlteracoesService } from './log-alteracoes.service';
 import { CreateLogDto } from './dto/create-log.dto';
 import { FilterLogsDto } from './dto/filter-logs.dto';

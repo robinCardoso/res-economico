@@ -10,7 +10,7 @@ import { PedidosUpdateService } from './pedidos-update.service';
 import { PedidosImportDeleteService } from './import/pedidos-import-delete.service';
 import { PedidosColumnMappingService } from './pedidos-column-mapping.service';
 import { PedidosAnalyticsFilterService } from './pedidos-analytics-filter.service';
-import { CoreModule } from '../../core/core.module';
+import { CoreModule } from '../core/core.module';
 
 @Module({
   imports: [CoreModule],

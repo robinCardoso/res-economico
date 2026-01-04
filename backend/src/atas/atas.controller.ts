@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AtasService } from './atas.service';
 import { ModeloAtaService } from './modelo-ata.service';
 import { CreateAtaDto } from './dto/create-ata.dto';

@@ -7,7 +7,7 @@ import { HistoricoAndamentoService } from './historico-andamento.service';
 import { PrazoAcaoService } from './prazo-acao.service';
 import { LembretePrazoService } from './lembrete-prazo.service';
 import { LembretePrazoScheduler } from './lembrete-prazo.scheduler';
-import { CoreModule } from '../../core/core.module';
+import { CoreModule } from '../core/core.module';
 import { ConfigModule } from '@nestjs/config';
 import { ConfiguracoesModule } from '../configuracoes/configuracoes.module';
 import { LogAlteracoesModule } from '../log-alteracoes/log-alteracoes.module';

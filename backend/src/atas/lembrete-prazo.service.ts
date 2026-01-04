@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../core/prisma/prisma.service';
+import { PrismaService } from '../core/prisma/prisma.service';
 import { PrazoAcaoService } from './prazo-acao.service';
 import { EmailService } from '../configuracoes/email.service';
 import { PreferenciasNotificacaoService } from '../preferencias-notificacao/preferencias-notificacao.service';
